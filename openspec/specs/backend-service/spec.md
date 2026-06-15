@@ -25,3 +25,59 @@ The change SHALL create a `backend/` Go module using Huma v2 with the chi adapte
 #### Scenario: Go module structure is conventional
 - **WHEN** `go vet ./...` and `go build ./...` are executed in `backend/`
 - **THEN** both commands exit zero without warnings or errors
+
+### Requirement: Backend SHALL initialize a Postgres connection pool at startup
+
+The backend SHALL read `DATABASE_URL` from the environment and create a `pgxpool.Pool` before registering HTTP handlers. If the pool cannot be created after a bounded retry window (default 30 seconds), the backend SHALL log a diagnostic message and exit with a non-zero status code. The pool SHALL be passed to a `PgStore` constructor and injected into handlers.
+
+#### Scenario: Backend starts successfully with valid DATABASE_URL
+- **WHEN** `DATABASE_URL` points to a reachable Postgres instance and the backend is started
+- **THEN** the backend creates a connection pool and starts serving HTTP on port 8080
+
+#### Scenario: Backend exits cleanly with unreachable database
+- **WHEN** `DATABASE_URL` points to an unreachable host
+- **THEN** the backend prints a diagnostic message and exits with a non-zero status
+
+### Requirement: Backend SHALL run goose migrations at startup
+
+The backend SHALL embed migration SQL files via `//go:embed` and run `goose.Up()` after establishing the connection pool but before registering HTTP handlers. Migration execution SHALL be gated by `DB_AUTO_MIGRATE` (default `true`). If migrations fail, the backend SHALL log the error and exit.
+
+#### Scenario: Migrations apply successfully on first run
+- **WHEN** the backend starts with `DB_AUTO_MIGRATE=true` against an empty database
+- **THEN** all migration files are applied and the backend proceeds to serve HTTP
+
+#### Scenario: Migrations are skipped when disabled
+- **WHEN** the backend starts with `DB_AUTO_MIGRATE=false`
+- **THEN** goose.Up() is not called and the backend proceeds to serve HTTP
+
+#### Scenario: Already-applied migrations are a no-op
+- **WHEN** the backend starts against a database where all migrations are already applied
+- **THEN** goose.Up() completes without errors and the backend proceeds normally
+
+### Requirement: Backend SHALL inject Store into handlers
+
+The `main()` function SHALL construct a `Store` implementation (either `PgStore` connected to the pool or the mock for testing) and pass it to `registerPlanningWindow` and `registerDashboardPeopleAvailability`. The `registerTasksBacklog` handler registration SHALL NOT require a `Store` parameter as it remains in-memory.
+
+#### Scenario: Handlers receive Store at registration
+- **WHEN** the backend starts normally
+- **THEN** the planning-window and dashboard handlers are registered with a non-nil Store
+
+#### Scenario: Tasks backlog handler does not require Store
+- **WHEN** the backend starts normally
+- **THEN** `registerTasksBacklog` is called without a Store parameter
+
+### Requirement: Existing backend behavior SHALL remain intact
+
+`GET /api/hello` SHALL continue to return `{"message": "Hello from the backend!"}`. CORS SHALL continue to allow `http://localhost:5173` and `http://frontend:5173`. The Dockerfile SHALL continue to build from `golang:1.26.2-alpine` and produce a working image. `go vet ./...` and `go build ./...` SHALL continue to pass.
+
+#### Scenario: Hello endpoint returns valid JSON
+- **WHEN** an HTTP client sends `GET /api/hello` to the running backend
+- **THEN** the response status is 200 and the body is `{"message": "Hello from the backend!"}` with `Content-Type: application/json`
+
+#### Scenario: OpenAPI specification is auto-generated
+- **WHEN** the backend is running
+- **THEN** `GET /openapi.json` returns a valid OpenAPI 3.1 specification document
+
+#### Scenario: Dockerfile builds and runs the backend
+- **WHEN** `docker build backend/` is executed using `golang:1.26.2-alpine`
+- **THEN** the resulting image starts the Go service and responds to `GET /api/hello` on port 8080

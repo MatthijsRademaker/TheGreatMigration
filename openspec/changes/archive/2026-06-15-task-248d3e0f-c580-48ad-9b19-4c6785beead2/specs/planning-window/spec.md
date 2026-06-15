@@ -6,9 +6,9 @@ Update the canonical `openspec/specs/planning-window/spec.md` to reflect the tra
 
 ## MODIFIED Requirements
 
-### Requirement: The planning window SHALL be served from a Postgres-backed query
+### Requirement: The planning window SHALL be defined by a backend endpoint as the canonical source of truth
 
-The requirement "The planning window SHALL be defined by a backend endpoint as the canonical source of truth" is modified: instead of being seeded with compile-time Go constants, the endpoint SHALL read the planning window from a `Store` interface backed by the `planning_windows` database table. The response contract (`startDate`, `endDate`, `days`) and all validation semantics SHALL remain unchanged. The default seed data SHALL preserve the canonical values (`startDate="2026-07-05"`, `endDate="2026-08-13"`, `days=40`).
+Instead of being seeded with compile-time Go constants, the endpoint SHALL read the planning window from a `Store` interface backed by the `planning_windows` database table. The response contract (`startDate`, `endDate`, `days`) and all validation semantics SHALL remain unchanged. The default seed data SHALL preserve the canonical values (`startDate="2026-07-05"`, `endDate="2026-08-13"`, `days=40`).
 
 #### Scenario: Endpoint returns the canonical planning window from DB
 - **WHEN** `GET /api/planning-window` is called and seed data is present
@@ -24,6 +24,8 @@ The requirement "The planning window SHALL be defined by a backend endpoint as t
 #### Scenario: Endpoint appears in OpenAPI specification
 - **WHEN** the backend is running
 - **THEN** `GET /openapi.json` includes the `/api/planning-window` endpoint with its response schema
+
+## ADDED Requirements
 
 ### Requirement: The Store interface SHALL be injected into the handler
 

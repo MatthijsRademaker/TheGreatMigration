@@ -65,24 +65,22 @@ Unit tests in `frontend/tests/planWindow.test.ts` SHALL validate the constants, 
 
 ### Requirement: The planning window SHALL be defined by a backend endpoint as the canonical source of truth
 
-The planning window SHALL be served by `GET /api/planning-window`, a backend endpoint registered via Huma v2 with `operationId: "get-planning-window"`. The endpoint SHALL accept no query parameters. The response body SHALL contain `startDate` (ISO 8601 date string), `endDate` (ISO 8601 date string), and `days` (inclusive count integer). The endpoint SHALL be seeded with compile-time Go constants defaulting to `startDate="2026-07-05"`, `endDate="2026-08-13"`, and `days=40`. The endpoint SHALL appear in the auto-generated `/openapi.json`.
+Instead of being seeded with compile-time Go constants, the endpoint SHALL read the planning window from a `Store` interface backed by the `planning_windows` database table. The response contract (`startDate`, `endDate`, `days`) and all validation semantics SHALL remain unchanged. The default seed data SHALL preserve the canonical values (`startDate="2026-07-05"`, `endDate="2026-08-13"`, `days=40`).
 
-#### Scenario: Endpoint returns the canonical planning window
-- **WHEN** `GET /api/planning-window` is called
+#### Scenario: Endpoint returns the canonical planning window from DB
+- **WHEN** `GET /api/planning-window` is called and seed data is present
 - **THEN** the response is 200 OK with `Content-Type: application/json`
-- **AND** the body contains `startDate`, `endDate`, and `days` fields
-- **AND** `startDate` is `"2026-07-05"` and `endDate` is `"2026-08-13"`
-- **AND** `days` equals 40
+- **AND** the body contains `startDate="2026-07-05"`, `endDate="2026-08-13"`, and `days=40`
+
+#### Scenario: Endpoint validates response contract
+- **WHEN** the endpoint is called
+- **THEN** `startDate` and `endDate` are valid ISO 8601 date strings
+- **AND** `startDate` lexicographically precedes `endDate`
+- **AND** `days` is a positive integer equal to the inclusive day count
 
 #### Scenario: Endpoint appears in OpenAPI specification
 - **WHEN** the backend is running
 - **THEN** `GET /openapi.json` includes the `/api/planning-window` endpoint with its response schema
-
-#### Scenario: Backend validates its own response contract
-- **WHEN** the endpoint is called
-- **THEN** `startDate` and `endDate` are valid ISO 8601 date strings (format `YYYY-MM-DD`)
-- **AND** `startDate` lexicographically precedes `endDate`
-- **AND** `days` is a positive integer equal to the inclusive day count between `startDate` and `endDate`
 
 ### Requirement: The frontend SHALL consume the planning window through a shared Pinia Colada composable
 
@@ -186,3 +184,15 @@ Frontend tests SHALL test the composable's success, loading, and error states by
 #### Scenario: Precommit checks pass
 - **WHEN** `scripts/precommit-run` is executed
 - **THEN** all lint, type-check, and test checks pass without errors
+
+### Requirement: The Store interface SHALL be injected into the handler
+
+The `registerPlanningWindow` function SHALL accept a `Store` parameter. The handler closure SHALL call `store.GetPlanningWindow(ctx)` to retrieve the planning window data instead of reading from compile-time constants `planWindowStart` and `planWindowEnd`. The handler SHALL return a `huma.Error500InternalServerError` if the Store call fails.
+
+#### Scenario: Handler delegates to Store on success
+- **WHEN** the handler is called and the Store returns planning window data
+- **THEN** the response body matches the Store's returned data
+
+#### Scenario: Handler returns error on Store failure
+- **WHEN** the handler is called and the Store returns an error
+- **THEN** the response is a 500 Internal Server Error

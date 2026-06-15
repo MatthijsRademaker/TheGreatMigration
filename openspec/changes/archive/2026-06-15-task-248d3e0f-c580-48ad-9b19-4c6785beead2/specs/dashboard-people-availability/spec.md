@@ -6,9 +6,9 @@ Update the canonical `openspec/specs/dashboard-people-availability/spec.md` to r
 
 ## MODIFIED Requirements
 
-### Requirement: The endpoint SHALL read from Postgres-backed queries
+### Requirement: First slice SHALL use in-memory seeded data
 
-The endpoint handler SHALL read people and availability data from a `Store` interface backed by a Postgres database via sqlc-generated queries. The requirement "First slice SHALL use in-memory seeded data" is replaced by this requirement. The endpoint SHALL accept the same query parameters (`start`, `days`), return the same response shape (`DashboardBody` with `range`, `summary`, `people`, `statuses`), and enforce the same validation semantics. The `availableToday` count, status legend, and four-status vocabulary SHALL remain unchanged.
+The endpoint handler SHALL read people and availability data from a `Store` interface backed by a Postgres database via sqlc-generated queries. The endpoint SHALL accept the same query parameters (`start`, `days`), return the same response shape (`DashboardBody` with `range`, `summary`, `people`, `statuses`), and enforce the same validation semantics. The `availableToday` count, status legend, and four-status vocabulary SHALL remain unchanged.
 
 #### Scenario: Endpoint returns DB-backed data matching the contract
 - **WHEN** `GET /api/dashboard/people-availability` is called with the default 4-day window and seed data is present in the database
@@ -28,6 +28,8 @@ The endpoint handler SHALL read people and availability data from a `Store` inte
 #### Scenario: Seed data exercises all four statuses
 - **WHEN** the endpoint is called
 - **THEN** across all people and dates in the response, the statuses `available`, `busy`, `partial`, and `off` each appear at least once
+
+## ADDED Requirements
 
 ### Requirement: The Store interface SHALL be injected into the handler
 
