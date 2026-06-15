@@ -16,6 +16,23 @@ type Availability struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type BacklogTask struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+	SortOrder    int32
+	CreatedAt    pgtype.Timestamptz
+}
+
+type BacklogTaskAssignment struct {
+	TaskID    string
+	PersonID  string
+	SortOrder int32
+}
+
 type Person struct {
 	ID        string
 	Name      string
@@ -29,4 +46,21 @@ type PlanningWindow struct {
 	EndDate   pgtype.Date
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type ScheduleTaskAssignment struct {
+	TaskCardID int32
+	PersonID   string
+	SortOrder  int32
+}
+
+type ScheduleTaskCard struct {
+	ID           int32
+	Title        string
+	Priority     string
+	RoomArea     string
+	PeopleNeeded int32
+	DayGroup     int32
+	SortOrder    int32
+	CreatedAt    pgtype.Timestamptz
 }

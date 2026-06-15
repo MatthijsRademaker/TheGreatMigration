@@ -94,7 +94,7 @@ var taskStatusLegend = []TaskStatusLegend{
 
 // ---------- Handler ----------
 
-func registerTasksBacklog(api huma.API) {
+func registerTasksBacklog(api huma.API, store Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-tasks-backlog",
 		Method:      http.MethodGet,
@@ -104,34 +104,13 @@ func registerTasksBacklog(api huma.API) {
 			"The endpoint serves as the read-only source of truth for backlog task data used by the dashboard and /tasks route.",
 		Tags: []string{"Tasks"},
 	}, func(ctx context.Context, input *TaskBacklogInput) (*TaskBacklogOutput, error) {
-		total := len(seedTasks)
-		highPriority := 0
-		unassigned := 0
-		understaffed := 0
-
-		for _, t := range seedTasks {
-			if t.Priority == "high" {
-				highPriority++
-			}
-			if len(t.AssignedTo) == 0 {
-				unassigned++
-			} else if len(t.AssignedTo) < t.PeopleNeeded {
-				understaffed++
-			}
+		body, err := store.GetTaskBacklog(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to retrieve task backlog", err)
 		}
 
 		return &TaskBacklogOutput{
-			Body: TaskBacklogBody{
-				Summary: TaskSummary{
-					TotalTasks:        total,
-					HighPriorityTasks: highPriority,
-					UnassignedTasks:   unassigned,
-					UnderstaffedTasks: understaffed,
-				},
-				Tasks:      seedTasks,
-				Priorities: priorityLegend,
-				Statuses:   taskStatusLegend,
-			},
+			Body: *body,
 		}, nil
 	})
 }
