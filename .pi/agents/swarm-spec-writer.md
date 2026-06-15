@@ -10,7 +10,7 @@ systemPromptMode: append
 swarm:
     enabled: true
     runtime: task_reactive
-modelModerate: openai-codex/gpt-5.4
+modelModerate: deepseek/deepseek-v4-flash
 ---
 
 # Spec-Writer — Task Specification Specialist

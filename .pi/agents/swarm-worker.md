@@ -1,15 +1,15 @@
 ---
 name: swarm-worker
 description: Generalist software engineer
-model: deepseek/deepseek-v4-pro
+model: deepseek/deepseek-v4-flash
 thinking: high
 tools:
-  dev: [report_work_outcome]
+    dev: [report_work_outcome]
 skills: ccc, tdd, github-cli, swarm-board, openspec-apply-change, openspec-archive-change
 systemPromptMode: append
 swarm:
-  enabled: true
-  runtime: task_reactive
+    enabled: true
+    runtime: task_reactive
 ---
 
 # Worker — Generalist Software Engineer
