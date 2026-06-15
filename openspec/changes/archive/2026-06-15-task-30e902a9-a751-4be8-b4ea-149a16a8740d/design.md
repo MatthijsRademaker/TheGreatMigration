@@ -40,7 +40,7 @@ The frontend communicates with the backend using a Vite dev proxy in local dev a
 
 ### 4. Backend technology stack
 
-The backend is a Go module at `backend/go.mod` with module path `github.com/user/the-great-migration/backend`. It uses Huma v2 (`github.com/danielgtaylor/huma/v2`) with the chi adapter (`github.com/danielgtaylor/huma/v2/adapters/humago` and `github.com/go-chi/chi/v5`) for HTTP routing. The server exposes:
+The backend is a Go module at `backend/go.mod` with module path `github.com/user/the-great-migration/backend`. It uses Huma v2 (`github.com/danielgtaylor/huma/v2`) with the chi adapter (`github.com/danielgtaylor/huma/v2/adapters/humachi` and `github.com/go-chi/chi/v5`) for HTTP routing. The server exposes:
 
 - `GET /api/hello` returning `{"message": "Hello from the backend!"}`
 - `GET /openapi.json` serving the auto-generated OpenAPI 3.1 specification
@@ -82,7 +82,7 @@ The hello-world response replaces the first summary card in `HomeView.vue` ("Hig
 - **Compose profile**: Resolved to dev-mode only (volume mounts, Vite dev server, no production builds). A production profile can be added in a future change.
 - **Verification execution order**: Resolved to sequential (frontend, then backend) for simplicity and clarity of failure reporting.
 - **OpenAPI exposure**: Resolved to exposing `/openapi.json` from the backend since Huma generates it for free and it satisfies the auto-generation requirement.
-- **Huma router adapter**: Resolved to chi (`humago` + `go-chi/chi/v5`) as the standard choice for Huma v2 HTTP services.
+- **Huma router adapter**: Resolved to chi (`humachi` + `go-chi/chi/v5`) as the standard choice for Huma v2 HTTP services.
 
 ## Traceability
 

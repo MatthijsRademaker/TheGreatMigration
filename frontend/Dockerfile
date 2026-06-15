@@ -2,7 +2,7 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-COPY package.json bun.lock* skills-lock.json* ./
+COPY package.json skills-lock.json* ./
 RUN npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps
 
 COPY . .
