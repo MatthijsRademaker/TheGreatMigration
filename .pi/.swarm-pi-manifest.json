@@ -30,10 +30,6 @@
       "sourceHash": "5fe6e0674e959c07abc5582a96a90dfe7df872d7fe1effbc264a8fd83dcc8a8b",
       "installedHash": "5fe6e0674e959c07abc5582a96a90dfe7df872d7fe1effbc264a8fd83dcc8a8b"
     },
-    "config/agents.yaml": {
-      "sourceHash": "b21482dc79d8cc68730df5f1dcb8f4b8bd2572eff71ba1c13b5eb0d81a3f97ea",
-      "installedHash": "b21482dc79d8cc68730df5f1dcb8f4b8bd2572eff71ba1c13b5eb0d81a3f97ea"
-    },
     "config/providers.yaml": {
       "sourceHash": "8117480ce973566498f0e554b1a194ca40ca6581f65f4baf6368bb6ed6d4ae36",
       "installedHash": "8117480ce973566498f0e554b1a194ca40ca6581f65f4baf6368bb6ed6d4ae36"
