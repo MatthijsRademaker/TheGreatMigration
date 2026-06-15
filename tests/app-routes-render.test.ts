@@ -29,7 +29,7 @@ describe("application route rendering", () => {
 		expect(html).toContain("Planning mode");
 		expect(html).toContain("Dashboard");
 		expect(html).toContain("Tasks");
-		expect(html).toContain("Calendar");
+		expect(html).toContain("Schedule");
 		expect(html).toContain("People");
 		expect(html).toContain("Moving dashboard");
 		expect(html).toContain("Today’s plan");
