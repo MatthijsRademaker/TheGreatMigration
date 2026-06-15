@@ -10,6 +10,9 @@ systemPromptMode: append
 swarm:
     enabled: true
     runtime: task_reactive
+modelEasy: deepseek/deepseek-v4-pro
+modelModerate: openai-codex/gpt-5.4
+modelComplex: openai-codex/gpt-5.5
 ---
 
 # Product Owner — Product Strategy Specialist

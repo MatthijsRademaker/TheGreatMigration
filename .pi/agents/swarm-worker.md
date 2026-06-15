@@ -11,6 +11,7 @@ swarm:
     enabled: true
     runtime: task_reactive
 modelModerate: deepseek/deepseek-v4-pro
+modelComplex: openai-codex/gpt-5.4
 ---
 
 # Worker — Generalist Software Engineer
