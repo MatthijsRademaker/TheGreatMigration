@@ -3,6 +3,9 @@ import { Badge } from '@/shared/ui/badge'
 import { Avatar } from '@/shared/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 
+/** Badge variants used for availability status legend entries. */
+type StatusVariant = 'available' | 'busy' | 'partial' | 'off'
+
 export interface PersonAvailabilityEntry {
   date: string
   status: 'available' | 'busy' | 'partial' | 'off'
@@ -18,7 +21,6 @@ export interface PersonAvailability {
 export interface StatusLegendItem {
   id: string
   label: string
-  colorIntent: string
 }
 
 export interface PeopleAvailabilityProps {
@@ -82,10 +84,10 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
     },
   ],
   legend: () => [
-    { id: 'available', label: 'Available', colorIntent: 'success' },
-    { id: 'busy', label: 'Busy', colorIntent: 'destructive' },
-    { id: 'partial', label: 'Partial', colorIntent: 'warning' },
-    { id: 'off', label: 'Off', colorIntent: 'muted' },
+    { id: 'available', label: 'Available' },
+    { id: 'busy', label: 'Busy' },
+    { id: 'partial', label: 'Partial' },
+    { id: 'off', label: 'Off' },
   ],
   availableToday: 2,
   totalPeople: 4,
@@ -151,7 +153,7 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
           <Badge
             v-for="item in legend"
             :key="item.id"
-            :variant="item.id as 'available' | 'busy' | 'partial' | 'off'"
+            :variant="item.id as StatusVariant"
           >
             {{ item.label }}
           </Badge>
