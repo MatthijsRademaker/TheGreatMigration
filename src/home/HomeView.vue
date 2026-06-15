@@ -26,9 +26,6 @@ const upcomingWork = [
 
 <template>
   <section class="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-    <div class="bg-muted/40 rounded-lg border p-4 border-l-4 border-primary text-sm">
-      👋 Hello world — swarm pipeline test
-    </div>
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <Card v-for="summary in summaries" :key="summary.label">
