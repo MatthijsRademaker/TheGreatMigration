@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { CalendarDaysIcon, ClipboardListIcon, HomeIcon, NotebookTabsIcon, UsersRoundIcon } from '@lucide/vue'
+import { CalendarDaysIcon, ClipboardListIcon, ComponentIcon, HomeIcon, NotebookTabsIcon, UsersRoundIcon } from '@lucide/vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   Sidebar,
@@ -85,6 +85,24 @@ function isActive(path: string) {
           <div class="rounded-lg border bg-sidebar-accent/60 p-3 text-xs leading-5 text-sidebar-foreground/80">
             Keep the plan practical: what needs doing, who is available, and which jobs need more hands.
           </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarSeparator />
+
+      <SidebarGroup>
+        <SidebarGroupLabel>Developer</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton :is-active="isActive('/showcase')" tooltip="Component showcase" as-child>
+                <RouterLink to="/showcase">
+                  <ComponentIcon />
+                  <span>Component showcase</span>
+                </RouterLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
     </SidebarContent>
