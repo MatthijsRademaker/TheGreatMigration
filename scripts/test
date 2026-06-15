@@ -9,6 +9,8 @@ WORKSPACE="$(verification_workspace_root)"
 export TMPDIR="${TMPDIR:-$WORKSPACE/.cache/tmp}"
 mkdir -p "$TMPDIR"
 
+# --- Frontend tests ---
+echo "[scripts/test] Running frontend tests..."
 verification_reset
 verification_workdir "$WORKSPACE"
 verification_add_arg -v "$WORKSPACE:$WORKSPACE"
@@ -17,5 +19,24 @@ verification_add_env npm_config_update_notifier=false
 verification_add_env npm_config_package_lock=false
 verification_add_env npm_config_legacy_peer_deps=true
 
-verification_run_container "$NODE24_IMAGE" \
-  sh -c 'if node -e "process.exit(require(\"./package.json\").scripts?.test ? 0 : 1)"; then npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps && npm test; else echo "[scripts/test] No npm test script configured; skipping project tests."; fi'
+if ! verification_run_container "$NODE24_IMAGE" \
+  sh -c 'cd frontend && if node -e "process.exit(require(\"./package.json\").scripts?.test ? 0 : 1)"; then npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps && npm test; else echo "[scripts/test] No npm test script configured; skipping frontend tests."; fi'; then
+  echo "[scripts/test] Frontend tests FAILED" >&2
+  exit 1
+fi
+echo "[scripts/test] Frontend tests passed."
+
+# --- Backend tests ---
+echo "[scripts/test] Running backend tests..."
+verification_reset
+verification_workdir "$WORKSPACE"
+verification_add_arg -v "$WORKSPACE:$WORKSPACE"
+
+if ! verification_run_container "$GO_IMAGE" \
+  sh -c 'export GOCACHE="/workspace/.cache/go-cache" && export GOPATH="/workspace/.cache/go" && cd backend && go mod tidy && go test ./...'; then
+  echo "[scripts/test] Backend tests FAILED" >&2
+  exit 1
+fi
+echo "[scripts/test] Backend tests passed."
+
+echo "[scripts/test] All tests passed."
