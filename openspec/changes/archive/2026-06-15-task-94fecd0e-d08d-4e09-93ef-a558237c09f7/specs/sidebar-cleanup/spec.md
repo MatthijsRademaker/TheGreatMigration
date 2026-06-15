@@ -3,7 +3,7 @@
 ## Purpose
 Define the cleaned navigation structure of the application sidebar (AppSidebar) after removal of onboarding-era developer artifacts. The sidebar SHALL present only product-aligned navigation items matching `designs/design-system.png`: Dashboard, Tasks, Schedule, and People, with footer copy reflecting the product brand.
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Sidebar contains only product navigation items
 
@@ -60,7 +60,7 @@ The sidebar SHALL continue to function with its existing dependencies on Sheet a
 - **WHEN** the sidebar is collapsed to icon-only mode
 - **THEN** hovering a collapsed sidebar navigation item displays a tooltip with the item label
 
-## REMOVED Requirements
+## ADDED Requirements
 
 ### Requirement: Developer section is absent
 

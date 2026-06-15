@@ -14,11 +14,13 @@ This document is the authoritative repository design contract for Design System 
 
 This change does **not** include:
 
-- compositions from `designs/components.png`
+- full dashboard compositions from `designs/components.png`
 - new reusable Vue component directories
 - new domain component directories
 - dashboard implementation work beyond the existing primitives and semantic-token foundation
 - a new SVG or logo asset
+
+**Note:** `designs/design-system.png` governs navigation and layout decisions; the composition exclusion from `designs/components.png` applies only to full dashboard compositions, not to layout/navigation source-of-truth decisions.
 
 ## Palette
 

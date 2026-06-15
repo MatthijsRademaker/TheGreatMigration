@@ -1,4 +1,8 @@
-# component-showcase Specification
+# component-showcase Specification [SUPERSEDED]
+
+**Superseded by:** `openspec/changes/task-94fecd0e-d08d-4e09-93ef-a558237c09f7/specs/component-showcase-retirement/spec.md`
+
+**Reason:** The developer-facing component showcase surface has been removed as part of onboarding artifact cleanup. The `/showcase` route, Developer sidebar section, and component catalog page no longer exist in the product UI. The original implementation is archived at `openspec/changes/archive/2026-06-15-task-c7c555d5-94d9-4d1a-a31d-dc42fe95651c/`.
 
 ## Purpose
 Provide a developer-facing component catalog at `/showcase` that renders live examples of all reusable `shared/ui` components, grouped by category, as a lightweight alternative to external documentation tooling. The showcase serves as the canonical visual inventory for the design system.

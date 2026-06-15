@@ -37,14 +37,4 @@ export const routes = [
 			description: "Track who is available and where each person can help.",
 		},
 	},
-	{
-		path: "/showcase",
-		name: "showcase",
-		component: () => import("@/showcase/ShowcaseView.vue"),
-		meta: {
-			title: "Component showcase",
-			description:
-				"Developer preview of reusable UI components and patterns.",
-		},
-	},
 ];
