@@ -21,6 +21,13 @@
  * For future reactive plan-window state, a Vue composable can wrap this module
  * without changing consumer code.
  *
+ * ## Evaluation strategy
+ * `planWindowDays` and `planWindowDayCount` are evaluated eagerly at module
+ * import time. This keeps consumer code simple (no optional chaining, no
+ * async), but means changing the window requires a rebuild. If runtime
+ * reconfiguration becomes necessary, the eagerly-evaluated constants can be
+ * replaced with lazy getters without affecting consumer code.
+ *
  * ## Future PeopleView integration
  * PeopleView currently uses weekday availability strings ("Mon, Wed, Fri", …)
  * that represent availability *patterns*, not specific dates. When real
@@ -53,8 +60,16 @@ export interface PlanWindowDay {
 }
 
 function generatePlanWindowDays(): PlanWindowDay[] {
-	const start = new Date(PLAN_WINDOW_START + "T00:00:00");
-	const end = new Date(PLAN_WINDOW_END + "T00:00:00");
+	// Date-only ISO strings parse as UTC midnight per ECMAScript spec,
+	// ensuring deterministic dateString values regardless of runtime timezone.
+	const start = new Date(PLAN_WINDOW_START);
+	const end = new Date(PLAN_WINDOW_END);
+
+	if (start >= end) {
+		throw new Error(
+			`planWindow: PLAN_WINDOW_START (${PLAN_WINDOW_START}) must precede PLAN_WINDOW_END (${PLAN_WINDOW_END})`,
+		);
+	}
 	const days: PlanWindowDay[] = [];
 
 	const cursor = new Date(start);
