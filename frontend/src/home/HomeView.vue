@@ -3,9 +3,9 @@ import { useQuery } from '@pinia/colada'
 import { computed } from 'vue'
 import { CalendarDaysIcon, ClipboardCheckIcon, MapPinnedIcon, UsersRoundIcon } from '@lucide/vue'
 import { getHelloQuery } from '@/client/@pinia/colada.gen'
+import { usePlanningWindow } from '@/shared/composables/usePlanningWindow'
 import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
-import { planWindowDayCount } from '@/shared/lib/planWindow'
 
 type SummaryCard = {
   label: string
@@ -17,13 +17,18 @@ type SummaryCard = {
 const summaries: SummaryCard[] = [
   { label: 'Available today', value: '6', description: 'Helpers with confirmed availability', icon: UsersRoundIcon },
   { label: 'Under-staffed', value: '3', description: 'Tasks needing more people assigned', icon: MapPinnedIcon },
-  { label: 'Move days', value: String(planWindowDayCount), description: 'Scheduled working days in the plan', icon: CalendarDaysIcon },
 ]
 
 const helloQuery = useQuery(getHelloQuery())
 const helloMessage = computed(() => helloQuery.data.value?.message ?? '')
 const helloLoading = computed(() => helloQuery.isPending.value)
 const helloError = computed(() => helloQuery.error.value != null)
+
+const {
+  planWindowDayCount,
+  isLoading: moveDaysLoading,
+  isError: moveDaysError,
+} = usePlanningWindow()
 
 const upcomingWork = [
   'Pack kitchen essentials and label fragile boxes',
@@ -67,6 +72,25 @@ const upcomingWork = [
         </CardHeader>
         <CardContent>
           <p class="text-sm text-muted-foreground">{{ summary.description }}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader class="flex flex-row items-start justify-between gap-3">
+          <div class="flex flex-col gap-1">
+            <CardDescription>Move days</CardDescription>
+            <CardTitle class="text-3xl">
+              <span v-if="moveDaysLoading" class="text-muted-foreground">Loading…</span>
+              <span v-else-if="moveDaysError" class="text-destructive">Backend unavailable</span>
+              <span v-else>{{ planWindowDayCount }}</span>
+            </CardTitle>
+          </div>
+          <div class="flex size-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+            <CalendarDaysIcon />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p class="text-sm text-muted-foreground">Scheduled working days in the plan</p>
         </CardContent>
       </Card>
     </div>
