@@ -1,8 +1,8 @@
 ## 1. Dependency Setup
 
-- [ ] 1.1 Add `@internationalized/date` as explicit dependency in `frontend/package.json`
-- [ ] 1.2 Run `bun install` to lock the new dependency
-- [ ] 1.3 Verify `vue-tsc --noEmit` passes after dependency addition
+- [x] 1.1 Add `@internationalized/date` as explicit dependency in `frontend/package.json`
+- [x] 1.2 Run `bun install` to lock the new dependency
+- [x] 1.3 Verify `vue-tsc --noEmit` passes after dependency addition
 
 ## 2. Reka-Backed Primitives
 
