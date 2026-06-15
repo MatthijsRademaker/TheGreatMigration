@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func newTestAPI() (chi.Router, huma.API) {
+func newTestAPI(store Store) (chi.Router, huma.API) {
 	router := chi.NewMux()
 	config := huma.DefaultConfig("Test API", "1.0.0")
 	api := humachi.New(router, config)
@@ -27,14 +27,15 @@ func newTestAPI() (chi.Router, huma.API) {
 		return resp, nil
 	})
 
-	registerDashboardPeopleAvailability(api)
-	registerPlanningWindow(api)
+	registerDashboardPeopleAvailability(api, store)
+	registerPlanningWindow(api, store)
+	registerTasksBacklog(api)
 
 	return router, api
 }
 
 func TestHelloEndpoint(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/hello", nil)
 	rec := httptest.NewRecorder()
@@ -60,7 +61,7 @@ func TestHelloEndpoint(t *testing.T) {
 }
 
 func TestDashboardPeopleAvailability(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
 	rec := httptest.NewRecorder()
@@ -160,7 +161,7 @@ func TestDashboardPeopleAvailability(t *testing.T) {
 }
 
 func TestPlanningWindowEndpoint(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/planning-window", nil)
 	rec := httptest.NewRecorder()
@@ -193,5 +194,134 @@ func TestPlanningWindowEndpoint(t *testing.T) {
 	// Verify startDate lexicographically precedes endDate.
 	if body.StartDate >= body.EndDate {
 		t.Fatalf("expected startDate < endDate, got startDate=%q endDate=%q", body.StartDate, body.EndDate)
+	}
+}
+
+func TestTaskBacklog(t *testing.T) {
+	router, api := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	// Happy path: 200 OK and JSON content-type.
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", contentType)
+	}
+
+	var body TaskBacklogBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	// Top-level fields present.
+	if len(body.Tasks) == 0 {
+		t.Fatal("tasks array is empty")
+	}
+	if len(body.Priorities) == 0 {
+		t.Fatal("priorities array is empty")
+	}
+	if len(body.Statuses) == 0 {
+		t.Fatal("statuses array is empty")
+	}
+
+	// Summary count consistency.
+	if body.Summary.TotalTasks != len(body.Tasks) {
+		t.Fatalf("summary.totalTasks=%d != len(tasks)=%d", body.Summary.TotalTasks, len(body.Tasks))
+	}
+
+	highCount := 0
+	unassignedCount := 0
+	understaffedCount := 0
+	for _, t := range body.Tasks {
+		if t.Priority == "high" {
+			highCount++
+		}
+		if len(t.AssignedTo) == 0 {
+			unassignedCount++
+		} else if len(t.AssignedTo) < t.PeopleNeeded {
+			understaffedCount++
+		}
+	}
+	if body.Summary.HighPriorityTasks != highCount {
+		t.Fatalf("summary.highPriorityTasks=%d != actual high count=%d", body.Summary.HighPriorityTasks, highCount)
+	}
+	if body.Summary.UnassignedTasks != unassignedCount {
+		t.Fatalf("summary.unassignedTasks=%d != actual unassigned count=%d", body.Summary.UnassignedTasks, unassignedCount)
+	}
+	if body.Summary.UnderstaffedTasks != understaffedCount {
+		t.Fatalf("summary.understaffedTasks=%d != actual understaffed count=%d", body.Summary.UnderstaffedTasks, understaffedCount)
+	}
+
+	// Canonical priority values in legend.
+	priorityIDs := map[string]bool{}
+	for _, p := range body.Priorities {
+		priorityIDs[p.ID] = true
+	}
+	expectedPriorities := []string{"high", "medium", "low"}
+	for _, id := range expectedPriorities {
+		if !priorityIDs[id] {
+			t.Fatalf("priorities legend missing %q", id)
+		}
+	}
+
+	// Canonical status values in legend.
+	statusIDs := map[string]bool{}
+	for _, s := range body.Statuses {
+		statusIDs[s.ID] = true
+	}
+	expectedStatuses := []string{"backlog", "ready", "assigned"}
+	for _, id := range expectedStatuses {
+		if !statusIDs[id] {
+			t.Fatalf("statuses legend missing %q", id)
+		}
+	}
+
+	// Validate all priority and status values across tasks are canonical.
+	for _, task := range body.Tasks {
+		if !priorityIDs[task.Priority] {
+			t.Fatalf("task %s has non-canonical priority %q", task.ID, task.Priority)
+		}
+		if !statusIDs[task.Status] {
+			t.Fatalf("task %s has non-canonical status %q", task.ID, task.Status)
+		}
+		if task.ID == "" {
+			t.Fatal("task has empty id")
+		}
+		if task.Title == "" {
+			t.Fatalf("task %s has empty title", task.ID)
+		}
+		if task.Room == "" {
+			t.Fatalf("task %s has empty room", task.ID)
+		}
+		if task.PeopleNeeded < 1 {
+			t.Fatalf("task %s has peopleNeeded=%d, expected >= 1", task.ID, task.PeopleNeeded)
+		}
+	}
+
+	// Verify at least 10 tasks.
+	if len(body.Tasks) < 10 {
+		t.Fatalf("expected at least 10 tasks, got %d", len(body.Tasks))
+	}
+
+	// Verify OpenAPI includes the new path.
+	openapiBytes, err := json.Marshal(api.OpenAPI())
+	if err != nil {
+		t.Fatalf("failed to marshal OpenAPI: %v", err)
+	}
+	var openapi map[string]interface{}
+	if err := json.Unmarshal(openapiBytes, &openapi); err != nil {
+		t.Fatalf("failed to unmarshal OpenAPI: %v", err)
+	}
+	paths, ok := openapi["paths"].(map[string]interface{})
+	if !ok {
+		t.Fatal("OpenAPI spec missing paths")
+	}
+	if _, exists := paths["/api/tasks/backlog"]; !exists {
+		t.Fatal("OpenAPI paths missing /api/tasks/backlog")
 	}
 }

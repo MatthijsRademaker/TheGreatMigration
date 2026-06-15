@@ -104,7 +104,7 @@ var statusLegend = []StatusLegend{
 
 // ---------- Handler ----------
 
-func registerDashboardPeopleAvailability(api huma.API) {
+func registerDashboardPeopleAvailability(api huma.API, store Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-dashboard-people-availability",
 		Method:      http.MethodGet,
@@ -130,55 +130,13 @@ func registerDashboardPeopleAvailability(api huma.API) {
 
 		days := input.Days
 
-		// Build the range.
-		endDate := startDate.AddDate(0, 0, days-1)
-
-		// Build per-person availability.
-		people := make([]Person, len(seedPeople))
-		for i, sp := range seedPeople {
-			avail := make([]AvailabilityEntry, days)
-			for d := 0; d < days; d++ {
-				date := startDate.AddDate(0, 0, d)
-				avail[d] = AvailabilityEntry{
-					Date:   date.Format("2006-01-02"),
-					Status: sp.Status(d),
-				}
-			}
-			people[i] = Person{
-				ID:           sp.Id,
-				Name:         sp.Name,
-				Initials:     sp.Initials,
-				Availability: avail,
-			}
-		}
-
-		// Compute summary.
-		selectedDate := startDate.Format("2006-01-02")
-		availableToday := 0
-		for _, p := range people {
-			for _, e := range p.Availability {
-				if e.Date == selectedDate && e.Status == "available" {
-					availableToday++
-					break
-				}
-			}
+		body, err := store.GetPeopleAvailability(ctx, startDate, days)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to retrieve availability data", err)
 		}
 
 		return &DashboardOutput{
-			Body: DashboardBody{
-				Range: Range{
-					StartDate:    startDate.Format("2006-01-02"),
-					EndDate:      endDate.Format("2006-01-02"),
-					Days:         days,
-					SelectedDate: selectedDate,
-				},
-				Summary: Summary{
-					AvailableToday: availableToday,
-					TotalPeople:    len(people),
-				},
-				People:   people,
-				Statuses: statusLegend,
-			},
+			Body: *body,
 		}, nil
 	})
 
