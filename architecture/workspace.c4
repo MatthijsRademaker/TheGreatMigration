@@ -1,0 +1,205 @@
+specification {
+  tag designFoundation
+  tag feature
+  tag data
+
+  element person {
+    notation "Person"
+    style {
+      shape person
+      color muted
+    }
+  }
+
+  element softwareSystem {
+    notation "Software System"
+    style {
+      color primary
+    }
+  }
+
+  element container {
+    notation "Container"
+    style {
+      shape browser
+      color secondary
+    }
+  }
+
+  element component {
+    notation "Component"
+    style {
+      shape component
+    }
+  }
+
+  element featureArea {
+    #feature
+    notation "Feature Area"
+    style {
+      shape component
+      color indigo
+    }
+  }
+
+  element planningData {
+    #data
+    notation "Planning Data"
+    style {
+      shape storage
+      color slate
+    }
+  }
+
+  relationship supports
+  relationship summarizes
+}
+
+model {
+  household = person "Household planner" {
+    description "Person coordinating practical move work without needing heavyweight project management."
+  }
+
+  migration = softwareSystem "The Great Migration" {
+    summary "A lightweight house move planner for tasks, helpers, schedule, and visible next steps."
+    description """
+      A calm planning app focused on what needs doing, who is available, which work is scheduled,
+      and where staffing gaps need attention.
+    """
+
+    spa = container "Vue single-page app" {
+      technology "Vue 3, Vue Router, Tailwind CSS, shadcn-vue"
+      description "Browser application that hosts the shared shell and routed planning feature areas."
+
+      shell = component "Shared app shell" {
+        #designFoundation
+        description "Provides sidebar navigation, page titles, descriptions, layout, and common visual structure."
+      }
+
+      router = component "Vue Router" {
+        #designFoundation
+        description "Maps the top-level routes to the dashboard, tasks, calendar, and people views."
+      }
+
+      ui = component "Shared UI components" {
+        #designFoundation
+        description "Reusable cards, badges, separators, sidebar primitives, and visual patterns."
+      }
+
+      dashboard = featureArea "Dashboard" {
+        description "Command center showing high-priority work, available helpers, under-staffed tasks, move days, and move notes."
+      }
+
+      tasks = featureArea "Tasks" {
+        description "Task backlog foundation for priority, status, room, staffing needs, and assignment behavior."
+      }
+
+      calendar = featureArea "Calendar" {
+        description "Schedule board foundation for day columns, task blocks, helper counts, and staffing warnings."
+      }
+
+      people = featureArea "People" {
+        description "People availability foundation for helpers, day-level availability, and assignment visibility."
+      }
+
+      taskData = planningData "Task planning data" {
+        description "Move jobs with priority, status, room, staffing needs, and assignments."
+      }
+
+      peopleData = planningData "People availability data" {
+        description "Helpers and day-level availability used when planning assignments."
+      }
+
+      scheduleData = planningData "Schedule planning data" {
+        description "Move days, scheduled task blocks, helper counts, and staffing warnings."
+      }
+    }
+  }
+
+  household -> migration "Plans the house move with"
+  household -> migration.spa "Uses in the browser"
+
+  migration.spa.shell -[supports]-> migration.spa.router "Hosts routed pages"
+  migration.spa.router -[supports]-> migration.spa.dashboard "Routes /"
+  migration.spa.router -[supports]-> migration.spa.tasks "Routes /tasks"
+  migration.spa.router -[supports]-> migration.spa.calendar "Routes /calendar"
+  migration.spa.router -[supports]-> migration.spa.people "Routes /people"
+
+  migration.spa.dashboard -> migration.spa.ui "Renders calm summary cards and notes with"
+  migration.spa.tasks -> migration.spa.ui "Renders backlog status cards with"
+  migration.spa.calendar -> migration.spa.ui "Renders day columns and staffing badges with"
+  migration.spa.people -> migration.spa.ui "Renders helper availability cards with"
+
+  migration.spa.tasks -> migration.spa.taskData "Captures and organizes"
+  migration.spa.people -> migration.spa.peopleData "Captures and organizes"
+  migration.spa.calendar -> migration.spa.scheduleData "Plans move days in"
+  migration.spa.calendar -> migration.spa.taskData "Places ready tasks from"
+  migration.spa.calendar -> migration.spa.peopleData "Checks helper availability from"
+
+  migration.spa.dashboard -[summarizes]-> migration.spa.taskData "High priority and under-staffed work"
+  migration.spa.dashboard -[summarizes]-> migration.spa.peopleData "Available helpers"
+  migration.spa.dashboard -[summarizes]-> migration.spa.scheduleData "Move days and next practical steps"
+
+  migration.spa.tasks -[supports]-> migration.spa.calendar "Supplies ready work for scheduling"
+  migration.spa.people -[supports]-> migration.spa.calendar "Supplies availability for assignments"
+  migration.spa.calendar -[supports]-> migration.spa.dashboard "Publishes schedule state and staffing gaps"
+}
+
+views {
+  view system-context {
+    title "System context"
+    description "Who uses The Great Migration and the outcome the app is responsible for."
+
+    include household
+    include migration
+    include household -> migration
+
+    autoLayout LeftRight
+  }
+
+  view container-overview of migration {
+    title "Container overview"
+    description "The current product is a Vue SPA with shared shell, routing, UI primitives, and feature areas."
+
+    include *
+    include migration.spa.*
+    include household
+    include household -> migration.spa
+
+    autoLayout LeftRight
+  }
+
+  view feature-map of migration.spa {
+    title "Feature map"
+    description "How the app features map to each other and preserve the lightweight planning design."
+
+    include *
+
+    style migration.spa.dashboard {
+      color green
+    }
+
+    style migration.spa.tasks, migration.spa.calendar, migration.spa.people {
+      color indigo
+    }
+
+    style migration.spa.taskData, migration.spa.peopleData, migration.spa.scheduleData {
+      color slate
+    }
+
+    autoLayout LeftRight
+  }
+
+  dynamic view planning-flow {
+    title "Planning flow"
+    description "A representative flow from task capture through scheduling to dashboard visibility."
+
+    household -> migration.spa.tasks "Capture or reprioritize move work"
+    migration.spa.tasks -> migration.spa.taskData "Update priority, status, room, and staffing needs"
+    migration.spa.tasks -> migration.spa.calendar "Mark work ready for scheduling"
+    migration.spa.calendar -> migration.spa.peopleData "Check helper availability"
+    migration.spa.calendar -> migration.spa.scheduleData "Place task on a move day"
+    migration.spa.calendar -> migration.spa.dashboard "Expose schedule status and staffing gaps"
+    household <- migration.spa.dashboard "Review next practical steps"
+  }
+}
