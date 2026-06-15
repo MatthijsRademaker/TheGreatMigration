@@ -3,16 +3,8 @@ package main
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-)
-
-// ---------- Seed data ----------
-
-const (
-	planWindowStart = "2026-07-05"
-	planWindowEnd   = "2026-08-13"
 )
 
 // ---------- Request / Response types ----------
@@ -34,7 +26,7 @@ type PlanningWindowBody struct {
 
 // ---------- Handler ----------
 
-func registerPlanningWindow(api huma.API) {
+func registerPlanningWindow(api huma.API, store Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-planning-window",
 		Method:      http.MethodGet,
@@ -45,19 +37,13 @@ func registerPlanningWindow(api huma.API) {
 			"All date-dependent views derive their rendered content from this contract.",
 		Tags: []string{"Planning"},
 	}, func(ctx context.Context, input *PlanningWindowInput) (*PlanningWindowOutput, error) {
-		// planWindowStart and planWindowEnd are compile-time constants in the exact
-		// "2006-01-02" layout, so time.Parse always succeeds. Errors are discarded
-		// safely — the parsed values are only used to compute the inclusive day count.
-		startDate, _ := time.Parse("2006-01-02", planWindowStart)
-		endDate, _ := time.Parse("2006-01-02", planWindowEnd)
-		days := int(endDate.Sub(startDate).Hours()/24) + 1
+		body, err := store.GetPlanningWindow(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to retrieve planning window", err)
+		}
 
 		return &PlanningWindowOutput{
-			Body: PlanningWindowBody{
-				StartDate: planWindowStart,
-				EndDate:   planWindowEnd,
-				Days:      days,
-			},
+			Body: *body,
 		}, nil
 	})
 }

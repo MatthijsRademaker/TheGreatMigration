@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/.versions"
+source "$ROOT/scripts/lib/docker-verification.sh"
+
+WORKSPACE="$(verification_workspace_root)"
+
+# Start a disposable Postgres sidecar via the project's verification harness.
+echo "[scripts/test-integration] Starting Postgres sidecar..."
+verification_start_postgres_sidecar
+trap verification_cleanup_postgres_sidecar EXIT
+
+DATABASE_URL="$(verification_postgres_sidecar_url)"
+echo "[scripts/test-integration] Postgres sidecar ready: DATABASE_URL=$DATABASE_URL"
+
+# Run the Go integration tests inside a Docker container attached to the sidecar network.
+echo "[scripts/test-integration] Running backend integration tests..."
+verification_reset
+verification_workdir "$WORKSPACE"
+verification_add_arg -v "$WORKSPACE:$WORKSPACE"
+verification_add_arg --network "$VERIFY_POSTGRES_NETWORK_NAME"
+verification_add_env "DATABASE_URL=$DATABASE_URL"
+
+if ! verification_run_container "$GO_IMAGE" \
+  sh -c 'export GOCACHE="/workspace/.cache/go-cache" && export GOPATH="/workspace/.cache/go" && cd backend && go test -tags=integration -count=1 ./...'; then
+  echo "[scripts/test-integration] Backend integration tests FAILED" >&2
+  exit 1
+fi
+
+echo "[scripts/test-integration] Integration tests passed."

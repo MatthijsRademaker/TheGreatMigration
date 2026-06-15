@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func newTestAPI() (chi.Router, huma.API) {
+func newTestAPI(store Store) (chi.Router, huma.API) {
 	router := chi.NewMux()
 	config := huma.DefaultConfig("Test API", "1.0.0")
 	api := humachi.New(router, config)
@@ -27,15 +27,15 @@ func newTestAPI() (chi.Router, huma.API) {
 		return resp, nil
 	})
 
-	registerDashboardPeopleAvailability(api)
-	registerPlanningWindow(api)
+	registerDashboardPeopleAvailability(api, store)
+	registerPlanningWindow(api, store)
 	registerTasksBacklog(api)
 
 	return router, api
 }
 
 func TestHelloEndpoint(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/hello", nil)
 	rec := httptest.NewRecorder()
@@ -61,7 +61,7 @@ func TestHelloEndpoint(t *testing.T) {
 }
 
 func TestDashboardPeopleAvailability(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
 	rec := httptest.NewRecorder()
@@ -161,7 +161,7 @@ func TestDashboardPeopleAvailability(t *testing.T) {
 }
 
 func TestPlanningWindowEndpoint(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/planning-window", nil)
 	rec := httptest.NewRecorder()
@@ -198,7 +198,7 @@ func TestPlanningWindowEndpoint(t *testing.T) {
 }
 
 func TestTaskBacklog(t *testing.T) {
-	router, api := newTestAPI()
+	router, api := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
 	rec := httptest.NewRecorder()
