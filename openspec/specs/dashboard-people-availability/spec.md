@@ -1,5 +1,8 @@
-## ADDED Requirements
+# dashboard-people-availability Specification
 
+## Purpose
+TBD - created by archiving change task-7ea46653-dc77-4474-b5e1-3579c35ebc0b. Update Purpose after archive.
+## Requirements
 ### Requirement: Backend SHALL expose a Huma-registered endpoint for homepage people availability
 
 The backend SHALL register `GET /api/dashboard/people-availability` via Huma v2, making it appear in the auto-generated `/openapi.json`. The endpoint SHALL accept optional query parameters `start` (ISO 8601 date string, YYYY-MM-DD) and `days` (positive integer). If omitted, `start` SHALL default to the server-local current date and `days` SHALL default to 4. The `days` parameter SHALL include the start date (i.e., `days=4` returns the start date plus the next 3 dates).
