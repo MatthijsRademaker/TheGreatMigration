@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -13,6 +14,8 @@ import (
 type Store interface {
 	GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error)
 	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)
+	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
+	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
 }
 
 // PgStore implements Store backed by a pgx connection pool and sqlc queries.
@@ -130,6 +133,175 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 		},
 		People:   people,
 		Statuses: statusLegend,
+	}, nil
+}
+
+// GetTaskBacklog returns the full task backlog response from the database.
+func (s *PgStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+	taskRows, err := s.queries.GetTaskBacklog(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	assignmentRows, err := s.queries.GetTaskBacklogAssignments(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	assignMap := make(map[string][]string)
+	for _, a := range assignmentRows {
+		assignMap[a.TaskID] = append(assignMap[a.TaskID], a.PersonID)
+	}
+
+	tasks := make([]TaskRow, len(taskRows))
+	for i, tr := range taskRows {
+		assigned := assignMap[tr.ID]
+		if assigned == nil {
+			assigned = []string{}
+		}
+		tasks[i] = TaskRow{
+			ID:           tr.ID,
+			Title:        tr.Title,
+			Priority:     tr.Priority,
+			PeopleNeeded: int(tr.PeopleNeeded),
+			Room:         tr.Room,
+			Status:       tr.Status,
+			AssignedTo:   assigned,
+		}
+	}
+
+	total := len(tasks)
+	highPriority := 0
+	unassigned := 0
+	understaffed := 0
+	for _, t := range tasks {
+		if t.Priority == "high" {
+			highPriority++
+		}
+		if len(t.AssignedTo) == 0 {
+			unassigned++
+		} else if len(t.AssignedTo) < t.PeopleNeeded {
+			understaffed++
+		}
+	}
+
+	return &TaskBacklogBody{
+		Summary: TaskSummary{
+			TotalTasks:        total,
+			HighPriorityTasks: highPriority,
+			UnassignedTasks:   unassigned,
+			UnderstaffedTasks: understaffed,
+		},
+		Tasks:      tasks,
+		Priorities: priorityLegend,
+		Statuses:   taskStatusLegend,
+	}, nil
+}
+
+// GetDailySchedule returns the full daily schedule response from the database.
+func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+	peopleRows, err := s.queries.GetAllPeople(ctx)
+	if err != nil {
+		return nil, err
+	}
+	peopleMap := make(map[string]db.Person)
+	for _, p := range peopleRows {
+		peopleMap[p.ID] = p
+	}
+
+	cardRows, err := s.queries.GetDailyScheduleTaskCards(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	assignmentRows, err := s.queries.GetDailyScheduleAssignments(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	assignMap := make(map[int32][]string)
+	for _, a := range assignmentRows {
+		assignMap[a.TaskCardID] = append(assignMap[a.TaskCardID], a.PersonID)
+	}
+
+	// Fetch available counts per date.
+	availCountRows, err := s.queries.GetAvailableCountByDate(ctx, db.GetAvailableCountByDateParams{
+		StartDate: pgtype.Date{Time: startDate, Valid: true},
+		Days:      int32(days),
+	})
+	if err != nil {
+		return nil, err
+	}
+	availCountMap := make(map[string]int)
+	for _, ac := range availCountRows {
+		if ac.Date.Valid {
+			availCountMap[ac.Date.Time.Format("2006-01-02")] = int(ac.AvailableCount)
+		}
+	}
+
+	// Group cards by day_group for modulo-based lookup.
+	groupCards := make(map[int32][]db.ScheduleTaskCard)
+	for _, cr := range cardRows {
+		groupCards[cr.DayGroup] = append(groupCards[cr.DayGroup], cr)
+	}
+
+	endDate := startDate.AddDate(0, 0, days-1)
+
+	scheduleDays := make([]ScheduleDay, days)
+	for d := 0; d < days; d++ {
+		date := startDate.AddDate(0, 0, d)
+		dateStr := date.Format("2006-01-02")
+
+		dayGroup := int32(d % len(groupCards))
+		cards := groupCards[dayGroup]
+
+		tasks := make([]TaskCard, 0, len(cards))
+		for _, cr := range cards {
+			assigneeIDs := assignMap[cr.ID]
+			assignedPeople := make([]AssignedPerson, 0, len(assigneeIDs))
+			for _, pid := range assigneeIDs {
+				if p, ok := peopleMap[pid]; ok {
+					assignedPeople = append(assignedPeople, AssignedPerson{
+						ID:       p.ID,
+						Name:     p.Name,
+						Initials: p.Initials,
+					})
+				}
+			}
+			assignedCount := len(assignedPeople)
+			staffingStatus := "underStaffed"
+			if assignedCount == int(cr.PeopleNeeded) {
+				staffingStatus = "fullyStaffed"
+			}
+			tasks = append(tasks, TaskCard{
+				ID:             fmt.Sprintf("task-d%d-%d", d, cr.SortOrder),
+				Title:          cr.Title,
+				Priority:       cr.Priority,
+				RoomArea:       cr.RoomArea,
+				AssignedPeople: assignedPeople,
+				PeopleNeeded:   int(cr.PeopleNeeded),
+				AssignedCount:  assignedCount,
+				StaffingStatus: staffingStatus,
+			})
+		}
+
+		availableCount := availCountMap[dateStr]
+
+		scheduleDays[d] = ScheduleDay{
+			Date:                 dateStr,
+			Label:                formatDayLabel(date),
+			AvailablePeopleCount: availableCount,
+			Tasks:                tasks,
+		}
+	}
+
+	return &DailyScheduleBody{
+		Range: ScheduleRange{
+			StartDate: startDate.Format("2006-01-02"),
+			EndDate:   endDate.Format("2006-01-02"),
+			Days:      days,
+		},
+		Days: scheduleDays,
 	}, nil
 }
 

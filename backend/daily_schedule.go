@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -140,7 +139,7 @@ func countAvailableForDay(dayOffset int) int {
 
 // ---------- Handler ----------
 
-func registerDailySchedule(api huma.API) {
+func registerDailySchedule(api huma.API, store Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-dashboard-daily-schedule",
 		Method:      http.MethodGet,
@@ -161,67 +160,22 @@ func registerDailySchedule(api huma.API) {
 				return nil, huma.Error400BadRequest("start must be a valid ISO 8601 date (YYYY-MM-DD)")
 			}
 		} else {
-			startDate, _ = time.Parse("2006-01-02", planWindowStart)
+			pw, err := store.GetPlanningWindow(ctx)
+			if err != nil {
+				return nil, huma.Error500InternalServerError("failed to retrieve planning window for default start", err)
+			}
+			startDate, _ = time.Parse("2006-01-02", pw.StartDate)
 		}
 
 		days := input.Days
-		endDate := startDate.AddDate(0, 0, days-1)
 
-		// Build per-day schedule entries.
-		scheduleDays := make([]ScheduleDay, days)
-		for d := 0; d < days; d++ {
-			date := startDate.AddDate(0, 0, d)
-			dateStr := date.Format("2006-01-02")
-
-			// Available people count from seedPeople availability.
-			availableCount := countAvailableForDay(d)
-
-			// Build task cards from seed templates for this day offset.
-			templates := seedTasksForDay(d)
-			tasks := make([]TaskCard, len(templates))
-			for ti, tmpl := range templates {
-				assignees := make([]AssignedPerson, 0, len(tmpl.assigneeIds))
-				for _, pid := range tmpl.assigneeIds {
-					if p, ok := findPersonByID(pid); ok {
-						assignees = append(assignees, p)
-					}
-				}
-				assignedCount := len(assignees)
-
-				staffingStatus := "underStaffed"
-				if assignedCount == tmpl.peopleNeeded {
-					staffingStatus = "fullyStaffed"
-				}
-
-				tasks[ti] = TaskCard{
-					ID:             fmt.Sprintf("task-d%d-%d", d, ti),
-					Title:          tmpl.title,
-					Priority:       tmpl.priority,
-					RoomArea:       tmpl.roomArea,
-					AssignedPeople: assignees,
-					PeopleNeeded:   tmpl.peopleNeeded,
-					AssignedCount:  assignedCount,
-					StaffingStatus: staffingStatus,
-				}
-			}
-
-			scheduleDays[d] = ScheduleDay{
-				Date:                 dateStr,
-				Label:                formatDayLabel(date),
-				AvailablePeopleCount: availableCount,
-				Tasks:                tasks,
-			}
+		body, err := store.GetDailySchedule(ctx, startDate, days)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to retrieve daily schedule", err)
 		}
 
 		return &DailyScheduleOutput{
-			Body: DailyScheduleBody{
-				Range: ScheduleRange{
-					StartDate: startDate.Format("2006-01-02"),
-					EndDate:   endDate.Format("2006-01-02"),
-					Days:      days,
-				},
-				Days: scheduleDays,
-			},
+			Body: *body,
 		}, nil
 	})
 }

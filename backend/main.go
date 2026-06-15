@@ -112,10 +112,10 @@ func main() {
 	registerPlanningWindow(api, store)
 
 	// Register GET /api/tasks/backlog.
-	registerTasksBacklog(api)
+	registerTasksBacklog(api, store)
 
 	// Register GET /api/dashboard/daily-schedule.
-	registerDailySchedule(api)
+	registerDailySchedule(api, store)
 
 	fmt.Println("Backend listening on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {

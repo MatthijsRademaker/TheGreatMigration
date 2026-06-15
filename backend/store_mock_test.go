@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -59,6 +60,92 @@ func newMockStore() *mockStore {
 
 func (m *mockStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
 	return m.planningWindow, nil
+}
+
+func (m *mockStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+	total := len(seedTasks)
+	highPriority := 0
+	unassigned := 0
+	understaffed := 0
+
+	for _, t := range seedTasks {
+		if t.Priority == "high" {
+			highPriority++
+		}
+		if len(t.AssignedTo) == 0 {
+			unassigned++
+		} else if len(t.AssignedTo) < t.PeopleNeeded {
+			understaffed++
+		}
+	}
+
+	return &TaskBacklogBody{
+		Summary: TaskSummary{
+			TotalTasks:        total,
+			HighPriorityTasks: highPriority,
+			UnassignedTasks:   unassigned,
+			UnderstaffedTasks: understaffed,
+		},
+		Tasks:      seedTasks,
+		Priorities: priorityLegend,
+		Statuses:   taskStatusLegend,
+	}, nil
+}
+
+func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+	endDate := startDate.AddDate(0, 0, days-1)
+
+	scheduleDays := make([]ScheduleDay, days)
+	for d := 0; d < days; d++ {
+		date := startDate.AddDate(0, 0, d)
+		dateStr := date.Format("2006-01-02")
+
+		availableCount := countAvailableForDay(d)
+
+		templates := seedTasksForDay(d)
+		tasks := make([]TaskCard, len(templates))
+		for ti, tmpl := range templates {
+			assignees := make([]AssignedPerson, 0, len(tmpl.assigneeIds))
+			for _, pid := range tmpl.assigneeIds {
+				if p, ok := findPersonByID(pid); ok {
+					assignees = append(assignees, p)
+				}
+			}
+			assignedCount := len(assignees)
+
+			staffingStatus := "underStaffed"
+			if assignedCount == tmpl.peopleNeeded {
+				staffingStatus = "fullyStaffed"
+			}
+
+			tasks[ti] = TaskCard{
+				ID:             fmt.Sprintf("task-d%d-%d", d, ti),
+				Title:          tmpl.title,
+				Priority:       tmpl.priority,
+				RoomArea:       tmpl.roomArea,
+				AssignedPeople: assignees,
+				PeopleNeeded:   tmpl.peopleNeeded,
+				AssignedCount:  assignedCount,
+				StaffingStatus: staffingStatus,
+			}
+		}
+
+		scheduleDays[d] = ScheduleDay{
+			Date:                 dateStr,
+			Label:                formatDayLabel(date),
+			AvailablePeopleCount: availableCount,
+			Tasks:                tasks,
+		}
+	}
+
+	return &DailyScheduleBody{
+		Range: ScheduleRange{
+			StartDate: startDate.Format("2006-01-02"),
+			EndDate:   endDate.Format("2006-01-02"),
+			Days:      days,
+		},
+		Days: scheduleDays,
+	}, nil
 }
 
 func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {

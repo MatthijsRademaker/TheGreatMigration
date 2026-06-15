@@ -1,19 +1,10 @@
-# backend-persistence Specification
+# backend-persistence Specification (Delta)
 
 ## Purpose
-TBD - created by archiving change task-248d3e0f-c580-48ad-9b19-4c6785beead2. Update Purpose after archive.
-## Requirements
-### Requirement: Backend SHALL depend on pgx, sqlc, and goose for database access
 
-The backend Go module SHALL add dependencies on `github.com/jackc/pgx/v5` (for connection pooling), `github.com/sqlc-dev/sqlc` (for type-safe query generation tooling), and `github.com/pressly/goose/v3` (for schema migrations). The `sqlc` CLI SHALL NOT be required at Docker build time; generated Go code SHALL be committed to the repository.
+Extend the existing Postgres persistence layer so the remaining read endpoints (`GET /api/tasks/backlog` and `GET /api/dashboard/daily-schedule`) use the same pgx/sqlc/goose/Store foundation already used by planning window and people availability.
 
-#### Scenario: Go module includes persistence dependencies
-- **WHEN** `go mod tidy` runs in `backend/`
-- **THEN** the module graph includes `pgx/v5`, `sqlc`, and `goose/v3` as direct or indirect dependencies
-
-#### Scenario: Generated sqlc code is committed
-- **WHEN** `go build ./...` runs in `backend/` without `sqlc` installed
-- **THEN** the build succeeds because all sqlc-generated `.go` files are present in the repository
+## MODIFIED Requirements
 
 ### Requirement: Goose migrations SHALL create the persistence schema
 
@@ -36,30 +27,6 @@ The new migrations SHALL enforce the existing canonical vocabularies at the data
 - **THEN** the backlog task read model contains the same 11 seeded tasks and assignment variety currently defined in `backend/tasks.go`
 - **AND** the schedule read model contains the deterministic seeded task-card groups and assignments needed to reproduce the current default four-day schedule behavior
 
-### Requirement: Backend SHALL embed and run migrations at startup
-
-The backend SHALL use Go's `//go:embed` directive to bundle migration `.sql` files into the binary. The backend SHALL call `goose.Up()` with the embedded filesystem before starting the HTTP server. Migration execution SHALL be gated by the `DB_AUTO_MIGRATE` environment variable, defaulting to `"true"`. If `DB_AUTO_MIGRATE` is `"false"`, the backend SHALL skip migrations and proceed directly to serving.
-
-#### Scenario: Migrations run at startup by default
-- **WHEN** the backend starts with `DB_AUTO_MIGRATE` unset and `DATABASE_URL` pointing to an empty Postgres database
-- **THEN** the backend applies all pending goose migrations before the HTTP server begins accepting connections
-
-#### Scenario: Migrations can be skipped via env var
-- **WHEN** the backend starts with `DB_AUTO_MIGRATE=false` and `DATABASE_URL` pointing to an already-migrated Postgres database
-- **THEN** the backend skips goose migration execution and starts serving HTTP immediately
-
-### Requirement: Backend SHALL connect to Postgres via a single DATABASE_URL env var
-
-The backend SHALL read the `DATABASE_URL` environment variable as the sole database connectivity configuration. The value SHALL be a standard Postgres connection URI (`postgres://user:pass@host:port/dbname?...`). The backend SHALL use `pgxpool.ParseConfig` to create a connection pool. If `DATABASE_URL` is empty or the pool cannot be created after a configurable retry window, the backend SHALL exit with a clear error message.
-
-#### Scenario: Backend connects with a valid DATABASE_URL
-- **WHEN** `DATABASE_URL` is set to a reachable Postgres instance
-- **THEN** the backend creates a `pgxpool.Pool` and proceeds through startup
-
-#### Scenario: Backend exits on unreachable database
-- **WHEN** `DATABASE_URL` points to a non-existent or unreachable host
-- **THEN** the backend retries for a bounded period and exits with a diagnostic message if the pool cannot be established
-
 ### Requirement: Backend SHALL define a Store interface for data access
 
 The `Store` interface in `backend/store.go` SHALL include:
@@ -77,18 +44,6 @@ The `Store` interface in `backend/store.go` SHALL include:
 #### Scenario: MockStore satisfies the expanded Store interface
 - **WHEN** `MockStore` is compiled
 - **THEN** it implements all methods of the expanded `Store` interface without compilation errors
-
-### Requirement: sqlc SHALL generate type-safe query code from SQL files
-
-A `backend/sqlc.yaml` configuration SHALL define the Postgres engine, schema file paths, query file paths, and Go output directory (`backend/db/`). Query `.sql` files under `backend/queries/` SHALL contain named SQL queries (e.g., `-- name: GetPlanningWindow :one`) that sqlc uses to generate Go functions. The generated Go code SHALL be committed to the repository.
-
-#### Scenario: sqlc configuration is valid
-- **WHEN** `sqlc generate` runs with the committed `sqlc.yaml`
-- **THEN** it produces Go files under `backend/db/` without errors
-
-#### Scenario: Generated code compiles
-- **WHEN** `go build ./...` runs in `backend/`
-- **THEN** the sqlc-generated code compiles without errors
 
 ### Requirement: Backend handlers SHALL read from the Store interface
 

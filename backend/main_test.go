@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,8 +31,8 @@ func newTestAPI(store Store) (chi.Router, huma.API) {
 
 	registerDashboardPeopleAvailability(api, store)
 	registerPlanningWindow(api, store)
-	registerTasksBacklog(api)
-	registerDailySchedule(api)
+	registerTasksBacklog(api, store)
+	registerDailySchedule(api, store)
 
 	return router, api
 }
@@ -584,4 +585,90 @@ func TestDailyScheduleDeterministic(t *testing.T) {
 	if rec1.Body.String() != rec2.Body.String() {
 		t.Fatal("identical requests produced different responses")
 	}
+}
+
+// ---------- Failure-mode tests ----------
+
+// failingStore always returns an error for every Store method.
+type failingStore struct{}
+
+func (f *failingStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+	return nil, errTestFailure
+}
+
+// errTestFailure is a sentinel error used by failingStore.
+var errTestFailure = errors.New("test-induced store failure")
+
+func TestTaskBacklogStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDailyScheduleStoreGetPlanningWindowFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	// No start param -> handler calls store.GetPlanningWindow which fails.
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDailyScheduleStoreGetDailyScheduleFailure(t *testing.T) {
+	// Create a store that returns a planning window but fails on GetDailySchedule.
+	store := &partialFailingStore{}
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// partialFailingStore succeeds on GetPlanningWindow but fails on GetDailySchedule.
+type partialFailingStore struct{}
+
+func (f *partialFailingStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
+	return &PlanningWindowBody{
+		StartDate: "2026-07-05",
+		EndDate:   "2026-08-13",
+		Days:      40,
+	}, nil
+}
+
+func (f *partialFailingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+	return nil, errTestFailure
 }
