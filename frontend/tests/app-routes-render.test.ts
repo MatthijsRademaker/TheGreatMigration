@@ -108,9 +108,9 @@ describe("application route rendering", () => {
 			expect(html).toContain(content);
 
 			if (path === "/calendar") {
-				// Each day column carries the min-h-36 class.
+				// Each success day column carries data-testid="plan-day-column".
 				// Count occurrences to verify we render the mocked planning-window day count.
-				const columnMatches = html.match(/min-h-36/g);
+				const columnMatches = html.match(/data-testid="plan-day-column"/g);
 				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
 			}
 		});

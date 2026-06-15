@@ -45,6 +45,9 @@ func registerPlanningWindow(api huma.API) {
 			"All date-dependent views derive their rendered content from this contract.",
 		Tags: []string{"Planning"},
 	}, func(ctx context.Context, input *PlanningWindowInput) (*PlanningWindowOutput, error) {
+		// planWindowStart and planWindowEnd are compile-time constants in the exact
+		// "2006-01-02" layout, so time.Parse always succeeds. Errors are discarded
+		// safely — the parsed values are only used to compute the inclusive day count.
 		startDate, _ := time.Parse("2006-01-02", planWindowStart)
 		endDate, _ := time.Parse("2006-01-02", planWindowEnd)
 		days := int(endDate.Sub(startDate).Hours()/24) + 1

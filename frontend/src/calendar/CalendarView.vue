@@ -32,6 +32,7 @@ const { planWindowDays, isLoading, isError } = usePlanningWindow()
           <div
             v-for="planDay in planWindowDays"
             :key="planDay.dateString"
+            data-testid="plan-day-column"
             class="flex min-h-36 flex-col gap-3 rounded-lg border bg-muted/40 p-4"
           >
             <div class="flex items-center justify-between gap-2">
