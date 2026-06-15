@@ -1,7 +1,7 @@
 # design-system-v2 Specification
 
 ## Purpose
-TBD - created by archiving change task-d4bea095-01e4-4497-a936-7a11c593ff80. Update Purpose after archive.
+Provide a text-only Design System v2 contract and semantic theme foundation that future UI work can implement without inspecting image assets.
 ## Requirements
 ### Requirement: Design System v2 SHALL publish a text-only repository contract
 The change SHALL add `docs/design-system-v2.md` as the authoritative repository design contract for Design System v2. The document MUST let a text-only implementer reproduce the visual foundation without opening any image file. It MUST include the documented brand direction, the exact palette values (`#1E6B3E`, `#2F8F57`, `#66B88A`, `#E6F3EA`, `#F3FAF5`, `#111827`, `#6B7280`, `#E5E7EB`, `#FFFFFF`, `#F7FAF8`, `#EF4444`, `#F59E0B`, `#22C55E`, `#3882F6`), the full Inter typography scale (`32px/600/-0.5px`, `20px/600/-0.2px`, `16px/600`, `14px/400`, `12px/400`, `12px/500/0.5px`), control treatments, navigation states, priority and availability semantics, avatar/person-chip guidance, spacing rhythm, radius hierarchy, shadow levels, and 12-column layout guidance.
