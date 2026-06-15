@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { describe, expect, it } from "vitest";
 import App from "../src/app/App.vue";
 import { routes } from "../src/app/routes";
+import { planWindowDayCount } from "../src/shared/lib/planWindow";
 
 async function renderRoute(path: string) {
 	const router = createRouter({
@@ -71,6 +72,13 @@ describe("application route rendering", () => {
 			expect(html).toContain(title);
 			expect(html).toContain(description);
 			expect(html).toContain(content);
+
+			if (path === "/calendar") {
+				// Each day column carries the min-h-36 class.
+				// Count occurrences to verify we render planWindowDayCount columns.
+				const columnMatches = html.match(/min-h-36/g);
+				expect(columnMatches?.length).toBe(planWindowDayCount);
+			}
 		});
 	}
 });

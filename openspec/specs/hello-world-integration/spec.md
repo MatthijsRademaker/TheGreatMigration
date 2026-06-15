@@ -4,7 +4,8 @@
 TBD - created by archiving change task-30e902a9-a751-4be8-b4ea-149a16a8740d. Update Purpose after archive.
 ## Requirements
 ### Requirement: The HomeView SHALL display a hello-world message fetched from the backend at runtime
-The change SHALL replace the first static summary card in `frontend/src/home/HomeView.vue` (currently "High priority / 4") with a live fetch to `GET /api/hello`. The card SHALL display the returned `message` field from the response. The remaining three summary cards and the "Today's plan" / "Move notes" sections SHALL be preserved unchanged.
+
+The change SHALL replace the first static summary card in `frontend/src/home/HomeView.vue` (currently "High priority / 4") with a live fetch to `GET /api/hello`. The card SHALL display the returned `message` field from the response. The remaining summary cards ("Available today" and "Under-staffed") and the "Today's plan" / "Move notes" sections SHALL be preserved unchanged. The "Move days" summary card SHALL derive its value from the planning window rather than a static constant.
 
 #### Scenario: Hello message replaces static card content
 - **WHEN** the frontend loads with a reachable backend
@@ -20,4 +21,8 @@ The change SHALL replace the first static summary card in `frontend/src/home/Hom
 
 #### Scenario: Other HomeView sections are preserved
 - **WHEN** the HomeView renders after the hello-world integration
-- **THEN** the three remaining summary cards ("Available today", "Under-staffed", "Move days"), the "Today's plan" section, and the "Move notes" section continue to render with their existing static content
+- **THEN** the two static summary cards ("Available today" with value `"6"`, "Under-staffed" with value `"3"`), the "Today's plan" section, and the "Move notes" section continue to render with their existing static content
+
+#### Scenario: Move days card derives from the planning window
+- **WHEN** the HomeView renders after the planning-window integration
+- **THEN** the "Move days" summary card displays a value derived from the shared planning window's `planWindowDayCount` rather than a static `"5"`
