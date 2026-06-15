@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { planWindowDays } from '@/shared/lib/planWindow'
+import { usePlanningWindow } from '@/shared/composables/usePlanningWindow'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+
+const { planWindowDays, isLoading, isError } = usePlanningWindow()
 </script>
 
 <template>
@@ -11,8 +13,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
         <CardDescription>Calendar work will live here as day columns, task blocks, and staffing warnings.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-          <div v-for="planDay in planWindowDays" :key="planDay.dateString" class="flex min-h-36 flex-col gap-3 rounded-lg border bg-muted/40 p-4">
+        <!-- Loading skeleton -->
+        <div v-if="isLoading" class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
+          <div
+            v-for="n in 7"
+            :key="n"
+            class="min-h-36 rounded-lg border bg-muted/40 p-4 animate-pulse"
+          />
+        </div>
+
+        <!-- Error state -->
+        <div v-else-if="isError" class="text-destructive text-sm">
+          Planning window unavailable — check backend
+        </div>
+
+        <!-- Success: day columns -->
+        <div v-else class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
+          <div
+            v-for="planDay in planWindowDays"
+            :key="planDay.dateString"
+            class="flex min-h-36 flex-col gap-3 rounded-lg border bg-muted/40 p-4"
+          >
             <div class="flex items-center justify-between gap-2">
               <p class="font-semibold">{{ planDay.label }}</p>
             </div>

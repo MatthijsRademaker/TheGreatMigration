@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions } from '@pinia/colada';
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { getHello, type Options } from '../sdk.gen';
-import type { GetHelloData, GetHelloError, GetHelloResponse } from '../types.gen';
+import { getDashboardPeopleAvailability, getHello, getPlanningWindow, type Options } from '../sdk.gen';
+import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -42,6 +42,25 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
     return [params];
 };
 
+export const getDashboardPeopleAvailabilityQueryKey = (options?: Options<GetDashboardPeopleAvailabilityData>) => createQueryKey('getDashboardPeopleAvailability', options);
+
+/**
+ * People availability for the dashboard
+ *
+ * Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the server-local current date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.
+ */
+export const getDashboardPeopleAvailabilityQuery = defineQueryOptions<Options<GetDashboardPeopleAvailabilityData>, GetDashboardPeopleAvailabilityResponse, GetDashboardPeopleAvailabilityError>((options?: Options<GetDashboardPeopleAvailabilityData>) => ({
+    key: getDashboardPeopleAvailabilityQueryKey(options),
+    query: async (context) => {
+        const { data } = await getDashboardPeopleAvailability({
+            ...options,
+            ...context,
+            throwOnError: true
+        });
+        return data;
+    }
+}));
+
 export const getHelloQueryKey = (options?: Options<GetHelloData>) => createQueryKey('getHello', options);
 
 /**
@@ -53,6 +72,25 @@ export const getHelloQuery = defineQueryOptions<Options<GetHelloData>, GetHelloR
     key: getHelloQueryKey(options),
     query: async (context) => {
         const { data } = await getHello({
+            ...options,
+            ...context,
+            throwOnError: true
+        });
+        return data;
+    }
+}));
+
+export const getPlanningWindowQueryKey = (options?: Options<GetPlanningWindowData>) => createQueryKey('getPlanningWindow', options);
+
+/**
+ * Global planning window
+ *
+ * Returns the global move range with startDate, endDate, and inclusive day count. The planning window is the canonical source of truth for the move timeline. All date-dependent views derive their rendered content from this contract.
+ */
+export const getPlanningWindowQuery = defineQueryOptions<Options<GetPlanningWindowData>, GetPlanningWindowResponse, GetPlanningWindowError>((options?: Options<GetPlanningWindowData>) => ({
+    key: getPlanningWindowQueryKey(options),
+    query: async (context) => {
+        const { data } = await getPlanningWindow({
             ...options,
             ...context,
             throwOnError: true

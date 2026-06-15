@@ -7,7 +7,9 @@ import { describe, expect, it, vi } from "vitest";
 import App from "../src/app/App.vue";
 import { configureApiClient } from "../src/shared/lib/api-client";
 import { routes } from "../src/app/routes";
-import { planWindowDayCount } from "../src/shared/lib/planWindow";
+
+/** The mocked planning-window days value used in assertions. */
+const MOCK_PLAN_WINDOW_DAYS = 40;
 
 async function renderRoute(path: string) {
 	const router = createRouter({
@@ -20,15 +22,29 @@ async function renderRoute(path: string) {
 
 	configureApiClient({
 		baseUrl: "http://example.test",
-		fetch: vi.fn(
-			async () =>
-				new Response(JSON.stringify({ message: "Hello from the backend!" }), {
-					status: 200,
-					headers: {
-						"Content-Type": "application/json",
+		fetch: vi.fn(async (input: RequestInfo | URL) => {
+			const url = input instanceof Request ? input.url : input.toString();
+			if (url.includes("/api/planning-window")) {
+				return new Response(
+					JSON.stringify({
+						startDate: "2026-07-05",
+						endDate: "2026-08-13",
+						days: MOCK_PLAN_WINDOW_DAYS,
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
 					},
-				}),
-		),
+				);
+			}
+			return new Response(
+				JSON.stringify({ message: "Hello from the backend!" }),
+				{
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		}),
 	});
 
 	const app = createSSRApp(App);
@@ -93,9 +109,9 @@ describe("application route rendering", () => {
 
 			if (path === "/calendar") {
 				// Each day column carries the min-h-36 class.
-				// Count occurrences to verify we render planWindowDayCount columns.
+				// Count occurrences to verify we render the mocked planning-window day count.
 				const columnMatches = html.match(/min-h-36/g);
-				expect(columnMatches?.length).toBe(planWindowDayCount);
+				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
 			}
 		});
 	}

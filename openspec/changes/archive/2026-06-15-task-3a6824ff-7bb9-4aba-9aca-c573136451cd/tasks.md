@@ -54,7 +54,7 @@
 
 ## 9. Verification
 
-- [ ] 9.1 Run `scripts/precommit-run` and confirm all lint, type-check, and test checks pass.
+- [x] 9.1 Run `scripts/precommit-run` and confirm all lint, type-check, and test checks pass.
 - [ ] 9.2 Manually verify in the browser that HomeView displays the Move days count from the backend and CalendarView renders the correct day columns.
 - [ ] 9.3 Manually verify that stopping the backend shows error states in both views.
-- [ ] 9.4 Verify `GET /api/hello` and `GET /api/dashboard/people-availability` continue to return correct responses.
+- [x] 9.4 Verify `GET /api/hello` and `GET /api/dashboard/people-availability` continue to return correct responses.

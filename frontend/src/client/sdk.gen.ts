@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHelloData, GetHelloErrors, GetHelloResponses } from './types.gen';
+import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,8 +19,22 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * People availability for the dashboard
+ *
+ * Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the server-local current date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.
+ */
+export const getDashboardPeopleAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetDashboardPeopleAvailabilityData, ThrowOnError>): RequestResult<GetDashboardPeopleAvailabilityResponses, GetDashboardPeopleAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetDashboardPeopleAvailabilityResponses, GetDashboardPeopleAvailabilityErrors, ThrowOnError>({ url: '/api/dashboard/people-availability', ...options });
+
+/**
  * Hello world
  *
  * Returns a hello-world message confirming the backend is reachable.
  */
 export const getHello = <ThrowOnError extends boolean = false>(options?: Options<GetHelloData, ThrowOnError>): RequestResult<GetHelloResponses, GetHelloErrors, ThrowOnError> => (options?.client ?? client).get<GetHelloResponses, GetHelloErrors, ThrowOnError>({ url: '/api/hello', ...options });
+
+/**
+ * Global planning window
+ *
+ * Returns the global move range with startDate, endDate, and inclusive day count. The planning window is the canonical source of truth for the move timeline. All date-dependent views derive their rendered content from this contract.
+ */
+export const getPlanningWindow = <ThrowOnError extends boolean = false>(options?: Options<GetPlanningWindowData, ThrowOnError>): RequestResult<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError> => (options?.client ?? client).get<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError>({ url: '/api/planning-window', ...options });

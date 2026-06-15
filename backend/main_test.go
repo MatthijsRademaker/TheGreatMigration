@@ -28,6 +28,7 @@ func newTestAPI() (chi.Router, huma.API) {
 	})
 
 	registerDashboardPeopleAvailability(api)
+	registerPlanningWindow(api)
 
 	return router, api
 }
@@ -155,5 +156,42 @@ func TestDashboardPeopleAvailability(t *testing.T) {
 	// Verify at least 8 people.
 	if len(body.People) < 8 {
 		t.Fatalf("expected at least 8 people, got %d", len(body.People))
+	}
+}
+
+func TestPlanningWindowEndpoint(t *testing.T) {
+	router, _ := newTestAPI()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/planning-window", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", contentType)
+	}
+
+	var body PlanningWindowBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if body.StartDate != "2026-07-05" {
+		t.Fatalf("expected startDate '2026-07-05', got %q", body.StartDate)
+	}
+	if body.EndDate != "2026-08-13" {
+		t.Fatalf("expected endDate '2026-08-13', got %q", body.EndDate)
+	}
+	if body.Days != 40 {
+		t.Fatalf("expected days=40, got %d", body.Days)
+	}
+
+	// Verify startDate lexicographically precedes endDate.
+	if body.StartDate >= body.EndDate {
+		t.Fatalf("expected startDate < endDate, got startDate=%q endDate=%q", body.StartDate, body.EndDate)
 	}
 }

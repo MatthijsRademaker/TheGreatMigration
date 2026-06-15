@@ -4,6 +4,40 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AvailabilityEntry = {
+    /**
+     * Date in ISO 8601 format (YYYY-MM-DD)
+     */
+    date: string;
+    /**
+     * One of: available, busy, partial, off
+     */
+    status: string;
+};
+
+export type DashboardBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * People with daily availability
+     */
+    people: Array<Person> | null;
+    /**
+     * Date range metadata
+     */
+    range: Range;
+    /**
+     * Canonical status legend
+     */
+    statuses: Array<StatusLegend> | null;
+    /**
+     * Summary counts
+     */
+    summary: Summary;
+};
+
 export type ErrorDetail = {
     /**
      * Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
@@ -58,6 +92,108 @@ export type HelloOutputBody = {
     message: string;
 };
 
+export type Person = {
+    /**
+     * One entry per date in the range
+     */
+    availability: Array<AvailabilityEntry> | null;
+    /**
+     * Stable person key
+     */
+    id: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
+export type PlanningWindowBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Inclusive day count between startDate and endDate
+     */
+    days: number;
+    /**
+     * End date of the planning window (ISO 8601)
+     */
+    endDate: string;
+    /**
+     * Start date of the planning window (ISO 8601)
+     */
+    startDate: string;
+};
+
+export type Range = {
+    /**
+     * Number of dates in the window (inclusive of startDate)
+     */
+    days: number;
+    /**
+     * End date of the window (ISO 8601)
+     */
+    endDate: string;
+    /**
+     * Reference date for summary counts (equals startDate)
+     */
+    selectedDate: string;
+    /**
+     * Start date of the window (ISO 8601)
+     */
+    startDate: string;
+};
+
+export type StatusLegend = {
+    /**
+     * Design system color intent
+     */
+    colorIntent: string;
+    /**
+     * Status identifier
+     */
+    id: string;
+    /**
+     * Human-readable label
+     */
+    label: string;
+};
+
+export type Summary = {
+    /**
+     * Number of people with status 'available' on selectedDate
+     */
+    availableToday: number;
+    /**
+     * Total number of people in the response
+     */
+    totalPeople: number;
+};
+
+export type DashboardBodyWritable = {
+    /**
+     * People with daily availability
+     */
+    people: Array<Person> | null;
+    /**
+     * Date range metadata
+     */
+    range: Range;
+    /**
+     * Canonical status legend
+     */
+    statuses: Array<StatusLegend> | null;
+    /**
+     * Summary counts
+     */
+    summary: Summary;
+};
+
 export type ErrorModelWritable = {
     /**
      * A human-readable explanation specific to this occurrence of the problem.
@@ -89,6 +225,55 @@ export type HelloOutputBodyWritable = {
     message: string;
 };
 
+export type PlanningWindowBodyWritable = {
+    /**
+     * Inclusive day count between startDate and endDate
+     */
+    days: number;
+    /**
+     * End date of the planning window (ISO 8601)
+     */
+    endDate: string;
+    /**
+     * Start date of the planning window (ISO 8601)
+     */
+    startDate: string;
+};
+
+export type GetDashboardPeopleAvailabilityData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the server-local current date.
+         */
+        start?: string;
+        /**
+         * Number of days inclusive of start date.
+         */
+        days?: number;
+    };
+    url: '/api/dashboard/people-availability';
+};
+
+export type GetDashboardPeopleAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetDashboardPeopleAvailabilityError = GetDashboardPeopleAvailabilityErrors[keyof GetDashboardPeopleAvailabilityErrors];
+
+export type GetDashboardPeopleAvailabilityResponses = {
+    /**
+     * OK
+     */
+    200: DashboardBody;
+};
+
+export type GetDashboardPeopleAvailabilityResponse = GetDashboardPeopleAvailabilityResponses[keyof GetDashboardPeopleAvailabilityResponses];
+
 export type GetHelloData = {
     body?: never;
     path?: never;
@@ -113,3 +298,28 @@ export type GetHelloResponses = {
 };
 
 export type GetHelloResponse = GetHelloResponses[keyof GetHelloResponses];
+
+export type GetPlanningWindowData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/planning-window';
+};
+
+export type GetPlanningWindowErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetPlanningWindowError = GetPlanningWindowErrors[keyof GetPlanningWindowErrors];
+
+export type GetPlanningWindowResponses = {
+    /**
+     * OK
+     */
+    200: PlanningWindowBody;
+};
+
+export type GetPlanningWindowResponse = GetPlanningWindowResponses[keyof GetPlanningWindowResponses];
