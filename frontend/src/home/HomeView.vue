@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { CalendarDaysIcon, ClipboardCheckIcon, MapPinnedIcon, UsersRoundIcon } from '@lucide/vue'
 import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { planWindowDayCount } from '@/shared/lib/planWindow'
 
 type SummaryCard = {
   label: string
@@ -14,7 +15,7 @@ type SummaryCard = {
 const summaries: SummaryCard[] = [
   { label: 'Available today', value: '6', description: 'Helpers with confirmed availability', icon: UsersRoundIcon },
   { label: 'Under-staffed', value: '3', description: 'Tasks needing more people assigned', icon: MapPinnedIcon },
-  { label: 'Move days', value: '5', description: 'Scheduled working days in the plan', icon: CalendarDaysIcon },
+  { label: 'Move days', value: String(planWindowDayCount), description: 'Scheduled working days in the plan', icon: CalendarDaysIcon },
 ]
 
 const helloMessage = ref('')

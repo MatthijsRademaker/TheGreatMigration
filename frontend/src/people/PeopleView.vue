@@ -2,6 +2,10 @@
 import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 
+// The availability strings below are placeholder data representing helper availability
+// *patterns* (not specific dates). Future integration with `planWindowDays` from
+// `@/shared/lib/planWindow` is expected when real availability CRUD is built — at
+// that point each helper will be bound to actual calendar dates rather than weekday names.
 const helpers = [
   { name: 'Alex', availability: 'Mon, Wed, Fri' },
   { name: 'Morgan', availability: 'Tue, Wed' },

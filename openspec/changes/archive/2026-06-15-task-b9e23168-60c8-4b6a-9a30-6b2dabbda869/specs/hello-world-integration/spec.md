@@ -1,8 +1,10 @@
-# hello-world-integration Specification
+# hello-world-integration Specification (Delta)
 
 ## Purpose
-TBD - created by archiving change task-30e902a9-a751-4be8-b4ea-149a16a8740d. Update Purpose after archive.
-## Requirements
+Amend the canonical `openspec/specs/hello-world-integration/spec.md` to accommodate the planning-window change, which makes the "Move days" summary card value dynamic.
+
+## MODIFIED Requirements
+
 ### Requirement: The HomeView SHALL display a hello-world message fetched from the backend at runtime
 
 The change SHALL replace the first static summary card in `frontend/src/home/HomeView.vue` (currently "High priority / 4") with a live fetch to `GET /api/hello`. The card SHALL display the returned `message` field from the response. The remaining summary cards ("Available today" and "Under-staffed") and the "Today's plan" / "Move notes" sections SHALL be preserved unchanged. The "Move days" summary card SHALL derive its value from the planning window rather than a static constant.
