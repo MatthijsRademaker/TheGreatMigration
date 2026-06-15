@@ -29,6 +29,7 @@ import {
 // --- Catalog data structure (2.2) ---
 
 type ButtonVariant = 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link'
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
 type ButtonSize = 'default' | 'sm' | 'lg'
 
 interface ButtonExample {
@@ -42,7 +43,7 @@ const buttonExamples: ButtonExample[] = buttonVariants.flatMap(variant =>
   buttonSizes.map(size => ({ variant, size }))
 )
 
-const badgeVariants: ButtonVariant[] = ['default', 'secondary', 'destructive', 'outline', 'ghost', 'link']
+const badgeVariants: BadgeVariant[] = ['default', 'secondary', 'destructive', 'outline', 'ghost', 'link']
 
 // --- Template helpers ---
 

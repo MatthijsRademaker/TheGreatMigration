@@ -1,7 +1,7 @@
 # component-showcase Specification
 
 ## Purpose
-TBD - created by archiving change task-c7c555d5-94d9-4d1a-a31d-dc42fe95651c. Update Purpose after archive.
+Provide a developer-facing component catalog at `/showcase` that renders live examples of all reusable `shared/ui` components, grouped by category, as a lightweight alternative to external documentation tooling. The showcase serves as the canonical visual inventory for the design system.
 ## Requirements
 ### Requirement: Showcase route is registered
 
