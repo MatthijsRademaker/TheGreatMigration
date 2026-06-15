@@ -1,0 +1,10 @@
+# Pinned tool images for Docker-backed scripts
+GO_IMAGE=golang:1.26.2-alpine
+NODE_IMAGE=node:22-alpine
+NODE24_IMAGE=node:24-alpine
+BUF_IMAGE=bufbuild/buf:1.56.0
+PYTHON_IMAGE=python:3.12-slim
+EVAL_IMAGE=dev-swarm-evaluation:local
+PRE_COMMIT_VERSION=4.0.1
+PRECOMMIT_VERIFIER_IMAGE=${PRECOMMIT_VERIFIER_IMAGE:-dev-swarm-precommit-verifier:local}
+POSTGRES_TEST_IMAGE=${POSTGRES_TEST_IMAGE:-postgres:16-alpine}
