@@ -1,5 +1,6 @@
 {
   "packages": [
     "."
-  ]
+  ],
+  "defaultModel": "openai-codex/gpt-5.4"
 }
