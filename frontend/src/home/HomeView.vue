@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useQuery } from '@pinia/colada'
+import { computed } from 'vue'
 import { CalendarDaysIcon, ClipboardCheckIcon, MapPinnedIcon, UsersRoundIcon } from '@lucide/vue'
+import { getHelloQuery } from '@/client/@pinia/colada.gen'
 import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { planWindowDayCount } from '@/shared/lib/planWindow'
@@ -18,23 +20,10 @@ const summaries: SummaryCard[] = [
   { label: 'Move days', value: String(planWindowDayCount), description: 'Scheduled working days in the plan', icon: CalendarDaysIcon },
 ]
 
-const helloMessage = ref('')
-const helloLoading = ref(true)
-const helloError = ref(false)
-
-onMounted(async () => {
-  try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
-    const res = await fetch(`${baseUrl}/api/hello`)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
-    helloMessage.value = data.message
-  } catch {
-    helloError.value = true
-  } finally {
-    helloLoading.value = false
-  }
-})
+const helloQuery = useQuery(getHelloQuery())
+const helloMessage = computed(() => helloQuery.data.value?.message ?? '')
+const helloLoading = computed(() => helloQuery.isPending.value)
+const helloError = computed(() => helloQuery.error.value != null)
 
 const upcomingWork = [
   'Pack kitchen essentials and label fragile boxes',

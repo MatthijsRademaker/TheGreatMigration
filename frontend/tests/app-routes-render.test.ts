@@ -1,8 +1,11 @@
+import { PiniaColada } from "@pinia/colada";
 import { renderToString } from "@vue/server-renderer";
+import { createPinia } from "pinia";
 import { createSSRApp } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import App from "../src/app/App.vue";
+import { configureApiClient } from "../src/shared/lib/api-client";
 import { routes } from "../src/app/routes";
 import { planWindowDayCount } from "../src/shared/lib/planWindow";
 
@@ -15,7 +18,22 @@ async function renderRoute(path: string) {
 	await router.push(path);
 	await router.isReady();
 
+	configureApiClient({
+		baseUrl: "http://example.test",
+		fetch: vi.fn(
+			async () =>
+				new Response(JSON.stringify({ message: "Hello from the backend!" }), {
+					status: 200,
+					headers: {
+						"Content-Type": "application/json",
+					},
+				}),
+		),
+	});
+
 	const app = createSSRApp(App);
+	app.use(createPinia());
+	app.use(PiniaColada);
 	app.use(router);
 
 	return renderToString(app);
