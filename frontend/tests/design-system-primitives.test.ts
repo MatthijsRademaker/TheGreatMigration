@@ -110,7 +110,7 @@ async function renderCardPreview() {
 
 async function renderCheckboxPreview(modelValue = false) {
 	const app = createSSRApp({
-		render: () => h(Checkbox, { modelValue }, { default: () => "Checkbox" }),
+		render: () => h(Checkbox, { modelValue }),
 	});
 	return renderToString(app);
 }
@@ -402,6 +402,15 @@ describe("Avatar", () => {
 		const html = await renderToString(app);
 		expect(html).toContain(">?<");
 	});
+
+	it("renders AvatarImage when src prop is set", async () => {
+		const app = createSSRApp({
+			render: () =>
+				h(Avatar, { name: "Alex", src: "https://example.com/avatar.jpg" }),
+		});
+		const html = await renderToString(app);
+		expect(html).toContain('src="https://example.com/avatar.jpg"');
+	});
 });
 
 describe("DatePicker", () => {
@@ -448,5 +457,11 @@ describe("Calendar", () => {
 	it("instantiates without error", async () => {
 		const html = await renderCalendarPreview();
 		expect(html).toBeDefined();
+	});
+
+	it("renders selected date with bg-primary and text-primary-foreground", async () => {
+		const html = await renderCalendarPreview();
+		expect(html).toContain("data-[selected]:bg-primary");
+		expect(html).toContain("data-[selected]:text-primary-foreground");
 	});
 });

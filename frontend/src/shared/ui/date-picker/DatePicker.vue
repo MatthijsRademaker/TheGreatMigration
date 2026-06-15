@@ -24,8 +24,7 @@ const emits = defineEmits<{
 
 function formatDate(value: DateValue | null | undefined): string {
   if (!value) return props.placeholder
-  const d = value as DateValue
-  return `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`
+  return `${value.year}-${String(value.month).padStart(2, "0")}-${String(value.day).padStart(2, "0")}`
 }
 
 function onDateChange(value: DateValue | undefined) {
