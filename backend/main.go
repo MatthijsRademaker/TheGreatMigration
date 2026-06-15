@@ -114,6 +114,9 @@ func main() {
 	// Register GET /api/tasks/backlog.
 	registerTasksBacklog(api)
 
+	// Register GET /api/dashboard/daily-schedule.
+	registerDailySchedule(api)
+
 	fmt.Println("Backend listening on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
