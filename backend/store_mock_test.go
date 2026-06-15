@@ -5,6 +5,24 @@ import (
 	"time"
 )
 
+// seedPeopleDefs is the canonical set of people IDs, names, and initials.
+// It mirrors the seed data in migrations/002_seed_demo_data.sql.
+var seedPeopleDefs = []struct {
+	ID       string
+	Name     string
+	Initials string
+	Status   func(int) string
+}{
+	{ID: "p1", Name: "Sophia Chen", Initials: "SC", Status: always("available")},
+	{ID: "p2", Name: "Marcus Rivera", Initials: "MR", Status: always("available")},
+	{ID: "p3", Name: "Elena Kowalski", Initials: "EK", Status: always("available")},
+	{ID: "p4", Name: "James Okafor", Initials: "JO", Status: always("available")},
+	{ID: "p5", Name: "Priya Nair", Initials: "PN", Status: always("available")},
+	{ID: "p6", Name: "Thomas Berg", Initials: "TB", Status: always("available")},
+	{ID: "p7", Name: "Amara Diallo", Initials: "AD", Status: always("busy")},
+	{ID: "p8", Name: "Noah Larsson", Initials: "NL", Status: cycleStatuses},
+}
+
 // mockStore implements Store for fast unit tests without a database.
 type mockStore struct {
 	planningWindow *PlanningWindowBody
@@ -15,23 +33,6 @@ func newMockStore() *mockStore {
 	startDate, _ := time.Parse("2006-01-02", "2026-07-05")
 	endDate, _ := time.Parse("2006-01-02", "2026-08-13")
 	days := int(endDate.Sub(startDate).Hours()/24) + 1
-
-	// Reproduce exact seed data behavior from the migration.
-	mockPeople := []struct {
-		ID       string
-		Name     string
-		Initials string
-		Status   func(int) string
-	}{
-		{ID: "p1", Name: "Sophia Chen", Initials: "SC", Status: always("available")},
-		{ID: "p2", Name: "Marcus Rivera", Initials: "MR", Status: always("available")},
-		{ID: "p3", Name: "Elena Kowalski", Initials: "EK", Status: always("available")},
-		{ID: "p4", Name: "James Okafor", Initials: "JO", Status: always("available")},
-		{ID: "p5", Name: "Priya Nair", Initials: "PN", Status: always("available")},
-		{ID: "p6", Name: "Thomas Berg", Initials: "TB", Status: always("available")},
-		{ID: "p7", Name: "Amara Diallo", Initials: "AD", Status: always("busy")},
-		{ID: "p8", Name: "Noah Larsson", Initials: "NL", Status: cycleStatuses},
-	}
 
 	return &mockStore{
 		planningWindow: &PlanningWindowBody{
@@ -50,7 +51,7 @@ func newMockStore() *mockStore {
 				AvailableToday: 6,
 				TotalPeople:    8,
 			},
-			People:   buildMockPeople(startDate, 4, mockPeople),
+			People:   buildMockPeople(startDate, 4, seedPeopleDefs),
 			Statuses: statusLegend,
 		},
 	}
@@ -61,28 +62,9 @@ func (m *mockStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody,
 }
 
 func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
-	// Build the range.
 	endDate := startDate.AddDate(0, 0, days-1)
-
-	// Reproduce the seed data people.
-	mockPeople := []struct {
-		ID       string
-		Name     string
-		Initials string
-		Status   func(int) string
-	}{
-		{ID: "p1", Name: "Sophia Chen", Initials: "SC", Status: always("available")},
-		{ID: "p2", Name: "Marcus Rivera", Initials: "MR", Status: always("available")},
-		{ID: "p3", Name: "Elena Kowalski", Initials: "EK", Status: always("available")},
-		{ID: "p4", Name: "James Okafor", Initials: "JO", Status: always("available")},
-		{ID: "p5", Name: "Priya Nair", Initials: "PN", Status: always("available")},
-		{ID: "p6", Name: "Thomas Berg", Initials: "TB", Status: always("available")},
-		{ID: "p7", Name: "Amara Diallo", Initials: "AD", Status: always("busy")},
-		{ID: "p8", Name: "Noah Larsson", Initials: "NL", Status: cycleStatuses},
-	}
-
 	selectedDate := startDate.Format("2006-01-02")
-	people := buildMockPeople(startDate, days, mockPeople)
+	people := buildMockPeople(startDate, days, seedPeopleDefs)
 
 	// Compute summary.
 	availableToday := 0

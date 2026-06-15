@@ -41,6 +41,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Establish the connection pool first so that pool-creation failures
+	// do not leave a partially migrated database.
+	pool, err := connectDB(databaseURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
 	// Run goose migrations at startup (gated by DB_AUTO_MIGRATE).
 	if shouldAutoMigrate() {
 		sqlDB, err := sql.Open("pgx", databaseURL)
@@ -57,13 +66,6 @@ func main() {
 		}
 		fmt.Println("Database migrations applied successfully")
 	}
-
-	pool, err := connectDB(databaseURL)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer pool.Close()
 
 	store := NewPgStore(pool)
 

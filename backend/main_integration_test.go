@@ -4,89 +4,33 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os/exec"
-	"strings"
+	"os"
 	"testing"
-	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pressly/goose/v3"
 )
 
-// startPostgresSidecar starts a disposable Postgres container using Docker
-// with a published port. Returns the container name and DSN (via localhost).
-func startPostgresSidecar(t *testing.T) (containerName, dsn string) {
-	t.Helper()
-
-	containerName = fmt.Sprintf("integ-postgres-%d", time.Now().UnixNano())
-
-	// Start Postgres container with a random published port.
-	cmd := exec.Command("docker", "run", "-d",
-		"--name", containerName,
-		"-p", "0:5432",
-		"-e", "POSTGRES_DB=testdb",
-		"-e", "POSTGRES_USER=test",
-		"-e", "POSTGRES_PASSWORD=test",
-		"postgres:16-alpine")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to start postgres container: %v\noutput: %s", err, out)
-	}
-
-	// Get the published port.
-	cmd = exec.Command("docker", "port", containerName, "5432")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		cleanupPostgresSidecar(containerName)
-		t.Fatalf("failed to get port mapping: %v\noutput: %s", err, out)
-	}
-	portMapping := strings.TrimSpace(string(out))
-	// portMapping is like "0.0.0.0:32768" or "[::]:32768"
-	parts := strings.Split(portMapping, ":")
-	publishedPort := parts[len(parts)-1]
-
-	// Wait for Postgres to be ready.
-	dsn = fmt.Sprintf("postgres://test:test@localhost:%s/testdb?sslmode=disable", publishedPort)
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		cmd = exec.Command("docker", "exec", containerName, "pg_isready", "-U", "test", "-d", "testdb")
-		if err := cmd.Run(); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			cleanupPostgresSidecar(containerName)
-			t.Fatalf("postgres did not become ready within 30s")
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	t.Logf("started postgres sidecar: %s (port: %s)", containerName, publishedPort)
-	return containerName, dsn
-}
-
-// cleanupPostgresSidecar stops and removes the Postgres container.
-func cleanupPostgresSidecar(containerName string) {
-	if containerName != "" {
-		exec.Command("docker", "stop", containerName).Run()
-		exec.Command("docker", "rm", "-f", containerName).Run()
-	}
-}
-
 // TestDBBackedEndpoints runs endpoint contract tests against a real Postgres database.
+// The caller (e.g., scripts/test-integration) is responsible for starting a Postgres
+// sidecar via verification_start_postgres_sidecar() and setting DATABASE_URL.
 func TestDBBackedEndpoints(t *testing.T) {
-	containerName, dsn := startPostgresSidecar(t)
-	t.Cleanup(func() {
-		cleanupPostgresSidecar(containerName)
-	})
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Fatal("DATABASE_URL must be set (run via scripts/test-integration)")
+	}
+
+	ctx := context.Background()
 
 	// Create connection pool.
-	ctx := context.Background()
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		t.Fatalf("failed to parse DSN: %v", err)
+		t.Fatalf("failed to parse DATABASE_URL: %v", err)
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
@@ -94,50 +38,16 @@ func TestDBBackedEndpoints(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Run migrations manually using raw SQL.
-	migrations := []string{
-		`CREATE TABLE planning_windows (id SERIAL PRIMARY KEY, start_date DATE NOT NULL, end_date DATE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-		`CREATE TABLE people (id TEXT PRIMARY KEY, name TEXT NOT NULL, initials TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-		`CREATE TABLE availability (id SERIAL PRIMARY KEY, person_id TEXT NOT NULL REFERENCES people(id), date DATE NOT NULL, status TEXT NOT NULL CHECK (status IN ('available','busy','partial','off')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(person_id, date))`,
+	// Run migrations via goose using the embedded migration files.
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("failed to open database for migrations: %v", err)
 	}
-	for _, m := range migrations {
-		if _, err := pool.Exec(ctx, m); err != nil {
-			t.Fatalf("migration failed: %v\nsql: %s", err, m)
-		}
-	}
+	defer sqlDB.Close()
 
-	// Seed data.
-	seed := `
-		INSERT INTO planning_windows (start_date, end_date) VALUES ('2026-07-05', '2026-08-13');
-		INSERT INTO people (id, name, initials) VALUES
-			('p1', 'Sophia Chen', 'SC'),
-			('p2', 'Marcus Rivera', 'MR'),
-			('p3', 'Elena Kowalski', 'EK'),
-			('p4', 'James Okafor', 'JO'),
-			('p5', 'Priya Nair', 'PN'),
-			('p6', 'Thomas Berg', 'TB'),
-			('p7', 'Amara Diallo', 'AD'),
-			('p8', 'Noah Larsson', 'NL');
-		INSERT INTO availability (person_id, date, status)
-		SELECT
-			p.id,
-			d.date,
-			CASE
-				WHEN p.id IN ('p1','p2','p3','p4','p5','p6') THEN 'available'
-				WHEN p.id = 'p7' THEN 'busy'
-				WHEN p.id = 'p8' THEN
-					CASE (d.date::date - '2026-07-05'::date) % 4
-						WHEN 0 THEN 'off'
-						WHEN 1 THEN 'partial'
-						WHEN 2 THEN 'busy'
-						WHEN 3 THEN 'available'
-					END
-			END AS status
-		FROM people p
-		CROSS JOIN generate_series('2026-07-05'::date, '2026-08-13'::date, '1 day'::interval) AS d(date);
-	`
-	if _, err := pool.Exec(ctx, seed); err != nil {
-		t.Fatalf("seed failed: %v", err)
+	goose.SetBaseFS(migrationsFS)
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		t.Fatalf("failed to run migrations: %v", err)
 	}
 
 	store := NewPgStore(pool)
