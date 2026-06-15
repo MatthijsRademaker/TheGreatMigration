@@ -95,7 +95,7 @@ describe("application route rendering", () => {
 			path: "/people",
 			title: "People availability",
 			description: "Track who is available and where each person can help.",
-			content: "People availability foundation",
+			content: "2 of 4 available today",
 		},
 	] as const;
 
