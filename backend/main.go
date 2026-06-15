@@ -60,6 +60,9 @@ func main() {
 		return resp, nil
 	})
 
+	// Register GET /api/dashboard/people-availability.
+	registerDashboardPeopleAvailability(api)
+
 	fmt.Println("Backend listening on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
