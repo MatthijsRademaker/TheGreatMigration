@@ -1,13 +1,13 @@
 # Design System v2
 
-This document is the authoritative repository design contract for Design System v2. Future UI work should be implementable from this file and `src/app/styles.css` alone, without opening `designs/design-system.png`.
+This document is the authoritative repository design contract for Design System v2. Future UI work should be implementable from this file and `frontend/src/app/styles.css` alone, without opening `designs/design-system.png`.
 
 ## Scope and source of truth
 
 - Product: **The Great Migration**
 - Tone: calm, organized, approachable, practical, green and nature-inspired
 - Brand treatment: text-forward wordmark with gentle moving-birds, botanical, and landscape illustration language
-- Global theme surface: `src/app/styles.css`
+- Global theme surface: `frontend/src/app/styles.css`
 - Light mode is the v2 source of truth; dark mode only preserves parity and contrast
 
 ## Explicitly out of scope
@@ -131,7 +131,7 @@ Cards and floating surfaces should stay soft and restrained.
 ## Implementation contract
 
 - Keep semantic naming aligned with shadcn-vue and Tailwind semantics.
-- `src/app/styles.css` is the only global theme surface for Design System v2 tokens.
+- `frontend/src/app/styles.css` is the only global theme surface for Design System v2 tokens.
 - Theme tokens must expose semantic color, typography, radius, spacing, and shadow utilities so pages and primitives do not rely on raw hex classes.
 - Primitive updates stay inside the existing Button, Badge, and Card boundaries.
 - This document should remain sufficient for later generic-component iterations without image inspection.

@@ -10,4 +10,12 @@ export default defineConfig({
 			"@": fileURLToPath(new URL("./src", import.meta.url)),
 		},
 	},
+	server: {
+		proxy: {
+			"/api": {
+				target: process.env.API_PROXY_URL || "http://localhost:8080",
+				changeOrigin: true,
+			},
+		},
+	},
 });

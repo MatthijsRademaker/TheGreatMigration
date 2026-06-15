@@ -9,6 +9,8 @@ WORKSPACE="$(verification_workspace_root)"
 export TMPDIR="${TMPDIR:-$WORKSPACE/.cache/tmp}"
 mkdir -p "$TMPDIR"
 
+# --- Frontend checks ---
+echo "[scripts/check] Running frontend checks..."
 verification_reset
 verification_workdir "$WORKSPACE"
 verification_add_arg -v "$WORKSPACE:$WORKSPACE"
@@ -17,5 +19,24 @@ verification_add_env npm_config_update_notifier=false
 verification_add_env npm_config_package_lock=false
 verification_add_env npm_config_legacy_peer_deps=true
 
-verification_run_container "$NODE24_IMAGE" \
-  sh -c 'npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps && npm run check'
+if ! verification_run_container "$NODE24_IMAGE" \
+  sh -c 'cd frontend && npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps && npm run check'; then
+  echo "[scripts/check] Frontend check FAILED" >&2
+  exit 1
+fi
+echo "[scripts/check] Frontend check passed."
+
+# --- Backend checks ---
+echo "[scripts/check] Running backend checks..."
+verification_reset
+verification_workdir "$WORKSPACE"
+verification_add_arg -v "$WORKSPACE:$WORKSPACE"
+
+if ! verification_run_container "$GO_IMAGE" \
+  sh -c 'export GOCACHE="/workspace/.cache/go-cache" && export GOPATH="/workspace/.cache/go" && cd backend && go mod tidy && go vet ./... && go build ./...'; then
+  echo "[scripts/check] Backend check FAILED" >&2
+  exit 1
+fi
+echo "[scripts/check] Backend check passed."
+
+echo "[scripts/check] All checks passed."
