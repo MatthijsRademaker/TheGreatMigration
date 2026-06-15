@@ -2,9 +2,7 @@
 
 ## Purpose
 Defines the first read-only backend API contract for the task backlog, providing seeded task rows and derived summary counts for the homepage dashboard and `/tasks` route.
-
 ## Requirements
-
 ### Requirement: Backend SHALL expose a Huma-registered read-only endpoint for task backlog data
 
 The backend SHALL register `GET /api/tasks/backlog` via Huma v2, making it appear in the auto-generated `/openapi.json`. The endpoint SHALL be read-only with no query parameters required.
@@ -97,63 +95,56 @@ Every `status` value in `tasks[]` SHALL be one of exactly three values: `"backlo
 
 ### Requirement: Seed data SHALL be in-memory and exercise all vocabulary values
 
-The endpoint handler SHALL use hardcoded in-memory seed data with at least 10 tasks. The seed SHALL exercise all three priority values, all three status values, at least 4 distinct `room` values, and a mix of `assignedTo` states (empty, partially filled, fully filled relative to `peopleNeeded`). The seed SHALL include at least one task with an empty `assignedTo` array and at least one task where `len(assignedTo) > 0` and `len(assignedTo) < peopleNeeded`.
+The endpoint handler SHALL read task backlog data from a `Store` interface backed by Postgres tables and sqlc-generated queries. Seed data inserted through migrations SHALL reproduce the current deterministic backlog payload exactly enough to preserve:
 
-#### Scenario: Seed data includes at least 10 tasks with stable IDs
-- **WHEN** the endpoint is called
-- **THEN** `tasks` contains at least 10 entries, each with a non-empty `id` starting with `"task-"`
+- the stable task IDs `task-1` through `task-11`;
+- all three priority values (`high`, `medium`, `low`);
+- all three backlog status values (`backlog`, `ready`, `assigned`);
+- at least four distinct room names; and
+- the current mix of empty, partially filled, and fully filled `assignedTo` arrays relative to `peopleNeeded`.
 
-#### Scenario: Seed data exercises all priority and status values
+The response summary SHALL continue to be derived from the returned task rows rather than stored as separate persisted counts.
+
+#### Scenario: Seed data preserves the current deterministic backlog rows
+- **WHEN** `GET /api/tasks/backlog` is called against seeded Postgres data
+- **THEN** `tasks` contains the same stable IDs and seeded assignment variety currently defined by the in-memory backlog seed
+
+#### Scenario: Database-backed rows still exercise all canonical vocabulary values
 - **WHEN** the endpoint is called
-- **THEN** across all tasks in the response, the priorities `high`, `medium`, and `low` each appear at least once
+- **THEN** across all returned tasks, the priorities `high`, `medium`, and `low` each appear at least once
 - **AND** the statuses `backlog`, `ready`, and `assigned` each appear at least once
-
-#### Scenario: Seed data exercises assignment variety
-- **WHEN** the endpoint is called
-- **THEN** at least one task has an empty `assignedTo` array
+- **AND** at least one task has an empty `assignedTo` array
 - **AND** at least one task has a non-empty `assignedTo` with `len(assignedTo) < peopleNeeded`
-
-#### Scenario: Seed data includes at least 4 distinct rooms
-- **WHEN** the endpoint is called
-- **THEN** the set of distinct `room` values across all tasks has at least 4 entries
 
 ### Requirement: Existing behavior SHALL remain intact
 
-The new endpoint SHALL be purely additive. `GET /api/hello` SHALL continue to return `{"message": "Hello from the backend!"}` with status 200. `GET /api/dashboard/people-availability` and `GET /api/planning-window` SHALL continue to return their expected responses. CORS SHALL continue to allow origins `http://localhost:5173` and `http://frontend:5173`. `GET /openapi.json` SHALL include all endpoints.
+The task backlog endpoint SHALL remain read-only and additive. `GET /api/hello`, `GET /api/planning-window`, and `GET /api/dashboard/people-availability` SHALL continue to return their expected responses, and `GET /api/tasks/backlog` SHALL preserve its existing JSON contract while switching to Postgres-backed storage.
 
-#### Scenario: Hello endpoint is unchanged
-- **WHEN** `GET /api/hello` is called after the new endpoint is registered
-- **THEN** the response is 200 with body `{"message": "Hello from the backend!"}` and `Content-Type: application/json`
-
-#### Scenario: People-availability endpoint is unchanged
-- **WHEN** `GET /api/dashboard/people-availability` is called after the new endpoint is registered
-- **THEN** the response is 200 with `range`, `summary`, `people`, and `statuses` top-level fields
-
-#### Scenario: Planning-window endpoint is unchanged
-- **WHEN** `GET /api/planning-window` is called after the new endpoint is registered
-- **THEN** the response is 200 with `startDate`, `endDate`, and `days` fields
-
-#### Scenario: OpenAPI includes all endpoints
-- **WHEN** `GET /openapi.json` is called
-- **THEN** the OpenAPI document contains paths `/api/hello`, `/api/dashboard/people-availability`, `/api/planning-window`, and `/api/tasks/backlog`
+#### Scenario: Task backlog contract remains stable after persistence wiring
+- **WHEN** `GET /api/tasks/backlog` is called after the refactor
+- **THEN** the response still contains `summary`, `tasks`, `priorities`, and `statuses`
+- **AND** the task rows and derived summary counts still satisfy the existing contract invariants
 
 ### Requirement: Backend tests SHALL cover the new endpoint
 
-Backend tests in `backend/main_test.go` SHALL include a test function `TestTaskBacklog` that:
+Backend tests in `backend/main_test.go` SHALL continue to verify the existing task backlog contract, and they SHALL also cover Store-backed success and failure paths for the backlog handler. Integration tests SHALL validate the backlog contract against the seeded Postgres database.
 
-- Sends `GET /api/tasks/backlog` and asserts 200 OK with `Content-Type: application/json`.
-- Unmarshals the response and verifies top-level fields `summary`, `tasks`, `priorities`, `statuses` are present.
-- Asserts `summary.totalTasks` equals `len(tasks)`.
-- Asserts `summary.highPriorityTasks` equals the actual count of tasks with `priority == "high"`.
-- Asserts `summary.unassignedTasks` equals the actual count of tasks with empty `assignedTo`.
-- Asserts `summary.understaffedTasks` equals the actual count where `len(assignedTo) > 0` and `len(assignedTo) < peopleNeeded`.
-- Asserts all priority and status values across tasks are canonical.
-- Asserts existing `TestHelloEndpoint`, `TestDashboardPeopleAvailability`, and `TestPlanningWindowEndpoint` still pass.
-
-#### Scenario: Task backlog test passes
+#### Scenario: MockStore-backed task backlog tests pass
 - **WHEN** `go test ./...` runs in `backend/`
-- **THEN** `TestTaskBacklog` passes
+- **THEN** task backlog tests verify the existing contract invariants using a Store-backed handler registration
 
-#### Scenario: Existing tests still pass
-- **WHEN** `go test ./...` runs in `backend/`
-- **THEN** `TestHelloEndpoint`, `TestDashboardPeopleAvailability`, and `TestPlanningWindowEndpoint` all pass
+#### Scenario: Real-Postgres task backlog integration test passes
+- **WHEN** `go test -tags=integration ./...` runs in `backend/`
+- **THEN** the integration suite verifies the seeded backlog payload and summary invariants through `GET /api/tasks/backlog`
+
+### Requirement: The Store interface SHALL be injected into the backlog handler
+
+The `registerTasksBacklog` function SHALL accept a `Store` parameter. The handler closure SHALL call `store.GetTaskBacklog(ctx)` and SHALL return a `huma.Error500InternalServerError` if the Store call fails.
+
+#### Scenario: Backlog handler delegates to Store on success
+- **WHEN** the handler is called and the Store returns backlog data
+- **THEN** the response body matches the Store-backed backlog payload
+
+#### Scenario: Backlog handler returns 500 on Store failure
+- **WHEN** the handler is called and the Store returns an error
+- **THEN** the response is a 500 Internal Server Error

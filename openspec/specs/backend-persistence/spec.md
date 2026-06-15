@@ -17,31 +17,24 @@ The backend Go module SHALL add dependencies on `github.com/jackc/pgx/v5` (for c
 
 ### Requirement: Goose migrations SHALL create the persistence schema
 
-A set of goose migration files under `backend/migrations/` SHALL define the database schema. Migration `001_create_tables.sql` SHALL create three tables:
-- `planning_windows`: `id` (SERIAL PRIMARY KEY), `start_date` (DATE NOT NULL), `end_date` (DATE NOT NULL), `created_at` (TIMESTAMPTZ DEFAULT NOW()), `updated_at` (TIMESTAMPTZ DEFAULT NOW()).
-- `people`: `id` (TEXT PRIMARY KEY), `name` (TEXT NOT NULL), `initials` (TEXT NOT NULL), `created_at` (TIMESTAMPTZ DEFAULT NOW()).
-- `availability`: `id` (SERIAL PRIMARY KEY), `person_id` (TEXT NOT NULL REFERENCES people(id)), `date` (DATE NOT NULL), `status` (TEXT NOT NULL CHECK (status IN ('available','busy','partial','off'))), `created_at` (TIMESTAMPTZ DEFAULT NOW()), UNIQUE(person_id, date).
+The existing migrations for `planning_windows`, `people`, and `availability` SHALL remain intact. Additional goose migrations SHALL extend the schema with separate read-model tables for:
 
-Migration `002_seed_demo_data.sql` SHALL insert:
-- One planning window row with `start_date='2026-07-05'` and `end_date='2026-08-13'`.
-- Eight people with IDs `p1` through `p8`, matching the names and initials from the current in-memory `seedPeople`.
-- Availability rows for every person on every date from `2026-07-05` through `2026-08-13` (40 dates × 8 people) with status values that exactly reproduce the current closure-based logic (p1–p6 always `available`, p7 always `busy`, p8 cycling through `off`/`partial`/`busy`/`available`).
+- backlog tasks, including stable task identifiers, titles, canonical priority values, required people counts, room names, canonical backlog statuses, and deterministic ordering;
+- backlog task assignments, including foreign keys to both backlog tasks and `people(id)`;
+- daily-schedule task cards, including stable seeded identifiers, titles, canonical priority values, room-area labels, required people counts, deterministic ordering, and seeded grouping metadata sufficient to reproduce the current four day-group schedule behavior; and
+- daily-schedule task assignments, including foreign keys to both schedule task cards and `people(id)`.
 
-#### Scenario: Migration files are present and valid
+The new migrations SHALL enforce the existing canonical vocabularies at the database level, seed the exact backlog IDs `task-1` through `task-11`, and seed the deterministic daily-schedule card data and assignee relationships needed to reproduce the current dashboard contract.
+
+#### Scenario: Existing persistence tables are preserved while backlog and schedule tables are added
 - **WHEN** goose migrations are applied to an empty Postgres database
-- **THEN** the `planning_windows`, `people`, and `availability` tables exist with the specified columns
+- **THEN** the `planning_windows`, `people`, and `availability` tables still exist with their current columns
+- **AND** separate persisted read models exist for backlog tasks and daily-schedule task cards with assignment tables referencing `people(id)`
 
-#### Scenario: Seed data matches the in-memory defaults
-- **WHEN** the seed migration is applied
-- **THEN** `SELECT start_date, end_date FROM planning_windows` returns exactly one row with `'2026-07-05'` and `'2026-08-13'`
-- **AND** `SELECT COUNT(*) FROM people` returns 8
-- **AND** `SELECT COUNT(*) FROM availability` returns 320
-
-#### Scenario: Availability statuses match the closure logic
-- **WHEN** the seed data is queried for person `p7`
-- **THEN** every availability row for `p7` has status `'busy'`
-- **WHEN** the seed data is queried for person `p8`
-- **THEN** the status cycles through `'off'`, `'partial'`, `'busy'`, `'available'` in date order
+#### Scenario: Seed data reproduces the current deterministic demo responses
+- **WHEN** the seed migrations are applied
+- **THEN** the backlog task read model contains the same 11 seeded tasks and assignment variety currently defined in `backend/tasks.go`
+- **AND** the schedule read model contains the deterministic seeded task-card groups and assignments needed to reproduce the current default four-day schedule behavior
 
 ### Requirement: Backend SHALL embed and run migrations at startup
 
@@ -69,19 +62,21 @@ The backend SHALL read the `DATABASE_URL` environment variable as the sole datab
 
 ### Requirement: Backend SHALL define a Store interface for data access
 
-A `Store` interface in `backend/store.go` SHALL define the data access contract:
-- `GetPlanningWindow(ctx context.Context) (PlanningWindowData, error)` — returns the singleton planning window row (`startDate`, `endDate`, `days`).
-- `GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (DashboardData, error)` — returns people, their availability within the date window, and the status legend.
+The `Store` interface in `backend/store.go` SHALL include:
+- `GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error)`
+- `GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)`
+- `GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)`
+- `GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)`
 
-An implementation (`PgStore`) SHALL satisfy this interface using a `*pgxpool.Pool` and sqlc-generated query functions. A mock implementation (`MockStore`) SHALL also satisfy this interface for use in handler unit tests.
+`PgStore` SHALL satisfy all four methods using sqlc-generated queries, and `MockStore` SHALL satisfy all four methods for unit-test coverage.
 
-#### Scenario: PgStore satisfies the Store interface
+#### Scenario: PgStore satisfies the expanded Store interface
 - **WHEN** `PgStore` is compiled
-- **THEN** it implements all methods of the `Store` interface without compilation errors
+- **THEN** it implements all methods of the expanded `Store` interface without compilation errors
 
-#### Scenario: MockStore satisfies the Store interface
+#### Scenario: MockStore satisfies the expanded Store interface
 - **WHEN** `MockStore` is compiled
-- **THEN** it implements all methods of the `Store` interface without compilation errors
+- **THEN** it implements all methods of the expanded `Store` interface without compilation errors
 
 ### Requirement: sqlc SHALL generate type-safe query code from SQL files
 
@@ -97,48 +92,43 @@ A `backend/sqlc.yaml` configuration SHALL define the Postgres engine, schema fil
 
 ### Requirement: Backend handlers SHALL read from the Store interface
 
-The `registerDashboardPeopleAvailability` and `registerPlanningWindow` handler registration functions SHALL accept a `Store` parameter. The handler functions SHALL call `store.GetPeopleAvailability()` and `store.GetPlanningWindow()` respectively instead of reading from in-memory constants or seed slices. The response types (`DashboardBody`, `PlanningWindowBody`) and their JSON serialization SHALL remain unchanged.
+The `registerDashboardPeopleAvailability` and `registerPlanningWindow` handlers SHALL remain Store-backed. `registerTasksBacklog` and `registerDailySchedule` SHALL also accept a `Store` parameter and SHALL stop reading directly from `seedTasks`, `seedTasksForDay`, `seedPeople`, `findPersonByID`, `countAvailableForDay`, or `planWindowStart`.
 
-#### Scenario: Planning window handler reads from Store
-- **WHEN** `GET /api/planning-window` is called and the Store returns planning window data
-- **THEN** the response contains `startDate`, `endDate`, and `days` matching the Store's data
+For daily schedule, when the `start` query parameter is omitted, the handler SHALL call `store.GetPlanningWindow()` and use the returned `startDate` as the default before calling `store.GetDailySchedule()`.
 
-#### Scenario: Dashboard handler reads from Store
-- **WHEN** `GET /api/dashboard/people-availability` is called and the Store returns people and availability data
-- **THEN** the response contains `range`, `summary`, `people`, and `statuses` matching the Store's data
+#### Scenario: Task backlog handler reads from Store
+- **WHEN** `GET /api/tasks/backlog` is called and the Store returns backlog data
+- **THEN** the response body matches the Store-backed backlog payload
+
+#### Scenario: Daily schedule handler resolves its default start through Store
+- **WHEN** `GET /api/dashboard/daily-schedule` is called without a `start` query parameter
+- **THEN** the handler obtains the default `startDate` from `store.GetPlanningWindow()` before loading schedule data from `store.GetDailySchedule()`
 
 ### Requirement: Existing endpoints SHALL remain intact
 
-The persistence refactor SHALL NOT change the behavior of `GET /api/hello`, `GET /api/tasks/backlog`, CORS handling, or `/openapi.json` generation. The tasks backlog endpoint SHALL continue to use in-memory seed data as it is explicitly out of scope for this change.
+The persistence refactor SHALL NOT change the behavior of `GET /api/hello`, CORS handling, or `/openapi.json` generation. `GET /api/planning-window` and `GET /api/dashboard/people-availability` SHALL remain Postgres-backed. `GET /api/tasks/backlog` and `GET /api/dashboard/daily-schedule` SHALL move from in-memory seed data to Postgres-backed storage while preserving their current response contracts, legends, and deterministic seeded output.
 
-#### Scenario: Hello endpoint is unchanged after persistence refactor
-- **WHEN** `GET /api/hello` is called after the refactor
-- **THEN** the response is 200 with body `{"message": "Hello from the backend!"}`
+#### Scenario: Public endpoint contracts are preserved across the persistence refactor
+- **WHEN** the backend is running after the refactor
+- **THEN** `GET /api/planning-window`, `GET /api/dashboard/people-availability`, `GET /api/tasks/backlog`, and `GET /api/dashboard/daily-schedule` each return their existing response shapes and canonical vocabularies
 
-#### Scenario: Tasks backlog endpoint remains in-memory
-- **WHEN** `GET /api/tasks/backlog` is called after the refactor
-- **THEN** the response contains at least 10 tasks, all three priority values, all three task statuses, and at least 4 distinct rooms
-
-#### Scenario: CORS still allows frontend origins
-- **WHEN** a cross-origin `OPTIONS` preflight request is sent with `Origin: http://localhost:5173`
-- **THEN** the response includes `Access-Control-Allow-Origin: http://localhost:5173`
-
-#### Scenario: OpenAPI includes all endpoints
+#### Scenario: OpenAPI includes all backend paths
 - **WHEN** `GET /openapi.json` is called
-- **THEN** the OpenAPI document contains paths `/api/hello`, `/api/dashboard/people-availability`, `/api/planning-window`, and `/api/tasks/backlog`
+- **THEN** the OpenAPI document contains `/api/hello`, `/api/planning-window`, `/api/dashboard/people-availability`, `/api/tasks/backlog`, and `/api/dashboard/daily-schedule`
 
 ### Requirement: Backend tests SHALL cover DB-backed handlers
 
-Backend unit tests SHALL use the `MockStore` to test handler logic without requiring a Postgres instance. Backend integration tests (build tag `integration`) SHALL start a disposable Postgres sidecar using `verification_start_postgres_sidecar()` from `scripts/lib/docker-verification.sh`, apply goose migrations, seed data, and run the same endpoint contract tests against a real database. Integration tests SHALL call `verification_cleanup_postgres_sidecar()` in `t.Cleanup` to ensure resources are released.
+Backend unit tests SHALL use `MockStore` to test Store-backed handler logic without requiring Postgres. Backend integration tests (build tag `integration`) SHALL run against a migrated Postgres database and cover planning window, people availability, task backlog, daily schedule, and OpenAPI path registration.
 
-#### Scenario: Unit tests pass with mock store
+#### Scenario: Unit tests cover Store-backed handler success and failure paths
 - **WHEN** `go test -short ./...` runs in `backend/`
-- **THEN** all existing endpoint tests pass using the mock Store
+- **THEN** the handler tests cover Store-backed success and error paths for task backlog and daily schedule without requiring Postgres
 
-#### Scenario: Integration tests pass with real Postgres
+#### Scenario: Integration tests cover all Postgres-backed read endpoints
 - **WHEN** `go test -tags=integration ./...` runs in `backend/` with Docker available
-- **THEN** the DB-backed endpoint tests start a Postgres sidecar, apply migrations, and assert the planning-window and dashboard contracts hold
+- **THEN** the tests validate planning-window, people-availability, task-backlog, and daily-schedule contracts against a migrated database
+- **AND** they assert `/openapi.json` includes all five backend paths
 
 #### Scenario: Precommit checks pass
 - **WHEN** `scripts/precommit-run` is executed
-- **THEN** all lint, vet, build, and test checks pass without errors
+- **THEN** all lint, build, and test checks pass without errors
