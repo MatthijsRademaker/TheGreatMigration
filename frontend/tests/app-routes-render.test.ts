@@ -83,7 +83,7 @@ describe("application route rendering", () => {
 			title: "Task backlog",
 			description:
 				"Capture jobs, priorities, staffing needs, and planning status.",
-			content: "Task foundation",
+			content: "Task Management",
 		},
 		{
 			path: "/calendar",
@@ -112,6 +112,15 @@ describe("application route rendering", () => {
 				// Count occurrences to verify we render the mocked planning-window day count.
 				const columnMatches = html.match(/data-testid="plan-day-column"/g);
 				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
+			}
+
+			if (path === "/tasks") {
+				expect(html).toContain("Painting hall");
+				expect(html).toContain("People Needed");
+				expect(html).toContain("Room / Area");
+				expect(html).toContain("Unassigned");
+				expect(html).toContain("Filter");
+				expect(html).toContain("Add Task");
 			}
 		});
 	}
