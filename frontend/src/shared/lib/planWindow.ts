@@ -42,14 +42,17 @@ export const PLAN_WINDOW_END = "2026-08-13";
 /**
  * Format a Date as a compact human-readable label.
  *
- * Uses `Intl.DateTimeFormat` with `en-US` locale, producing labels like
- * `"Sun 5 Jul"` (abbreviated weekday, numeric day, abbreviated month).
+ * Uses `Intl.DateTimeFormat` with `en-US` locale and explicit `UTC`
+ * timezone. Produces labels like `"Sun 5 Jul"` (abbreviated weekday,
+ * numeric day, abbreviated month) deterministically regardless of
+ * runtime timezone.
  */
 export function formatPlanDayLabel(date: Date): string {
 	return new Intl.DateTimeFormat("en-US", {
 		weekday: "short",
 		day: "numeric",
 		month: "short",
+		timeZone: "UTC",
 	}).format(date);
 }
 
