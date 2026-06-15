@@ -329,7 +329,7 @@ func TestTaskBacklog(t *testing.T) {
 }
 
 func TestDailyScheduleHappyPath(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule", nil)
 	rec := httptest.NewRecorder()
@@ -505,7 +505,7 @@ func TestDailyScheduleHappyPath(t *testing.T) {
 }
 
 func TestDailyScheduleExplicitParams(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-10&days=3", nil)
 	rec := httptest.NewRecorder()
@@ -535,7 +535,7 @@ func TestDailyScheduleExplicitParams(t *testing.T) {
 }
 
 func TestDailyScheduleMalformedStart(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-13-99", nil)
 	rec := httptest.NewRecorder()
@@ -547,7 +547,7 @@ func TestDailyScheduleMalformedStart(t *testing.T) {
 }
 
 func TestDailyScheduleOpenAPIInclusion(t *testing.T) {
-	_, api := newTestAPI()
+	_, api := newTestAPI(newMockStore())
 
 	openAPIBytes, err := json.Marshal(api.OpenAPI())
 	if err != nil {
@@ -570,7 +570,7 @@ func TestDailyScheduleOpenAPIInclusion(t *testing.T) {
 }
 
 func TestDailyScheduleDeterministic(t *testing.T) {
-	router, _ := newTestAPI()
+	router, _ := newTestAPI(newMockStore())
 
 	// Two identical requests should produce the same response.
 	req1 := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)

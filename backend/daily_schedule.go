@@ -103,6 +103,11 @@ func seedTasksForDay(dayOffset int) []seedTaskTemplate {
 
 // ---------- Helpers ----------
 
+// planWindowStart is the canonical planning-window start date used as the
+// default value for the daily-schedule endpoint when no start query parameter
+// is provided.
+const planWindowStart = "2026-07-05"
+
 var dayLabels = []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 var monthLabels = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
