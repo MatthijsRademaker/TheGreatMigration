@@ -2,6 +2,7 @@
   {
     "text": "Documentation",
     "items": [
+      { "text": "Vision & Goals", "link": "/vision-and-goals" },
       { "text": "Architecture", "link": "/architecture" }
     ]
   }
