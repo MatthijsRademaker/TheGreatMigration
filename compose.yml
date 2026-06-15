@@ -24,6 +24,8 @@ services:
     build: ./frontend
     ports:
       - "5173:5173"
+    environment:
+      API_PROXY_URL: http://backend:8080
     volumes:
       - ./frontend:/app
       - /app/node_modules
