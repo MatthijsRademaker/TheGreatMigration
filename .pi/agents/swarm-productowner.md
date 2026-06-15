@@ -10,8 +10,6 @@ systemPromptMode: append
 swarm:
     enabled: true
     runtime: task_reactive
-modelModerate: openai-codex/gpt-5.4
-modelComplex: openai-codex/gpt-5.5
 ---
 
 # Product Owner — Product Strategy Specialist
