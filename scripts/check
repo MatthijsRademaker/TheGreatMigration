@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
-# Placeholder: project-specific checks.
-# Replace with actual checks. For Docker-backed tools, source scripts/lib/docker-verification.sh
-# and use Docker-managed verification cache volumes instead of repository-local .cache tool caches.
-# Examples: verification_add_cache go-build /cache/go-build GOCACHE; verification_add_cache go-mod /cache/go-mod GOMODCACHE; verification_add_cache npm /cache/npm npm_config_cache.
 set -euo pipefail
-echo "[scripts/check] TODO: replace this placeholder with actual project checks" >&2
-exit 1
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/.versions"
+source "$ROOT/scripts/lib/docker-verification.sh"
+
+WORKSPACE="$(verification_workspace_root)"
+export TMPDIR="${TMPDIR:-$WORKSPACE/.cache/tmp}"
+mkdir -p "$TMPDIR"
+
+verification_reset
+verification_workdir "$WORKSPACE"
+verification_add_arg -v "$WORKSPACE:$WORKSPACE"
+verification_add_cache npm /cache/npm npm_config_cache
+verification_add_env npm_config_update_notifier=false
+verification_add_env npm_config_package_lock=false
+verification_add_env npm_config_legacy_peer_deps=true
+
+verification_run_container "$NODE24_IMAGE" \
+  sh -c 'npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps && npm run check'
