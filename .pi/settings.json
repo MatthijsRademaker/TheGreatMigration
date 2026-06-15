@@ -3,5 +3,6 @@
   "defaultProvider": "openai-codex",
   "packages": [
     "."
-  ]
+  ],
+  "defaultModel": "openai-codex/gpt-5.4"
 }
