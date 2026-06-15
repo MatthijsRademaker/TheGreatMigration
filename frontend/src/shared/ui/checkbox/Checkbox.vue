@@ -9,28 +9,25 @@ import { cn } from '@/shared/lib/utils'
 import { checkboxVariants } from "."
 
 interface Props extends CheckboxRootProps {
-  variant?: CheckboxVariants["variant"]
   size?: CheckboxVariants["size"]
   class?: HTMLAttributes["class"]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  variant: "default",
   size: "default",
 })
 
 const emits = defineEmits<CheckboxRootEmits>()
 
-const delegatedProps = reactiveOmit(props, "class", "variant", "size")
+const delegatedProps = reactiveOmit(props, "class", "size")
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 
 <template>
   <CheckboxRoot
     data-slot="checkbox"
-    :data-variant="variant"
     :data-size="size"
-    :class="cn(checkboxVariants({ variant, size }), props.class)"
+    :class="cn(checkboxVariants({ size }), props.class)"
     v-bind="forwarded"
   >
     <CheckboxIndicator

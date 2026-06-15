@@ -273,7 +273,7 @@ describe("design system primitive contracts", () => {
 
 describe("Checkbox", () => {
 	it("exposes checkbox variant classes with border-border for unchecked state", () => {
-		const classes = checkboxVariants({ variant: "default", size: "default" });
+		const classes = checkboxVariants({ size: "default" });
 		expect(classes).toContain("border-border");
 		expect(classes).toContain("data-[state=checked]:bg-primary");
 		expect(classes).toContain("data-[state=checked]:text-primary-foreground");
@@ -323,6 +323,18 @@ describe("SearchField", () => {
 	it("renders with placeholder text", async () => {
 		const html = await renderSearchFieldPreview();
 		expect(html).toContain('placeholder="Search here"');
+	});
+
+	it("forwards $attrs to the Input component", async () => {
+		const app = createSSRApp({
+			render: () =>
+				h(SearchField, {
+					modelValue: "test",
+					"data-custom": "forwarded-value",
+				}),
+		});
+		const html = await renderToString(app);
+		expect(html).toContain('data-custom="forwarded-value"');
 	});
 });
 
@@ -381,6 +393,14 @@ describe("Avatar", () => {
 	it("renders first character of name", async () => {
 		const html = await renderAvatarPreview();
 		expect(html).toContain(">A<");
+	});
+
+	it("renders '?' fallback when name is empty", async () => {
+		const app = createSSRApp({
+			render: () => h(Avatar, { name: "" }),
+		});
+		const html = await renderToString(app);
+		expect(html).toContain(">?<");
 	});
 });
 

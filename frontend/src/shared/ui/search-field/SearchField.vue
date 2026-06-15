@@ -5,6 +5,10 @@ import { useVModel } from "@vueuse/core"
 import { cn } from '@/shared/lib/utils'
 import { Input } from "@/shared/ui/input"
 
+defineOptions({
+  inheritAttrs: false,
+})
+
 const props = withDefaults(defineProps<{
   modelValue?: string | number
   defaultValue?: string | number
@@ -33,6 +37,7 @@ const modelValue = useVModel(props, "modelValue", emits, {
       :placeholder="placeholder"
       :disabled="disabled"
       class="pl-7"
+      v-bind="$attrs"
     />
   </div>
 </template>
