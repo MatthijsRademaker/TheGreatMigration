@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -30,6 +31,7 @@ func newTestAPI(store Store) (chi.Router, huma.API) {
 	registerDashboardPeopleAvailability(api, store)
 	registerPlanningWindow(api, store)
 	registerTasksBacklog(api)
+	registerDailySchedule(api)
 
 	return router, api
 }
@@ -323,5 +325,263 @@ func TestTaskBacklog(t *testing.T) {
 	}
 	if _, exists := paths["/api/tasks/backlog"]; !exists {
 		t.Fatal("OpenAPI paths missing /api/tasks/backlog")
+	}
+}
+
+func TestDailyScheduleHappyPath(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", contentType)
+	}
+
+	var body DailyScheduleBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	// Default-window range assertions.
+	if body.Range.StartDate != "2026-07-05" {
+		t.Fatalf("expected range.startDate '2026-07-05', got %q", body.Range.StartDate)
+	}
+	if body.Range.EndDate != "2026-07-08" {
+		t.Fatalf("expected range.endDate '2026-07-08', got %q", body.Range.EndDate)
+	}
+	if body.Range.Days != 4 {
+		t.Fatalf("expected range.days=4, got %d", body.Range.Days)
+	}
+
+	// One day per requested date.
+	if len(body.Days) != body.Range.Days {
+		t.Fatalf("expected %d day entries, got %d", body.Range.Days, len(body.Days))
+	}
+
+	// Day date uniqueness.
+	seenDates := map[string]bool{}
+	for _, d := range body.Days {
+		if d.Date == "" {
+			t.Fatal("day.Date is empty")
+		}
+		if seenDates[d.Date] {
+			t.Fatalf("duplicate day date %q", d.Date)
+		}
+		seenDates[d.Date] = true
+
+		if d.Label == "" {
+			t.Fatalf("day %s has empty label", d.Date)
+		}
+
+		// Validate task cards.
+		for _, task := range d.Tasks {
+			if task.ID == "" {
+				t.Fatalf("task on day %s has empty id", d.Date)
+			}
+			if task.Title == "" {
+				t.Fatalf("task %s on day %s has empty title", task.ID, d.Date)
+			}
+
+			// Validate priority enum.
+			switch task.Priority {
+			case "high", "medium", "low":
+			default:
+				t.Fatalf("task %s on day %s has invalid priority %q", task.ID, d.Date, task.Priority)
+			}
+
+			// Validate staffingStatus enum.
+			switch task.StaffingStatus {
+			case "fullyStaffed", "underStaffed":
+			default:
+				t.Fatalf("task %s on day %s has invalid staffingStatus %q", task.ID, d.Date, task.StaffingStatus)
+			}
+
+			// Derived-field invariants.
+			if task.AssignedCount != len(task.AssignedPeople) {
+				t.Fatalf("task %s: assignedCount=%d != len(assignedPeople)=%d", task.ID, task.AssignedCount, len(task.AssignedPeople))
+			}
+			if task.AssignedCount > task.PeopleNeeded {
+				t.Fatalf("task %s: assignedCount=%d > peopleNeeded=%d", task.ID, task.AssignedCount, task.PeopleNeeded)
+			}
+			if task.AssignedCount == task.PeopleNeeded && task.StaffingStatus != "fullyStaffed" {
+				t.Fatalf("task %s: assigned=%d needed=%d but staffingStatus=%q (expected fullyStaffed)", task.ID, task.AssignedCount, task.PeopleNeeded, task.StaffingStatus)
+			}
+			if task.AssignedCount < task.PeopleNeeded && task.StaffingStatus != "underStaffed" {
+				t.Fatalf("task %s: assigned=%d needed=%d but staffingStatus=%q (expected underStaffed)", task.ID, task.AssignedCount, task.PeopleNeeded, task.StaffingStatus)
+			}
+
+			if task.PeopleNeeded < 1 {
+				t.Fatalf("task %s: peopleNeeded=%d (must be >= 1)", task.ID, task.PeopleNeeded)
+			}
+
+			// Validate assigned people reuse seed identities.
+			for _, ap := range task.AssignedPeople {
+				if ap.ID == "" {
+					t.Fatalf("task %s has assigned person with empty id", task.ID)
+				}
+				if ap.Name == "" {
+					t.Fatalf("task %s assigned person %s has empty name", task.ID, ap.ID)
+				}
+				if ap.Initials == "" {
+					t.Fatalf("task %s assigned person %s has empty initials", task.ID, ap.ID)
+				}
+				// Verify the person id is from seedPeople.
+				found := false
+				for _, sp := range seedPeople {
+					if sp.Id == ap.ID {
+						found = true
+						if sp.Name != ap.Name {
+							t.Fatalf("task %s assigned person %s name mismatch: seed=%q response=%q", task.ID, ap.ID, sp.Name, ap.Name)
+						}
+						if sp.Initials != ap.Initials {
+							t.Fatalf("task %s assigned person %s initials mismatch: seed=%q response=%q", task.ID, ap.ID, sp.Initials, ap.Initials)
+						}
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("task %s assigned person %s not found in seedPeople", task.ID, ap.ID)
+				}
+			}
+		}
+	}
+
+	// Default window seed variety: priorities and staffing states.
+	allPriorities := map[string]bool{}
+	allStaffing := map[string]bool{}
+	hasFullyStaffed2x2 := false
+	hasFullyStaffed1x1 := false
+	hasUnderstaffed := false
+	for _, d := range body.Days {
+		for _, task := range d.Tasks {
+			allPriorities[task.Priority] = true
+			allStaffing[task.StaffingStatus] = true
+			if task.PeopleNeeded == 2 && task.AssignedCount == 2 && task.StaffingStatus == "fullyStaffed" {
+				hasFullyStaffed2x2 = true
+			}
+			if task.PeopleNeeded == 1 && task.AssignedCount == 1 && task.StaffingStatus == "fullyStaffed" {
+				hasFullyStaffed1x1 = true
+			}
+			if task.StaffingStatus == "underStaffed" {
+				hasUnderstaffed = true
+			}
+		}
+	}
+
+	if !allPriorities["high"] || !allPriorities["medium"] || !allPriorities["low"] {
+		t.Fatalf("expected high/medium/low priorities across default window, got %v", allPriorities)
+	}
+	if !hasFullyStaffed2x2 {
+		t.Fatal("expected at least one fully staffed 2/2 task card")
+	}
+	if !hasFullyStaffed1x1 {
+		t.Fatal("expected at least one fully staffed 1/1 task card")
+	}
+	if !hasUnderstaffed {
+		t.Fatal("expected at least one understaffed task card")
+	}
+
+	// Verify availablePeopleCount matches seedPeople availability.
+	for _, d := range body.Days {
+		// Parse the date to compute day index relative to start.
+		date, err := time.Parse("2006-01-02", d.Date)
+		if err != nil {
+			t.Fatalf("failed to parse day date %q: %v", d.Date, err)
+		}
+		startDate, _ := time.Parse("2006-01-02", body.Range.StartDate)
+		dayOffset := int(date.Sub(startDate).Hours() / 24)
+		expectedAvailable := countAvailableForDay(dayOffset)
+		if d.AvailablePeopleCount != expectedAvailable {
+			t.Fatalf("day %s: availablePeopleCount=%d != expected=%d", d.Date, d.AvailablePeopleCount, expectedAvailable)
+		}
+	}
+}
+
+func TestDailyScheduleExplicitParams(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-10&days=3", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var body DailyScheduleBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	if body.Range.StartDate != "2026-07-10" {
+		t.Fatalf("expected startDate '2026-07-10', got %q", body.Range.StartDate)
+	}
+	if body.Range.EndDate != "2026-07-12" {
+		t.Fatalf("expected endDate '2026-07-12', got %q", body.Range.EndDate)
+	}
+	if body.Range.Days != 3 {
+		t.Fatalf("expected days=3, got %d", body.Range.Days)
+	}
+	if len(body.Days) != 3 {
+		t.Fatalf("expected 3 day entries, got %d", len(body.Days))
+	}
+}
+
+func TestDailyScheduleMalformedStart(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-13-99", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDailyScheduleOpenAPIInclusion(t *testing.T) {
+	_, api := newTestAPI(newMockStore())
+
+	openAPIBytes, err := json.Marshal(api.OpenAPI())
+	if err != nil {
+		t.Fatalf("failed to marshal OpenAPI: %v", err)
+	}
+
+	var spec map[string]interface{}
+	if err := json.Unmarshal(openAPIBytes, &spec); err != nil {
+		t.Fatalf("failed to unmarshal OpenAPI spec: %v", err)
+	}
+
+	paths, ok := spec["paths"].(map[string]interface{})
+	if !ok {
+		t.Fatal("OpenAPI spec missing 'paths' key")
+	}
+
+	if _, exists := paths["/api/dashboard/daily-schedule"]; !exists {
+		t.Fatal("OpenAPI spec does not include /api/dashboard/daily-schedule")
+	}
+}
+
+func TestDailyScheduleDeterministic(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// Two identical requests should produce the same response.
+	req1 := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+
+	req2 := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+
+	if rec1.Body.String() != rec2.Body.String() {
+		t.Fatal("identical requests produced different responses")
 	}
 }
