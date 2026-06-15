@@ -103,7 +103,6 @@ describe("PeopleAvailability", () => {
 						{
 							id: "test",
 							name: "Test",
-							initials: "T",
 							availability: [
 								{ date: "Day 1", status: "available" },
 								{ date: "Day 2", status: "off" },

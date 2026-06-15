@@ -3,23 +3,26 @@ import { Badge } from '@/shared/ui/badge'
 import { Avatar } from '@/shared/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 
-/** Badge variants used for availability status legend entries. */
-type StatusVariant = 'available' | 'busy' | 'partial' | 'off'
-
 export interface PersonAvailabilityEntry {
   date: string
   status: 'available' | 'busy' | 'partial' | 'off'
 }
 
+/**
+ * Person with daily availability data.
+ *
+ * This is the component's own data contract. When wiring to the API SDK
+ * (client/types.gen.ts Person type), an adapter must handle: differing
+ * field names, nullable availability, and status: string vs union.
+ */
 export interface PersonAvailability {
   id: string
   name: string
-  initials: string
   availability: PersonAvailabilityEntry[]
 }
 
 export interface StatusLegendItem {
-  id: string
+  id: 'available' | 'busy' | 'partial' | 'off'
   label: string
 }
 
@@ -41,7 +44,6 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
     {
       id: 'alex',
       name: 'Alex',
-      initials: 'A',
       availability: [
         { date: 'Mon', status: 'available' },
         { date: 'Tue', status: 'available' },
@@ -52,7 +54,6 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
     {
       id: 'morgan',
       name: 'Morgan',
-      initials: 'M',
       availability: [
         { date: 'Mon', status: 'busy' },
         { date: 'Tue', status: 'partial' },
@@ -63,7 +64,6 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
     {
       id: 'sam',
       name: 'Sam',
-      initials: 'S',
       availability: [
         { date: 'Mon', status: 'off' },
         { date: 'Tue', status: 'available' },
@@ -74,7 +74,6 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
     {
       id: 'riley',
       name: 'Riley',
-      initials: 'R',
       availability: [
         { date: 'Mon', status: 'partial' },
         { date: 'Tue', status: 'busy' },
@@ -153,7 +152,7 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
           <Badge
             v-for="item in legend"
             :key="item.id"
-            :variant="item.id as StatusVariant"
+            :variant="item.id"
           >
             {{ item.label }}
           </Badge>
