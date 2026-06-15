@@ -22,7 +22,7 @@ const helpers = [
           <div v-for="helper in helpers" :key="helper.name" class="rounded-lg border bg-muted/40 p-4">
             <div class="flex items-center justify-between gap-3">
               <p class="font-medium">{{ helper.name }}</p>
-              <Badge variant="secondary">Available</Badge>
+              <Badge variant="available">Available</Badge>
             </div>
             <p class="mt-3 text-sm text-muted-foreground">{{ helper.availability }}</p>
           </div>
