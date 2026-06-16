@@ -190,6 +190,10 @@ interface DailyScheduleProps {
 
 const props = defineProps<DailyScheduleProps>()
 
+const emit = defineEmits<{
+  "add-task": [date?: string]
+}>()
+
 const scheduleDays = computed(() => props.days ?? defaultDays)
 </script>
 
@@ -202,7 +206,7 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
       <!-- Header controls -->
       <div class="flex items-center justify-between mb-4">
         <Button variant="link" size="sm">View by: Day</Button>
-        <Button variant="link" size="sm">Add task</Button>
+        <Button variant="link" size="sm" @click="emit('add-task')">Add task</Button>
       </div>
 
       <!-- Day columns -->
@@ -264,7 +268,7 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
               <div
                 class="rounded-lg border-2 border-dashed border-muted-foreground/25 p-3 text-center"
               >
-                <Button variant="ghost" size="xs">+ Add task</Button>
+                <Button variant="ghost" size="xs" @click="emit('add-task', day.date)">+ Add task</Button>
               </div>
             </div>
           </div>
