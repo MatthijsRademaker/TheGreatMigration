@@ -20,6 +20,7 @@ import {
 
 // ---- State ----
 const editingId = ref<string | null>(null)
+const deletingId = ref<string | null>(null)
 const formName = ref('')
 const formType = ref<'room' | 'area'>('room')
 
@@ -73,7 +74,12 @@ async function handleSubmit() {
 }
 
 async function handleDelete(id: string) {
-  await deleteMut.mutateAsync({ path: { id } })
+  deletingId.value = id
+  try {
+    await deleteMut.mutateAsync({ path: { id } })
+  } finally {
+    deletingId.value = null
+  }
 }
 
 // Reset form when a pending room is deleted while editing.
@@ -180,7 +186,7 @@ watch(() => roomsQuery.data.value?.rooms, (rooms) => {
               <Button
                 variant="outline"
                 size="sm"
-                :disabled="deleteMut.isLoading.value"
+                :disabled="deletingId === room.id"
                 @click="handleDelete(room.id)"
               >
                 Delete

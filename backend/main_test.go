@@ -882,6 +882,32 @@ func TestCreateRoomStoreFailure(t *testing.T) {
 	}
 }
 
+func TestUpdateRoomStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	bodyJSON := `{"name":"Updated","type":"room"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/rooms/room-1", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteRoomStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/rooms/room-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestRoomsOpenAPIInclusion(t *testing.T) {
 	_, api := newTestAPI(newMockStore())
 

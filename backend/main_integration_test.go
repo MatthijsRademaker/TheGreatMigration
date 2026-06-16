@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -303,6 +304,128 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 	})
 
+	// Test room CRUD lifecycle against Postgres.
+	t.Run("RoomCRUD", func(t *testing.T) {
+		// List: seed data has 8 rooms.
+		listReq := httptest.NewRequest(http.MethodGet, "/api/rooms", nil)
+		listRec := httptest.NewRecorder()
+		router.ServeHTTP(listRec, listReq)
+
+		if listRec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d\nbody: %s", listRec.Code, listRec.Body.String())
+		}
+
+		var listBody struct {
+			Rooms []Room `json:"rooms"`
+		}
+		if err := json.Unmarshal(listRec.Body.Bytes(), &listBody); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+		if len(listBody.Rooms) != 8 {
+			t.Fatalf("expected 8 seed rooms, got %d", len(listBody.Rooms))
+		}
+		for _, r := range listBody.Rooms {
+			if r.ID == "" || r.Name == "" || (r.Type != "room" && r.Type != "area") {
+				t.Fatalf("invalid room: id=%q name=%q type=%q", r.ID, r.Name, r.Type)
+			}
+			if r.CreatedAt == "" || r.UpdatedAt == "" {
+				t.Fatalf("room %s missing timestamps", r.ID)
+			}
+		}
+
+		// Create: add a new room.
+		createBody := `{"name":"Integration Test Room","type":"room"}`
+		createReq := httptest.NewRequest(http.MethodPost, "/api/rooms", strings.NewReader(createBody))
+		createReq.Header.Set("Content-Type", "application/json")
+		createRec := httptest.NewRecorder()
+		router.ServeHTTP(createRec, createReq)
+
+		if createRec.Code != http.StatusCreated {
+			t.Fatalf("expected status 201, got %d\nbody: %s", createRec.Code, createRec.Body.String())
+		}
+
+		var created Room
+		if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+		if created.Name != "Integration Test Room" || created.Type != "room" {
+			t.Fatalf("unexpected created room: %+v", created)
+		}
+		if created.ID == "" {
+			t.Fatal("created room has empty id")
+		}
+
+		// List again: now 9 rooms.
+		listReq2 := httptest.NewRequest(http.MethodGet, "/api/rooms", nil)
+		listRec2 := httptest.NewRecorder()
+		router.ServeHTTP(listRec2, listReq2)
+
+		var listBody2 struct {
+			Rooms []Room `json:"rooms"`
+		}
+		if err := json.Unmarshal(listRec2.Body.Bytes(), &listBody2); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+		if len(listBody2.Rooms) != 9 {
+			t.Fatalf("expected 9 rooms after create, got %d", len(listBody2.Rooms))
+		}
+
+		// Update: rename the created room.
+		updateBody := `{"name":"Updated Integration Room","type":"area"}`
+		updateReq := httptest.NewRequest(http.MethodPut, "/api/rooms/"+created.ID, strings.NewReader(updateBody))
+		updateReq.Header.Set("Content-Type", "application/json")
+		updateRec := httptest.NewRecorder()
+		router.ServeHTTP(updateRec, updateReq)
+
+		if updateRec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d\nbody: %s", updateRec.Code, updateRec.Body.String())
+		}
+
+		var updated Room
+		if err := json.Unmarshal(updateRec.Body.Bytes(), &updated); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+		if updated.Name != "Updated Integration Room" || updated.Type != "area" {
+			t.Fatalf("unexpected updated room: %+v", updated)
+		}
+		if updated.ID != created.ID {
+			t.Fatalf("updated room id changed: %q -> %q", created.ID, updated.ID)
+		}
+
+		// Delete the room.
+		deleteReq := httptest.NewRequest(http.MethodDelete, "/api/rooms/"+created.ID, nil)
+		deleteRec := httptest.NewRecorder()
+		router.ServeHTTP(deleteRec, deleteReq)
+
+		if deleteRec.Code != http.StatusNoContent {
+			t.Fatalf("expected status 204, got %d\nbody: %s", deleteRec.Code, deleteRec.Body.String())
+		}
+
+		// Delete again: should 404.
+		deleteReq2 := httptest.NewRequest(http.MethodDelete, "/api/rooms/"+created.ID, nil)
+		deleteRec2 := httptest.NewRecorder()
+		router.ServeHTTP(deleteRec2, deleteReq2)
+
+		if deleteRec2.Code != http.StatusNotFound {
+			t.Fatalf("expected status 404 on re-delete, got %d\nbody: %s", deleteRec2.Code, deleteRec2.Body.String())
+		}
+
+		// List: back to 8 rooms.
+		listReq3 := httptest.NewRequest(http.MethodGet, "/api/rooms", nil)
+		listRec3 := httptest.NewRecorder()
+		router.ServeHTTP(listRec3, listReq3)
+
+		var listBody3 struct {
+			Rooms []Room `json:"rooms"`
+		}
+		if err := json.Unmarshal(listRec3.Body.Bytes(), &listBody3); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+		if len(listBody3.Rooms) != 8 {
+			t.Fatalf("expected 8 rooms after delete, got %d", len(listBody3.Rooms))
+		}
+	})
+
 	// Test hello endpoint.
 	t.Run("Hello", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/hello", nil)
@@ -328,7 +451,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 		if !ok {
 			t.Fatal("OpenAPI spec missing paths")
 		}
-		expectedPaths := []string{"/api/hello", "/api/planning-window", "/api/dashboard/people-availability", "/api/tasks/backlog", "/api/dashboard/daily-schedule"}
+		expectedPaths := []string{"/api/hello", "/api/planning-window", "/api/dashboard/people-availability", "/api/tasks/backlog", "/api/dashboard/daily-schedule", "/api/rooms", "/api/rooms/{id}"}
 		for _, p := range expectedPaths {
 			if _, exists := paths[p]; !exists {
 				t.Fatalf("OpenAPI paths missing %q", p)
