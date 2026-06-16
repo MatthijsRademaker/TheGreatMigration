@@ -5,7 +5,10 @@ import {
 	getPlanningWindowQueryKey,
 } from "@/client/@pinia/colada.gen";
 import type { PlanWindowDay } from "@/shared/lib/planWindow";
-import { formatPlanDayLabel } from "@/shared/lib/planWindow";
+import {
+	formatPlanDayLabel,
+	formatPlanWindowRange,
+} from "@/shared/lib/planWindow";
 
 export function usePlanningWindow() {
 	const query = useQuery(getPlanningWindowQuery());
@@ -39,9 +42,17 @@ export function usePlanningWindow() {
 
 	const isError = computed<boolean>(() => query.error.value != null);
 
+	const formattedRange = computed<string | null>(() => {
+		const data = query.data.value;
+		if (!data) return null;
+
+		return formatPlanWindowRange(data.startDate, data.endDate, data.days);
+	});
+
 	return {
 		planWindowDays,
 		planWindowDayCount,
+		formattedRange,
 		isLoading,
 		isError,
 		queryKey: getPlanningWindowQueryKey(),

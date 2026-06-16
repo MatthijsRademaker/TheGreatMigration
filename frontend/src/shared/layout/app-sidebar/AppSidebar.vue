@@ -25,6 +25,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
 } from '@/shared/ui/sidebar'
 
 type NavigationItem = {
@@ -70,6 +71,13 @@ function isActive(path: string) {
                 <span class="truncate text-xs text-muted-foreground">House move planner</span>
               </div>
             </RouterLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton as-child variant="ghost">
+            <SidebarTrigger />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
