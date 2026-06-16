@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions, type UseMutationOptions } from '@p
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { createPerson, createRoom, createTask, deletePerson, deletePersonAvailability, deleteRoom, deleteTask, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, listRooms, type Options, putPlanningWindow, updatePerson, updateRoom, updateTask, upsertPersonAvailability } from '../sdk.gen';
-import type { CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
+import { createPerson, createRoom, createScheduleCard, createTask, deletePerson, deletePersonAvailability, deleteRoom, deleteScheduleCard, deleteTask, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, listRooms, type Options, putPlanningWindow, updatePerson, updateRoom, updateScheduleCard, updateTask, upsertPersonAvailability } from '../sdk.gen';
+import type { CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateScheduleCardData, CreateScheduleCardError, CreateScheduleCardResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteScheduleCardData, DeleteScheduleCardError, DeleteScheduleCardResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateScheduleCardData, UpdateScheduleCardError, UpdateScheduleCardResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -273,6 +273,54 @@ export const deleteRoomMutation = (options?: Partial<Options<DeleteRoomData>>): 
 export const updateRoomMutation = (options?: Partial<Options<UpdateRoomData>>): UseMutationOptions<UpdateRoomResponse, Options<UpdateRoomData>, UpdateRoomError> => ({
     mutation: async (vars) => {
         const { data } = await updateRoom({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Create a schedule card
+ *
+ * Creates a new schedule card with server-assigned sched-* ID. Returns 400 for invalid input or out-of-window date.
+ */
+export const createScheduleCardMutation = (options?: Partial<Options<CreateScheduleCardData>>): UseMutationOptions<CreateScheduleCardResponse, Options<CreateScheduleCardData>, CreateScheduleCardError> => ({
+    mutation: async (vars) => {
+        const { data } = await createScheduleCard({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Delete a schedule card
+ *
+ * Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.
+ */
+export const deleteScheduleCardMutation = (options?: Partial<Options<DeleteScheduleCardData>>): UseMutationOptions<DeleteScheduleCardResponse, Options<DeleteScheduleCardData>, DeleteScheduleCardError> => ({
+    mutation: async (vars) => {
+        const { data } = await deleteScheduleCard({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Update a schedule card
+ *
+ * Updates a schedule card and replaces assignments transactionally. Returns 400 for validation errors, 404 if the card ID is unknown.
+ */
+export const updateScheduleCardMutation = (options?: Partial<Options<UpdateScheduleCardData>>): UseMutationOptions<UpdateScheduleCardResponse, Options<UpdateScheduleCardData>, UpdateScheduleCardError> => ({
+    mutation: async (vars) => {
+        const { data } = await updateScheduleCard({
             ...options,
             ...vars,
             throwOnError: true

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type Component } from 'vue'
+import { onUnmounted, type Component } from 'vue'
 import {
   Building2Icon,
   CalendarDaysIcon,
@@ -40,11 +40,12 @@ const router = useRouter()
 const { isMobile, openMobile, setOpenMobile } = useSidebar()
 
 // Auto-close the mobile sidebar Sheet when navigating to a new route.
-router.afterEach(() => {
+const unregisterAfterEach = router.afterEach(() => {
   if (isMobile.value && openMobile.value) {
     setOpenMobile(false)
   }
 })
+onUnmounted(() => unregisterAfterEach())
 
 // TODO: Re-add badge property to navigation items when real data subscriptions exist.
 // Badge counts should be driven by live backend queries (e.g. open task count,

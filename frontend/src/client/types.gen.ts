@@ -64,6 +64,37 @@ export type CreateRoomRequestBody = {
     type: 'room' | 'area';
 };
 
+export type CreateScheduleCardRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Person-ID strings for assigned helpers, may be empty
+     */
+    assignedTo: Array<string> | null;
+    /**
+     * Number of people needed for the task (>=1)
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: 'high' | 'medium' | 'low';
+    /**
+     * Room or area name
+     */
+    roomArea: string;
+    /**
+     * ISO 8601 date (YYYY-MM-DD) the card is scheduled for
+     */
+    scheduledDate: string;
+    /**
+     * Task title
+     */
+    title: string;
+};
+
 export type CreateTaskRequestBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -402,6 +433,10 @@ export type TaskBacklogBody = {
 
 export type TaskCard = {
     /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
      * Number of people currently assigned (derived from assignedPeople)
      */
     assignedCount: number;
@@ -594,6 +629,33 @@ export type CreateRoomRequestBodyWritable = {
     type: 'room' | 'area';
 };
 
+export type CreateScheduleCardRequestBodyWritable = {
+    /**
+     * Person-ID strings for assigned helpers, may be empty
+     */
+    assignedTo: Array<string> | null;
+    /**
+     * Number of people needed for the task (>=1)
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: 'high' | 'medium' | 'low';
+    /**
+     * Room or area name
+     */
+    roomArea: string;
+    /**
+     * ISO 8601 date (YYYY-MM-DD) the card is scheduled for
+     */
+    scheduledDate: string;
+    /**
+     * Task title
+     */
+    title: string;
+};
+
 export type CreateTaskRequestBodyWritable = {
     /**
      * Person-ID strings for assigned helpers, may be empty
@@ -625,7 +687,7 @@ export type DailyScheduleBodyWritable = {
     /**
      * One entry per date in the requested window
      */
-    days: Array<ScheduleDay> | null;
+    days: Array<ScheduleDayWritable> | null;
     /**
      * Date range metadata
      */
@@ -754,6 +816,25 @@ export type RoomWritable = {
     updatedAt: string;
 };
 
+export type ScheduleDayWritable = {
+    /**
+     * Number of people available on this date
+     */
+    availablePeopleCount: number;
+    /**
+     * Date in ISO 8601 format (YYYY-MM-DD)
+     */
+    date: string;
+    /**
+     * Human-readable day header
+     */
+    label: string;
+    /**
+     * Ordered schedule task cards
+     */
+    tasks: Array<TaskCardWritable> | null;
+};
+
 export type TaskBacklogBodyWritable = {
     /**
      * Canonical priority legend
@@ -771,6 +852,41 @@ export type TaskBacklogBodyWritable = {
      * Backlog task rows
      */
     tasks: Array<TaskRowWritable> | null;
+};
+
+export type TaskCardWritable = {
+    /**
+     * Number of people currently assigned (derived from assignedPeople)
+     */
+    assignedCount: number;
+    /**
+     * People assigned to this task
+     */
+    assignedPeople: Array<AssignedPerson> | null;
+    /**
+     * Stable task identifier
+     */
+    id: string;
+    /**
+     * Number of people needed for the task (>=1)
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: string;
+    /**
+     * Room or area name
+     */
+    roomArea: string;
+    /**
+     * One of: fullyStaffed, underStaffed
+     */
+    staffingStatus: string;
+    /**
+     * Task title
+     */
+    title: string;
 };
 
 export type TaskRowWritable = {
@@ -1257,6 +1373,91 @@ export type UpdateRoomResponses = {
 };
 
 export type UpdateRoomResponse = UpdateRoomResponses[keyof UpdateRoomResponses];
+
+export type CreateScheduleCardData = {
+    body: CreateScheduleCardRequestBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/schedule/cards';
+};
+
+export type CreateScheduleCardErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateScheduleCardError = CreateScheduleCardErrors[keyof CreateScheduleCardErrors];
+
+export type CreateScheduleCardResponses = {
+    /**
+     * OK
+     */
+    200: TaskCard;
+};
+
+export type CreateScheduleCardResponse = CreateScheduleCardResponses[keyof CreateScheduleCardResponses];
+
+export type DeleteScheduleCardData = {
+    body?: never;
+    path: {
+        /**
+         * Schedule card identifier (e.g., sched-1)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/schedule/cards/{id}';
+};
+
+export type DeleteScheduleCardErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteScheduleCardError = DeleteScheduleCardErrors[keyof DeleteScheduleCardErrors];
+
+export type DeleteScheduleCardResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteScheduleCardResponse = DeleteScheduleCardResponses[keyof DeleteScheduleCardResponses];
+
+export type UpdateScheduleCardData = {
+    body: CreateScheduleCardRequestBodyWritable;
+    path: {
+        /**
+         * Schedule card identifier (e.g., sched-1)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/schedule/cards/{id}';
+};
+
+export type UpdateScheduleCardErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateScheduleCardError = UpdateScheduleCardErrors[keyof UpdateScheduleCardErrors];
+
+export type UpdateScheduleCardResponses = {
+    /**
+     * OK
+     */
+    200: TaskCard;
+};
+
+export type UpdateScheduleCardResponse = UpdateScheduleCardResponses[keyof UpdateScheduleCardResponses];
 
 export type CreateTaskData = {
     body: CreateTaskRequestBodyWritable;

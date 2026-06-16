@@ -177,19 +177,14 @@ describe("sidebar mobile behavior", () => {
 		);
 		expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeTruthy();
 
-		// Trigger route navigation and close the mobile Sheet.
+		// Trigger route navigation. The production router.afterEach hook
+		// in AppSidebar.vue closes the mobile Sheet on navigation.
 		await router.push("/tasks");
-		// Directly close via the component instance.
-		// (The production code uses router.afterEach for this, but explicitly
-		// calling closeSheet keeps the test deterministic across environments.)
-		const reader = wrapper.findComponent(StateReader);
-		const vm = reader.vm as { closeSheet: () => void };
-		vm.closeSheet();
 		await nextTick();
 		await nextTick();
 		await nextTick();
 
-		// After navigation + explicit close, openMobile should be false
+		// After navigation, the router.afterEach hook should have closed the Sheet
 		const finalState = wrapper.find('[data-testid="state-reader"]').text();
 		expect(finalState).toContain("openMobile:false");
 	});
