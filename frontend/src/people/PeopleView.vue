@@ -154,11 +154,11 @@ async function handleCellUpdate(payload: CellChangePayload) {
   }
 }
 
-// --- Derive ISO date from day index ---
+// --- Derive ISO date from day index (UTC-based to match codebase convention) ---
 function getISODate(dayIndex: number): string {
   if (!rawData.value?.range) return ''
   const start = new Date(rawData.value.range.startDate)
-  start.setDate(start.getDate() + dayIndex)
+  start.setUTCDate(start.getUTCDate() + dayIndex)
   return start.toISOString().slice(0, 10)
 }
 
@@ -268,6 +268,8 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
       <PeopleAvailability
         v-bind="availabilityData"
         :editable="true"
+        :deleting-person-id="deletingId"
+        :updating="isMutationLoading(upsertMutation) || isMutationLoading(deleteAvailabilityMutation)"
         @update-cell="handleCellUpdate"
         @delete-person="handleDelete"
       />

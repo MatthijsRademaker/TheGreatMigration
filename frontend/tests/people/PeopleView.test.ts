@@ -1,5 +1,5 @@
 import { renderToString } from "@vue/server-renderer";
-import { createSSRApp, h } from "vue";
+import { createSSRApp, h, nextTick } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { ref, computed } from "vue";
 
@@ -158,12 +158,52 @@ describe("PeopleView management controls", () => {
 		expect(html).not.toContain("Failed to update availability");
 		expect(html).not.toContain("Failed to clear availability");
 	});
-
 	it("does not show loading or error states when data is present", async () => {
 		const html = await renderPeopleView();
 
 		expect(html).not.toContain("Loading availability data");
 		expect(html).not.toContain("Backend unavailable");
 		expect(html).not.toContain("No people found");
+	});
+});
+
+// --- Client-render tests for loading state passing ---
+// @vitest-environment jsdom
+
+describe("PeopleView loading state wiring", () => {
+	it("passes deletingPersonId from handleDelete to the matrix", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		// The matrix should have a PeopleAvailability component
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		expect(matrix.exists()).toBe(true);
+
+		// deletingPersonId prop should be undefined initially (no delete in progress)
+		expect(matrix.props("deletingPersonId")).toBeNull();
+
+		// updating prop should be falsy (no upsert in progress)
+		expect(matrix.props("updating")).toBe(false);
+
+		wrapper.unmount();
+	});
+
+	it("passes editable=true to the matrix on success", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		expect(matrix.exists()).toBe(true);
+		expect(matrix.props("editable")).toBe(true);
+
+		wrapper.unmount();
 	});
 });

@@ -375,7 +375,7 @@ describe("PeopleAvailability editable mode", () => {
 		wrapper.unmount();
 	});
 
-	it("emits delete-person when delete button is clicked", async () => {
+	it("opens confirmation dialog when delete button is clicked and emits delete-person on confirm", async () => {
 		const { mount } = await import("@vue/test-utils");
 		const props = {
 			editable: true,
@@ -396,17 +396,269 @@ describe("PeopleAvailability editable mode", () => {
 			attachTo: document.body,
 		});
 
+		// Click the Delete button to open confirmation dialog
 		const deleteButton = wrapper
 			.findAll("button")
 			.filter((b) => b.text() === "Delete");
 		expect(deleteButton.length).toBe(1);
 		await deleteButton[0].trigger("click");
+		await nextTick();
+
+		// Dialog content is teleported to document.body
+		const dialogContent = document.body.querySelector(
+			'[data-slot="dialog-content"]',
+		);
+		expect(dialogContent).not.toBeNull();
+
+		// Find the confirm button (variant destructive with text "Delete")
+		const confirmButtons = Array.from(
+			dialogContent?.querySelectorAll("button") ?? [],
+		).filter(
+			(button) =>
+				button.classList.contains("btn-destructive") ||
+				button.textContent?.trim() === "Delete",
+		);
+
+		// Click the destructive confirm button
+		let confirmButton: HTMLButtonElement | undefined;
+		for (const btn of confirmButtons) {
+			if (btn.getAttribute("variant") === "destructive") {
+				confirmButton = btn;
+				break;
+			}
+		}
+		// Fallback: try to find by aria-label or last Delete button
+		if (!confirmButton) {
+			confirmButton = confirmButtons[confirmButtons.length - 1];
+		}
+		expect(confirmButton).toBeDefined();
+		confirmButton?.click();
+		await nextTick();
 
 		const emitted = wrapper.emitted("delete-person");
 		expect(emitted).toBeTruthy();
 		if (emitted) {
 			expect(emitted[0][0]).toBe("p1");
 		}
+
+		wrapper.unmount();
+	});
+
+	it("shows delete confirmation dialog and does not emit delete-person on cancel", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		// Click Delete to open dialog
+		const deleteButton = wrapper
+			.findAll("button")
+			.filter((b) => b.text() === "Delete");
+		expect(deleteButton.length).toBe(1);
+		await deleteButton[0].trigger("click");
+		await nextTick();
+
+		// Verify dialog opened
+		const dialogContent = document.body.querySelector(
+			'[data-slot="dialog-content"]',
+		);
+		expect(dialogContent).not.toBeNull();
+
+		// Find Cancel button inside dialog
+		const cancelButton = Array.from(
+			dialogContent?.querySelectorAll("button") ?? [],
+		).filter((b) => b.textContent?.trim() === "Cancel");
+		expect(cancelButton.length).toBe(1);
+		cancelButton[0]?.click();
+		await nextTick();
+
+		// delete-person should not have been emitted
+		expect(wrapper.emitted("delete-person")).toBeFalsy();
+
+		wrapper.unmount();
+	});
+
+	it("disables Delete button when deletingPersonId matches person id", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+			deletingPersonId: "p1",
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		// When deletingPersonId matches, button text is "Deleting…" and it's disabled
+		const deleteButtons = wrapper
+			.findAll("button")
+			.filter((b) => b.text() === "Delete" || b.text() === "Deleting…");
+		expect(deleteButtons.length).toBe(1);
+		expect(deleteButtons[0].element.getAttribute("disabled")).not.toBeNull();
+
+		wrapper.unmount();
+	});
+
+	it("enables Delete button when deletingPersonId does not match", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+			deletingPersonId: "p2",
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		const deleteButtons = wrapper
+			.findAll("button")
+			.filter((b) => b.text() === "Delete");
+		expect(deleteButtons.length).toBe(1);
+		expect(deleteButtons[0].element.getAttribute("disabled")).toBeNull();
+
+		wrapper.unmount();
+	});
+
+	it("shows Deleting… text when deletingPersonId matches", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+			deletingPersonId: "p1",
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		const deleteButtons = wrapper
+			.findAll("button")
+			.filter((b) => b.text().includes("Deleting"));
+		expect(deleteButtons.length).toBe(1);
+
+		wrapper.unmount();
+	});
+
+	it("disables popover triggers when updating is true", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			updating: true,
+			days: ["Mon", "Tue"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [
+						{ date: "Mon", status: "available" as const },
+						{ date: "Tue", status: "busy" as const },
+					],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		// Popover trigger buttons should be disabled
+		const triggerButtons = wrapper.findAll('[data-slot="popover-trigger"]');
+		expect(triggerButtons.length).toBe(2);
+		for (const btn of triggerButtons) {
+			expect(btn.element.getAttribute("disabled")).not.toBeNull();
+		}
+
+		wrapper.unmount();
+	});
+
+	it("renders Separator in editable popover instead of hr", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		// Open the popover
+		const trigger = wrapper.find('[data-slot="popover-trigger"]');
+		await trigger.trigger("click");
+		await nextTick();
+
+		// Popover content is teleported to body
+		const popoverContent = document.body.querySelector(
+			'[data-slot="popover-content"]',
+		);
+		expect(popoverContent).not.toBeNull();
+
+		// Should have a Separator (data-slot="separator") and no <hr>
+		const separator = popoverContent?.querySelector('[data-slot="separator"]');
+		expect(separator).not.toBeNull();
+
+		const hr = popoverContent?.querySelector("hr");
+		expect(hr).toBeNull();
 
 		wrapper.unmount();
 	});
@@ -424,11 +676,11 @@ describe("PeopleAvailability editable mode", () => {
 		// No Actions column header
 		expect(wrapper.text()).not.toContain("Actions");
 
-		// No Delete buttons (read-only)
-		const deleteButtons = wrapper
-			.findAll("button")
-			.filter((b) => b.text() === "Delete");
-		expect(deleteButtons.length).toBe(0);
+		// No dialog content (read-only)
+		const dialogContent = document.body.querySelector(
+			'[data-slot="dialog-content"]',
+		);
+		expect(dialogContent).toBeNull();
 
 		wrapper.unmount();
 	});

@@ -37,4 +37,8 @@ export interface PeopleAvailabilityProps {
 	availableToday?: number;
 	totalPeople?: number;
 	editable?: boolean;
+	/** When non-null, the Delete button for this person is disabled and shows "Deleting…". */
+	deletingPersonId?: string | null;
+	/** When true, status popover triggers are disabled to prevent concurrent edits. */
+	updating?: boolean;
 }

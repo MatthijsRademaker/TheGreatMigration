@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Avatar } from '@/shared/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
+import { Separator } from '@/shared/ui/separator'
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/shared/ui/dialog'
 import type { AvailabilityStatus, CellChangePayload, PeopleAvailabilityProps } from './types'
 
 withDefaults(defineProps<PeopleAvailabilityProps>(), {
@@ -62,6 +65,8 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
   availableToday: 1,
   totalPeople: 4,
   editable: false,
+  deletingPersonId: null,
+  updating: false,
 })
 
 const emit = defineEmits<{
@@ -70,6 +75,7 @@ const emit = defineEmits<{
 }>()
 
 const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'off']
+const confirmDeletePersonId = ref<string | null>(null)
 </script>
 
 <template>
@@ -135,7 +141,8 @@ const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'of
                     <PopoverTrigger as-child>
                       <button
                         type="button"
-                        class="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                        :disabled="updating"
+                        class="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Badge :variant="entry.status" class="pointer-events-none">
                           {{ entry.status.charAt(0).toUpperCase() + entry.status.slice(1) }}
@@ -158,7 +165,7 @@ const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'of
                             {{ s.charAt(0).toUpperCase() + s.slice(1) }}
                           </Badge>
                         </button>
-                        <hr class="my-1 border-border">
+                        <Separator class="my-1" />
                         <button
                           type="button"
                           class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
@@ -181,8 +188,43 @@ const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'of
                 <Button
                   variant="destructive"
                   size="sm"
-                  @click="emit('delete-person', person.id)"
-                >Delete</Button>
+                  :disabled="deletingPersonId === person.id"
+                  @click="confirmDeletePersonId = person.id"
+                >
+                  {{ deletingPersonId === person.id ? 'Deleting…' : 'Delete' }}
+                </Button>
+
+                <!-- Delete confirmation dialog -->
+                <Dialog
+                  :open="confirmDeletePersonId === person.id"
+                  @update:open="(open) => { if (!open) confirmDeletePersonId = null }"
+                >
+                  <DialogContent class="max-w-sm max-h-auto w-auto h-auto p-0">
+                    <div class="p-6 pb-4 flex flex-col gap-1.5">
+                      <DialogTitle>Delete {{ person.name }}?</DialogTitle>
+                      <DialogDescription>
+                        This will permanently remove {{ person.name }} and all their
+                        availability data from the system.
+                      </DialogDescription>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose as-child>
+                        <Button variant="outline" @click="confirmDeletePersonId = null">
+                          Cancel
+                        </Button>
+                      </DialogClose>
+                      <Button
+                        variant="destructive"
+                        @click="
+                          emit('delete-person', person.id);
+                          confirmDeletePersonId = null;
+                        "
+                      >
+                        Delete
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </td>
             </tr>
           </tbody>

@@ -5,6 +5,7 @@ export { DatePicker } from "./date-picker";
 export { HelpButton } from "./help-button";
 export { PersonChip } from "./person-chip";
 export { Popover, PopoverContent, PopoverTrigger } from "./popover";
+export { Separator } from "./separator";
 export { SearchField } from "./search-field";
 export {
 	Select,
