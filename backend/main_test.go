@@ -808,7 +808,6 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 	endDate := startDate.AddDate(0, 0, days-1)
 	selectedDate := startDate.Format("2006-01-02")
 
-	availableToday := 0
 	for id, tp := range s.people {
 		avail := make([]AvailabilityEntry, days)
 		for d := 0; d < days; d++ {
@@ -824,14 +823,6 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 				Date:   dateStr,
 				Status: status,
 			}
-			if dateStr == selectedDate && status == "available" {
-				availableToday++
-			}
-		}
-		// count availableToday once per person
-		if availableToday > 0 {
-			// We counted per-entry above; we need to count per person.
-			// Fix: only count if the person has "available" on selectedDate.
 		}
 		people = append(people, Person{
 			ID:           id,
@@ -841,8 +832,8 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 		})
 	}
 
-	// Recompute availableToday correctly.
-	availableToday = 0
+	// Compute availableToday: count people who are "available" on the selected date.
+	availableToday := 0
 	for _, p := range people {
 		for _, e := range p.Availability {
 			if e.Date == selectedDate && e.Status == "available" {

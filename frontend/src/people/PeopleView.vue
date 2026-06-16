@@ -115,9 +115,9 @@ async function handleStatusUpdate(status: string) {
 }
 
 // --- Derive ISO date from day index ---
-function getISODate(dayIndex: number): string | null {
-  if (!rawData.value?.range?.startDate) return null
-  const start = new Date(rawData.value.range.startDate)
+function getISODate(dayIndex: number): string {
+  // rawData is guaranteed defined when the matrix is visible (v-else guard).
+  const start = new Date(rawData.value!.range.startDate)
   start.setDate(start.getDate() + dayIndex)
   return start.toISOString().slice(0, 10)
 }
@@ -271,7 +271,7 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
                   :key="`${person.id}-${entry.date}`"
                   :variant="entry.status"
                   class="cursor-pointer hover:ring-2 hover:ring-ring"
-                  @click="editingCell = { personId: person.id, date: getISODate(dayIdx) ?? entry.date }"
+                  @click="editingCell = { personId: person.id, date: getISODate(dayIdx) }"
                 >
                   {{ entry.status.charAt(0).toUpperCase() + entry.status.slice(1) }}
                 </Badge>
