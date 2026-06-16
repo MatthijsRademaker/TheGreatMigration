@@ -38,7 +38,7 @@ The `SidebarTrigger` rendered inside `AppSidebar.vue`'s `SidebarHeader` SHALL be
 
 ### Requirement: Mobile sidebar SHALL close automatically on route change
 
-When the mobile sidebar Sheet is open and the route changes (any navigation), the sidebar SHALL close by calling `setOpenMobile(false)`. The close-on-navigation behavior SHALL be implemented via a `watch` on `route.path` in `AppSidebar.vue`. The watcher SHALL guard against the initial mount by only closing when `openMobile` is already true.
+When the mobile sidebar Sheet is open and the route changes (any navigation), the sidebar SHALL close by calling `setOpenMobile(false)`. The close-on-navigation behavior SHALL be implemented via a `router.afterEach` hook in `AppSidebar.vue`. The hook SHALL close the Sheet only when `isMobile` and `openMobile` are both true.
 
 #### Scenario: Mobile Sheet closes when navigating to a new route
 
@@ -53,7 +53,7 @@ When the mobile sidebar Sheet is open and the route changes (any navigation), th
 - **GIVEN** the viewport width is ≤ 768px
 - **WHEN** the application first loads at a route
 - **THEN** the mobile sidebar Sheet remains closed (openMobile is false)
-- **AND** the route watcher does not fire `setOpenMobile(false)` on the initial mount
+- **AND** the route hook does not fire `setOpenMobile(false)` on the initial mount
 
 #### Scenario: Mobile Sheet closes via any navigation path
 

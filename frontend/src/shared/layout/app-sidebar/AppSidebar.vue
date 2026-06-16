@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onUnmounted, type Component } from 'vue'
+import { onUnmounted } from 'vue'
+import type { Component } from 'vue'
 import {
   Building2Icon,
   CalendarDaysIcon,
