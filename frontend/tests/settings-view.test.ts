@@ -22,7 +22,7 @@ let controlledState: {
 };
 let mutateSpy: ReturnType<typeof vi.fn>;
 let controlledMutationError: Ref<Error | null>;
-let controlledIsPending: Ref<boolean>;
+let controlledIsLoading: Ref<boolean>;
 
 // ---------------------------------------------------------------------------
 // Mock the generated Pinia Colada query module.
@@ -86,7 +86,7 @@ vi.mock("@pinia/colada", async () => {
 vi.mock("@/shared/composables/useUpdatePlanningWindow", () => ({
 	useUpdatePlanningWindow: () => ({
 		mutate: mutateSpy,
-		isPending: computed(() => controlledIsPending.value),
+		isPending: computed(() => controlledIsLoading.value),
 		error: computed(() => controlledMutationError.value),
 	}),
 }));
@@ -136,7 +136,7 @@ describe("SettingsView interactive", () => {
 		};
 		mutateSpy = vi.fn();
 		controlledMutationError = ref(null);
-		controlledIsPending = ref(false);
+		controlledIsLoading = ref(false);
 	});
 
 	it("renders the planning window card with prefilled dates", async () => {
@@ -250,7 +250,7 @@ describe("SettingsView interactive", () => {
 		sv(wrapper).endDate = new CalendarDate(2026, 7, 20);
 		await nextTick();
 
-		controlledIsPending.value = true;
+		controlledIsLoading.value = true;
 		await nextTick();
 
 		const buttons = wrapper.findAll("button");
@@ -272,7 +272,7 @@ describe("SettingsView interactive", () => {
 		sv(wrapper).endDate = new CalendarDate(2026, 7, 20);
 		await nextTick();
 
-		controlledIsPending.value = true;
+		controlledIsLoading.value = true;
 		await nextTick();
 
 		const buttons = wrapper.findAll("button");
@@ -292,5 +292,49 @@ describe("SettingsView interactive", () => {
 		const wrapper = await mountSettingsView();
 
 		expect(wrapper.html()).toContain("Failed to load planning window");
+	});
+
+	it("shows Save text initially when no mutation is pending", async () => {
+		const wrapper = await mountSettingsView();
+
+		sv(wrapper).startDate = new CalendarDate(2026, 7, 10);
+		sv(wrapper).endDate = new CalendarDate(2026, 7, 20);
+		await nextTick();
+
+		const buttons = wrapper.findAll("button");
+		const saveBtn = buttons.find((b) => b.text() === "Save");
+		expect(saveBtn).toBeTruthy();
+		expect(saveBtn!.text()).toBe("Save");
+	});
+
+	it("toggles isPending during mutation lifecycle", async () => {
+		const wrapper = await mountSettingsView();
+
+		sv(wrapper).startDate = new CalendarDate(2026, 7, 10);
+		sv(wrapper).endDate = new CalendarDate(2026, 7, 20);
+		await nextTick();
+
+		// Initially not pending — button shows Save
+		let buttons = wrapper.findAll("button");
+		let saveBtn = buttons.find((b) => b.text() === "Save");
+		expect(saveBtn).toBeTruthy();
+
+		// During mutation — button shows Saving
+		controlledIsLoading.value = true;
+		await nextTick();
+
+		buttons = wrapper.findAll("button");
+		saveBtn = buttons.find((b) => b.text().includes("Saving"));
+		expect(saveBtn).toBeTruthy();
+		expect(saveBtn!.attributes("disabled")).toBeDefined();
+
+		// After mutation completes — button returns to Save
+		controlledIsLoading.value = false;
+		await nextTick();
+
+		buttons = wrapper.findAll("button");
+		saveBtn = buttons.find((b) => b.text() === "Save");
+		expect(saveBtn).toBeTruthy();
+		expect(saveBtn!.attributes("disabled")).toBeUndefined();
 	});
 });
