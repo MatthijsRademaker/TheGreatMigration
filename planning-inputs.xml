@@ -1,0 +1,235 @@
+<planning_inputs>
+  <summary>
+    <goal>The calendar add-task modal must use existing backlog tasks only (no free-form input). Cards may optionally reference a backlog task via a nullable FK (schedule_task_cards.task_id → backlog_tasks.id) with field inheritance from the referenced task when empty/zero, a "From backlog" badge in the UI, delete protection (400 when task has referencing cards), and backward compatibility for legacy cards with no taskId reference.</goal>
+    <diff_summary>Branch feature/2a5f914b-171f-4ccc-a5c0-11f959f3900a (HEAD 26ebb11 merged with main). Cumulative diff across ~89 files; core semantic changes in ~15 files. Migration 010_add_schedule_card_task_id.sql adds nullable FK column + index. SQL queries add TaskExists, TaskHasScheduleCards, GetTaskByIDForRef, task_id column in schedule card queries. store.go adds task-field inheritance in CreateScheduleCard (inside tx) and UpdateScheduleCard (inside tx), delete guard in DeleteTask, TaskID in buildTaskCardResponse. api/tasks.go adds ErrTaskHasScheduleCards sentinel + 400 handler. api/daily_schedule.go adds TaskId field to TaskCard response, CreateScheduleCardRequestBody (conditional validation: task fields required only when taskId absent). api/store.go adds TaskExists + TaskHasScheduleCards to interface. mock store (store_mock_test.go) mirrors inheritance + TaskHasScheduleCards. Backend tests (main_test.go) cover: create with valid/invalid/override taskId, delete with references, update preserves inheritance, daily schedule reflection + taskId verification, store failure compliance. CalendarView.vue: create modal uses task backlog selector with search; edit modal branches on taskId (referenced → read-only task info, unreferenced → free-form fields). DailySchedule.vue adds "From backlog" badge. Frontend tests: CalendarView.spec.ts covers empty backlog, task selector, date picker, create mutation body assertion, edit modal for referenced and unreferenced cards.</diff_summary>
+    <durable_task_comment_status>present</durable_task_comment_status>
+  </summary>
+
+  <review_feedback>
+
+    <!-- Latest approved round — swarm-reviewer, Comment 1 -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>6ad3d506-f89f-4b6b-8f7f-bca6b5050939</agent_run_id>
+        <created_at>2026-06-16T20:45:32Z</created_at>
+      </source_metadata>
+      <request>Approved. All requirements from tasks.md satisfied. Blocking issues (UpdateScheduleCard field erasure, DeleteTask 500 error) addressed. Inheritance consistent between create/update. Comprehensive test coverage. Merge state clean.</request>
+      <impacted_code>Global — covers the full PR diff.</impacted_code>
+      <notes>Latest round timestamped 20:45:32. Outcome: approved. This is the definitive latest review verdict. Confirms all prior blocking issues resolved.</notes>
+    </item>
+
+    <!-- Latest lead-dev round — swarm-lead-dev, Comment 2 (needs_work, 4 concerns) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-lead-dev</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>6e1ba6f7-b8ec-4cd8-b8a1-ed3cf0c7fe86</agent_run_id>
+        <created_at>2026-06-16T20:45:12Z</created_at>
+      </source_metadata>
+      <request>Both critical bugs from earlier rounds (TOCTOU race, silent taskId-clearing) fixed at HEAD d9626b5. Inheritance resolution now runs inside the transaction. effectiveTaskID logic preserves existing references when input.TaskId is empty. Test coverage for taskId preservation and change paths is solid. Mock store mirrors real-store behavior faithfully. Sound implementation ready for merge with minor hardening recommendations.</request>
+      <impacted_code>backend/store.go: CreateScheduleCard (~line 634-700), UpdateScheduleCard (~line 718-840) — inheritance moved into transaction, effectiveTaskID logic. backend/store_mock_test.go — mock now matches real store. backend/main_test.go — added test coverage for taskId preservation and change.</impacted_code>
+      <notes>Outcome: approved. This is the latest lead-dev round (20:45:12). Confirms all earlier needs_work items (Comment 5) are resolved. The four concerns from the prior lead-dev round (07f3dd1e, 20:35:59) are all addressed: (1) TOCTOU race fixed by moving GetTaskByIDForRef inside pgxTx, (2) silent clearing fixed by effectiveTaskID preservation, (3) mock consistency verified, (4) test coverage added.</notes>
+    </item>
+
+    <!-- Architect round — swarm-architect, Comment 3 -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-architect</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>a8bcad36-b92b-4323-8340-13cf4323c08c</agent_run_id>
+        <created_at>2026-06-16T20:44:33Z</created_at>
+      </source_metadata>
+      <request>Approved. Changes structurally sound, respect component boundaries, preserve dependency direction, follow established patterns (Huma handlers → Store interface → sqlc queries → PostgreSQL; Vue composables → @pinia/colada queries → generated API client).</request>
+      <impacted_code>Architecture layer — all layers.</impacted_code>
+      <notes>Outcome: approved. No issues.</notes>
+    </item>
+
+    <!-- Reviewer round — swarm-reviewer, Comment 4 (approved) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>fcf0e8d6-3262-4e03-a550-99376b31d159</agent_run_id>
+        <created_at>2026-06-16T20:36:27Z</created_at>
+      </source_metadata>
+      <request>Approved. All 8 task requirements satisfied. Full stack covered. Merge recommended.</request>
+      <impacted_code>Global — full PR.</impacted_code>
+      <notes>Outcome: approved. No remaining issues.</notes>
+    </item>
+
+    <!-- Lead-dev round — swarm-lead-dev, Comment 5 (needs_work, RESOLVED) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-lead-dev</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>07f3dd1e-445f-4543-a1c4-49fcc8aa259c</agent_run_id>
+        <created_at>2026-06-16T20:35:59Z</created_at>
+      </source_metadata>
+      <request>Address TOCTOU race in inheritance resolution, silent taskId-clearing in UpdateScheduleCard, mock inconsistency, missing test coverage for change taskId and store validation failures.</request>
+      <impacted_code>backend/store.go (~line 643, ~line 741): GetTaskByIDForRef before pgxTx.Begin. UpdateScheduleCard writes TaskID directly without preserving existing. backend/store_mock_test.go: mock not matching real store. backend/main_test.go: missing edge-case tests.</impacted_code>
+      <notes>RESOLVED at HEAD d9626b5 (confirmed by Comment 2, 20:45:12). Earlier review. These four issues have all been fixed in the current branch HEAD.</notes>
+    </item>
+
+    <!-- Architect round — swarm-architect, Comment 6 (approved, docs gap) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-architect</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>5d5c518a-7056-43cf-abe7-79b5f33f577d</agent_run_id>
+        <created_at>2026-06-16T20:35:17Z</created_at>
+      </source_metadata>
+      <request>Approved. Only gap: missing architecture documentation for task-card inheritance domain model.</request>
+      <impacted_code>Documentation — missing ARCHITECTURE.md or .c4 file describing the inheritance relationship.</impacted_code>
+      <notes>Outcome: approved. Documentation gap noted but not blocking for code. Not part of the diff.</notes>
+    </item>
+
+    <!-- Lead-dev round — swarm-lead-dev, Comment 7 (needs_work, RESOLVED) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-lead-dev</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>6d65a97b-4d40-4253-9a87-f5fc3df2d079</agent_run_id>
+        <created_at>2026-06-16T20:19:27Z</created_at>
+      </source_metadata>
+      <request>Fix UpdateScheduleCard data corruption: when editing taskId-linked card, frontend omits fields, backend writes empty/zero values to SQL. Add inheritance logic to UpdateScheduleCard.</request>
+      <impacted_code>backend/store.go: UpdateScheduleCard (~line 730) passed input fields to SQL without inheritance.</impacted_code>
+      <notes>RESOLVED at HEAD. UpdateScheduleCard now has inheritance logic matching CreateScheduleCard. Confirmed by Comment 1 and Comment 2.</notes>
+    </item>
+
+    <!-- Architect round — swarm-architect, Comment 8 (approved) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-architect</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>96f9a238-5dc4-4b50-b3b2-1f7610186357</agent_run_id>
+        <created_at>2026-06-16T20:19:16Z</created_at>
+      </source_metadata>
+      <request>Approved. Calendar add-task modal uses existing backlog tasks (not free-form) while preserving backward compatibility for legacy cards without taskId.</request>
+      <impacted_code>Architecture layer.</impacted_code>
+      <notes>Outcome: approved. No issues.</notes>
+    </item>
+
+    <!-- Reviewer round — swarm-reviewer, Comment 9 (needs_work, RESOLVED) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>1edb858a-f61b-4607-a8e9-a82b5a211772</agent_run_id>
+        <created_at>2026-06-16T20:19:07Z</created_at>
+      </source_metadata>
+      <request>Fix critical: UpdateScheduleCard field erasure on taskId-linked cards. Add missing tests: TestCreateScheduleCardWithValidTaskId, TestCreateScheduleCardWithInvalidTaskId, TestCreateScheduleCardWithTaskIdAndOverrides. Add taskId assertion in daily-schedule reflection test.</request>
+      <impacted_code>backend/store.go:730 (UpdateScheduleCard). backend/main_test.go (missing tests).</impacted_code>
+      <notes>ALL RESOLVED at HEAD. UpdateScheduleCard fixed. Tests added: TestCreateScheduleCardWithValidTaskId (main_test.go:1280), TestCreateScheduleCardWithInvalidTaskId (main_test.go:1340), TestCreateScheduleCardWithTaskIdAndOverrides (main_test.go:1365), TestTaskIdReflectsInDailySchedule (main_test.go:2550).</notes>
+    </item>
+
+    <!-- Reviewer round — swarm-reviewer, Comment 10 (needs_work, RESOLVED) -->
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>8966c534-3676-461f-9b9b-7559b3c1ed2a</agent_run_id>
+        <created_at>2026-06-16T20:01:10Z</created_at>
+      </source_metadata>
+      <request>Fix critical: edit modal for unreferenced (legacy) cards broken (shows task selector instead of free-form fields, sends empty/dummy values). Fix warning: DeleteTask returns 500 instead of 400. Fix info: store.go indentation. Fix info: add frontend tests for create mutation body and edit modal paths.</request>
+      <impacted_code>frontend/src/calendar/CalendarView.vue (~line 113, edit path). backend/api/tasks.go (~line 284, DeleteTask handler). backend/store.go (~line 300, indentation). frontend/src/calendar/__tests__/CalendarView.spec.ts (missing tests).</impacted_code>
+      <notes>ALL RESOLVED at HEAD. CalendarView.vue: edit template branches on selectedTask (referenced → read-only, unreferenced → free-form inputs), handleSubmit sends correct body per mode. DeleteTask: errors.Is check for ErrTaskHasScheduleCards returns 400. Indentation: consistent (3 tabs, go fmt clean). Frontend tests: capturing spies for mutation body assertion, edit modal path tests for referenced/unreferenced cards.</notes>
+    </item>
+
+  </review_feedback>
+
+  <relevant_code_areas>
+    <code_area>
+      <path>backend/store.go</path>
+      <reason>Core store logic. CreateScheduleCard (line ~634) and UpdateScheduleCard (line ~718): both now run inheritance resolution inside the transaction. effectiveTaskID logic preserves existing taskId (line ~760). buildTaskCardResponse (line ~853) constructs *string from pgtype.Text. All review-critical logic lives here.</reason>
+    </code_area>
+    <code_area>
+      <path>backend/api/daily_schedule.go</path>
+      <reason>API-layer input types (CreateScheduleCardRequestBody, TaskCard), conditional validation in validateScheduleCardInput, handler registration for POST/PUT/DELETE /api/schedule/cards[/{id}]. CreateScheduleCardInput domain type and ErrScheduleCardNotFound sentinel.</reason>
+    </code_area>
+    <code_area>
+      <path>backend/api/tasks.go</path>
+      <reason>ErrTaskHasScheduleCards sentinel (line ~30). DeleteTask handler (line ~284) checks errors.Is for ErrTaskHasScheduleCards → 400. validateTaskInput uses store.PersonExists pattern.</reason>
+    </code_area>
+    <code_area>
+      <path>backend/api/store.go</path>
+      <reason>Store interface: TaskExists, TaskHasScheduleCards, CreateScheduleCard, UpdateScheduleCard, DeleteScheduleCard added.</reason>
+    </code_area>
+    <code_area>
+      <path>backend/migrations/010_add_schedule_card_task_id.sql</path>
+      <reason>Migration: ALTER TABLE schedule_task_cards ADD COLUMN task_id TEXT REFERENCES backlog_tasks(id) (no ON DELETE — FK provides RESTRICT by default). Index idx_schedule_task_cards_task_id.</reason>
+    </code_area>
+    <code_area>
+      <path>backend/store_mock_test.go</path>
+      <reason>Mock store with scheduleCards map, scheduleDates map, scheduleTaskRefs map. Matches real-store inheritance logic for both CreateScheduleCard and UpdateScheduleCard. TaskHasScheduleCards checks scheduleTaskRefs. Used by all backend integration tests.</reason>
+    </code_area>
+    <code_area>
+      <path>backend/main_test.go</path>
+      <reason>Comprehensive test suite at 848 lines. Key test functions: TestCreateScheduleCardWithValidTaskId (line ~1280), TestCreateScheduleCardWithInvalidTaskId (line ~1340), TestCreateScheduleCardWithTaskIdAndOverrides (line ~1365), TestDeleteTaskWithScheduleCards (line ~1250), TestUpdateScheduleCard (inheritance preservation), TestUpdateScheduleCardWithValidTaskId, TestUpdateScheduleCardChangeTaskId, TestUpdateScheduleCardRemoveTaskId, TestScheduleCardWriteReflectsInDailySchedule (null taskId assertion), TestTaskIdReflectsInDailySchedule, TestCreateScheduleCardStoreFailure. failingStore/partialFailingStore now implement TaskExists/TaskHasScheduleCards.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/calendar/CalendarView.vue</path>
+      <reason>Main view component. Uses useTaskBacklog (not listRoomsQuery). Create modal shows task selector with search. Edit modal branches: referenced cards show read-only task info + "From backlog" badge; unreferenced cards show free-form fields (title, priority, roomArea, peopleNeeded). handleSubmit sends taskId body for referenced, free-form for unreferenced. TypeScript typing for mutation body uses as-cast to satisfy the generated mutation types.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/calendar/__tests__/CalendarView.spec.ts</path>
+      <reason>411-line frontend test suite. Capturing mutation spies via useMutation mock. Tests: create modal with empty backlog, task selector, date picker, create mutation body assertion (taskId), edit modal for referenced card (From backlog badge + read-only info), edit modal for unreferenced card (form-title, form-priority, form-room, form-people elements).</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/calendar/DailySchedule.vue</path>
+      <reason>Displays "From backlog" badge when task.taskId is truthy. Emits edit-task and delete-task events upward. Priority accent map, staffing status display.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/calendar/composables/useDailySchedule.ts</path>
+      <reason>132-line composable. Defines ScheduleTaskCard interface with taskId: string | null, maps raw API response.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/client/types.gen.ts</path>
+      <reason>Generated types: CreateScheduleCardRequestBody has optional taskId: string; TaskCard has required taskId: string | null.</reason>
+    </code_area>
+  </relevant_code_areas>
+
+  <planner_constraints>
+    <constraint>All earlier blocking issues (UpdateScheduleCard field erasure, DeleteTask 500 error, edit modal for unreferenced cards broken) are confirmed fixed at HEAD d9626b5 by the latest review rounds (Comments 1-4). The planner should treat these as resolved pending verification but should not re-architect them.</constraint>
+    <constraint>The four lead-dev concerns from Comment 5 (TOCTOU race, silent taskId-clearing, mock misalignment, edge-case test coverage) were all resolved between that review and the subsequent round. Comment 2 (20:45:12) explicitly confirms each of these fixes.</constraint>
+    <constraint>The architect-identified documentation gap (missing task-card inheritance domain model docs) is code-optional and can be deferred.</constraint>
+    <constraint>silent taskId-clearing in UpdateScheduleCard: the current code uses effectiveTaskID logic (line ~760) that preserves existing taskId when input.TaskId is empty. This was the fix for Comment 2's concern. Verify this is still in place.</constraint>
+    <constraint>TOCTOU race mitigation: GetTaskByIDForRef now runs inside pgxTx.Begin. This was the fix for Comment 2's concern. Verify this is still in place.</constraint>
+    <constraint>All execution must be Docker-backed. Go and Node SDKs are not installed in the container. Use scripts/precommit-run for validation.</constraint>
+  </planner_constraints>
+
+  <assumptions>
+    <assumption>The backend mock store faithfully reproduces the real PgStore inheritance behavior for CreateScheduleCard and UpdateScheduleCard. At HEAD, both use the same logic: resolve from ref task only when input field is empty/zero.</assumption>
+    <assumption>effectiveTaskID preservation in UpdateScheduleCard prevents silent reference clearing when a direct API client omits taskId from the PUT body. This is the desired contract per the fix.</assumption>
+    <assumption>The conditional validation in validateScheduleCardInput correctly allows empty title/priority/roomArea/peopleNeeded when taskId is present, trusting the store layer to resolve from the referenced task.</assumption>
+    <assumption>The frontend mutation body type issue (using `as-cast` in handleSubmit) is a TypeScript escape hatch that works because the store accepts the same fields. If the generated client types become stricter (e.g., required fields), this could break.</assumption>
+  </assumptions>
+
+  <open_questions>
+    <question>The frontend uses `as Parameters&lt;typeof createMut.mutateAsync&gt;[0]['body']` type cast when constructing the mutation body for referenced cards (limited body vs full body). This is a type-level escape hatch that works now, but could break if the generated mutation type becomes stricter. Is this acceptable technical debt, or should the mutation body types be split into "create with taskId" and "create without taskId" variants?</question>
+    <question>The validateScheduleCardInput calls store.TaskExists to validate the referenced task, then the store layer calls GetTaskByIDForRef again (in the transaction). This double-read adds latency. Could the validation read be eliminated by relying on the store's FK violation error, or is upfront validation preferred for UX (immediate 400 vs DB roundtrip)?</question>
+    <question>Should the FK constraint be made ON DELETE RESTRICT explicitly (currently default behavior for REFERENCES without ON DELETE clause)? PostgreSQL's default is NO ACTION, which behaves identically to RESTRICT in terms of preventing deletion, but the error message differs. The TaskHasScheduleCards check in Go provides a user-friendly error before the DB error.</question>
+  </open_questions>
+
+  <recommended_validation>
+    <step>Run `cd /home/devuser/workspace/project-source/backend && go test ./... -count=1` to verify all backend tests pass.</step>
+    <step>Run `cd /home/devuser/workspace/project-source/frontend && npx vitest run` to verify all frontend tests pass.</step>
+    <step>Run `scripts/precommit-run` from project root to verify pre-commit hooks.</step>
+    <step>Trace the UpdateScheduleCard path in backend/store.go: verify that line ~760 preserves existing taskId when input.TaskId is empty (effectiveTaskID logic).</step>
+    <step>Trace the CreateScheduleCard path in backend/store.go: verify that GetTaskByIDForRef (line ~654) is called after pgxTx.Begin, not before (TOCTOU fix verification).</step>
+    <step>Verify DeleteTask handler in api/tasks.go: errors.Is check for ErrTaskHasScheduleCards returns huma.Error400BadRequest (line ~290).</step>
+    <step>Verify CalendarView.vue edit template branches correctly: referenced cards show read-only task info with From backlog badge; unreferenced cards show free-form inputs with form-title, form-priority, form-room, form-people.</step>
+    <step>Verify CalendarView.vue handleSubmit constructs correct body per mode: referenced → includes taskId, omits title/priority/roomArea/peopleNeeded; unreferenced → includes title/priority/roomArea/peopleNeeded, omits taskId.</step>
+  </recommended_validation>
+</planning_inputs>

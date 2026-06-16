@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -209,8 +210,8 @@ func (n *nilPlanningWindowStore) GetDailySchedule(ctx context.Context, startDate
 	return nil, errTestFailure
 }
 
-func (n *nilPlanningWindowStore) CreatePerson(ctx context.Context, id, name, initials string) error {
-	return errTestFailure
+func (n *nilPlanningWindowStore) CreatePerson(ctx context.Context, name, initials string) (string, error) {
+	return "", errTestFailure
 }
 
 func (n *nilPlanningWindowStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
@@ -259,6 +260,14 @@ func (n *nilPlanningWindowStore) UpdateScheduleCard(ctx context.Context, id stri
 
 func (n *nilPlanningWindowStore) DeleteScheduleCard(ctx context.Context, id string) error {
 	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
 }
 
 func (n *nilPlanningWindowStore) ListRooms(ctx context.Context) ([]backendapi.Room, error) {
@@ -860,8 +869,8 @@ func (f *failingStore) GetDailySchedule(ctx context.Context, startDate time.Time
 	return nil, errTestFailure
 }
 
-func (f *failingStore) CreatePerson(ctx context.Context, id, name, initials string) error {
-	return errTestFailure
+func (f *failingStore) CreatePerson(ctx context.Context, name, initials string) (string, error) {
+	return "", errTestFailure
 }
 
 func (f *failingStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
@@ -926,6 +935,14 @@ func (f *failingStore) UpdateScheduleCard(ctx context.Context, id string, input 
 
 func (f *failingStore) DeleteScheduleCard(ctx context.Context, id string) error {
 	return errTestFailure
+}
+
+func (f *failingStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *failingStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
 }
 
 // errTestFailure is a sentinel error used by failingStore.
@@ -1002,8 +1019,8 @@ func (f *partialFailingStore) GetDailySchedule(ctx context.Context, startDate ti
 	return nil, errTestFailure
 }
 
-func (f *partialFailingStore) CreatePerson(ctx context.Context, id, name, initials string) error {
-	return errTestFailure
+func (f *partialFailingStore) CreatePerson(ctx context.Context, name, initials string) (string, error) {
+	return "", errTestFailure
 }
 
 func (f *partialFailingStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
@@ -1068,6 +1085,14 @@ func (f *partialFailingStore) UpdateScheduleCard(ctx context.Context, id string,
 
 func (f *partialFailingStore) DeleteScheduleCard(ctx context.Context, id string) error {
 	return errTestFailure
+}
+
+func (f *partialFailingStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *partialFailingStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
 }
 
 // ---------- Task CRUD tests ----------
@@ -1252,6 +1277,128 @@ func TestDeleteTaskNotFound(t *testing.T) {
 	}
 }
 
+func TestDeleteTaskWithScheduleCards(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-1.
+	createBody := `{"title":"Scheduled card","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"taskId":"task-1","scheduledDate":"2026-07-10","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated && rec.Code != http.StatusOK {
+		t.Fatalf("create schedule card failed: status %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Now try to delete the referenced task — should return 400.
+	req = httptest.NewRequest(http.MethodDelete, "/api/tasks/task-1", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify the task still exists.
+	if _, exists := store.tasks["task-1"]; !exists {
+		t.Fatal("task should not have been deleted")
+	}
+}
+
+func TestCreateScheduleCardWithValidTaskId(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-1 ("Disconnect kitchen appliances", high, Kitchen, 3 people).
+	// Omit title/priority/roomArea/peopleNeeded to verify inheritance.
+	body := `{"taskId":"task-1","scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected inherited priority 'high', got %q", resp.Priority)
+	}
+	if resp.RoomArea != "Kitchen" {
+		t.Fatalf("expected inherited roomArea 'Kitchen', got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 3 {
+		t.Fatalf("expected inherited peopleNeeded 3, got %d", resp.PeopleNeeded)
+	}
+	if resp.TaskId == nil || *resp.TaskId != "task-1" {
+		t.Fatalf("expected taskId 'task-1', got %v", resp.TaskId)
+	}
+}
+
+func TestCreateScheduleCardWithInvalidTaskId(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing a non-existent task.
+	body := `{"taskId":"task-999","scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateScheduleCardWithTaskIdAndOverrides(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-2 ("Wrap living room furniture", high, Living Room, 2 people)
+	// but explicitly override title and peopleNeeded.
+	body := `{"title":"Custom override","priority":"low","taskId":"task-2","scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	// Explicit overrides should win.
+	if resp.Title != "Custom override" {
+		t.Fatalf("expected override title 'Custom override', got %q", resp.Title)
+	}
+	if resp.Priority != "low" {
+		t.Fatalf("expected override priority 'low', got %q", resp.Priority)
+	}
+	// Inherited fields for values not explicitly set.
+	if resp.RoomArea != "Living Room" {
+		t.Fatalf("expected inherited roomArea 'Living Room', got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 2 {
+		t.Fatalf("expected inherited peopleNeeded 2, got %d", resp.PeopleNeeded)
+	}
+	if resp.TaskId == nil || *resp.TaskId != "task-2" {
+		t.Fatalf("expected taskId 'task-2', got %v", resp.TaskId)
+	}
+}
+
 func TestTaskWriteReflectsInBacklog(t *testing.T) {
 	store := newMockStore()
 	router, _ := newTestAPI(store)
@@ -1327,12 +1474,22 @@ func newPeopleTestStore() *peopleTestStore {
 	}
 }
 
-func (s *peopleTestStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+func (s *peopleTestStore) CreatePerson(ctx context.Context, name, initials string) (string, error) {
+	// Auto-generate sequential p{N} IDs.
+	nextID := len(s.people) + 1
+	id := fmt.Sprintf("p%d", nextID)
 	if _, exists := s.people[id]; exists {
-		return errors.New("duplicate key")
+		// Find the next available slot.
+		for i := 1; ; i++ {
+			candidate := fmt.Sprintf("p%d", i)
+			if _, exists := s.people[candidate]; !exists {
+				id = candidate
+				break
+			}
+		}
 	}
 	s.people[id] = testPerson{Name: name, Initials: initials}
-	return nil
+	return id, nil
 }
 
 func (s *peopleTestStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
@@ -1441,22 +1598,26 @@ func TestCreatePerson(t *testing.T) {
 	store := newPeopleTestStore()
 	router, _ := newTestAPI(store)
 
-	body := `{"id":"p9","name":"Test User","initials":"TU"}`
+	body := `{"name":"Test User","initials":"TU"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 
 	var resp backendapi.Person
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
-	if resp.ID != "p9" {
-		t.Fatalf("expected id p9, got %q", resp.ID)
+	// Verify the auto-generated ID matches the p{N} pattern.
+	if !strings.HasPrefix(resp.ID, "p") {
+		t.Fatalf("expected auto-generated id starting with 'p', got %q", resp.ID)
+	}
+	if resp.ID == "p" {
+		t.Fatalf("expected id to have a numeric suffix, got %q", resp.ID)
 	}
 	if resp.Name != "Test User" {
 		t.Fatalf("expected name 'Test User', got %q", resp.Name)
@@ -1464,31 +1625,59 @@ func TestCreatePerson(t *testing.T) {
 	if resp.Initials != "TU" {
 		t.Fatalf("expected initials 'TU', got %q", resp.Initials)
 	}
+	// Verify the person was persisted.
+	exists, _ := store.PersonExists(context.Background(), resp.ID)
+	if !exists {
+		t.Fatalf("created person %s not found in store", resp.ID)
+	}
 }
 
-func TestCreatePersonDuplicate(t *testing.T) {
+func TestCreatePersonAutoGeneratedIDs(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Existing", "EX"); err != nil {
-		t.Fatalf("failed to seed person: %v", err)
-	}
-
 	router, _ := newTestAPI(store)
 
-	body := `{"id":"p9","name":"Test User","initials":"TU"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	// Create first person — gets an auto-generated ID.
+	body1 := `{"name":"First User","initials":"FU"}`
+	req1 := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body1))
+	req1.Header.Set("Content-Type", "application/json")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	if rec1.Code != http.StatusCreated {
+		t.Fatalf("first create failed: status %d\nbody: %s", rec1.Code, rec1.Body.String())
+	}
+	var p1 backendapi.Person
+	if err := json.Unmarshal(rec1.Body.Bytes(), &p1); err != nil {
+		t.Fatalf("failed to unmarshal first person: %v", err)
+	}
+	if !strings.HasPrefix(p1.ID, "p") {
+		t.Fatalf("expected id starting with 'p', got %q", p1.ID)
+	}
 
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected status 409 for duplicate, got %d\nbody: %s", rec.Code, rec.Body.String())
+	// Create second person — gets a different auto-generated ID.
+	body2 := `{"name":"Second User","initials":"SU"}`
+	req2 := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body2))
+	req2.Header.Set("Content-Type", "application/json")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusCreated {
+		t.Fatalf("second create failed: status %d\nbody: %s", rec2.Code, rec2.Body.String())
+	}
+	var p2 backendapi.Person
+	if err := json.Unmarshal(rec2.Body.Bytes(), &p2); err != nil {
+		t.Fatalf("failed to unmarshal second person: %v", err)
+	}
+	if !strings.HasPrefix(p2.ID, "p") {
+		t.Fatalf("expected id starting with 'p', got %q", p2.ID)
+	}
+	if p1.ID == p2.ID {
+		t.Fatalf("expected different auto-generated IDs, got same %q", p1.ID)
 	}
 }
 
 func TestCreatePersonMissingFields(t *testing.T) {
 	router, _ := newTestAPI(newPeopleTestStore())
 
-	body := `{"id":"","name":"","initials":""}`
+	body := `{"name":"","initials":""}`
 	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1501,14 +1690,15 @@ func TestCreatePersonMissingFields(t *testing.T) {
 
 func TestUpdatePerson(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Original", "OR"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Original", "OR")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
 	body := `{"name":"Updated Name","initials":"UN"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/people/"+id, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -1545,13 +1735,21 @@ func TestUpdatePersonNotFound(t *testing.T) {
 
 func TestDeletePerson(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p99", "To Delete", "TD"); err != nil {
+	// Seed dummy people (p1, p2, p3 are referenced by PersonHasReferences)
+	// so the person to delete gets p4 which has no references.
+	for _, name := range []string{"Dummy One", "Dummy Two", "Dummy Three"} {
+		if _, err := store.CreatePerson(context.Background(), name, "DM"); err != nil {
+			t.Fatalf("failed to seed dummy person %s: %v", name, err)
+		}
+	}
+	id, err := store.CreatePerson(context.Background(), "To Delete", "TD")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p99", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/"+id, nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -1559,7 +1757,7 @@ func TestDeletePerson(t *testing.T) {
 		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 
-	exists, _ := store.PersonExists(context.Background(), "p99")
+	exists, _ := store.PersonExists(context.Background(), id)
 	if exists {
 		t.Fatal("person should have been deleted")
 	}
@@ -1579,13 +1777,14 @@ func TestDeletePersonNotFound(t *testing.T) {
 
 func TestDeletePersonConflict(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p1", "Sophia Chen", "SC"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Sophia Chen", "SC")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/"+id, nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -1596,16 +1795,17 @@ func TestDeletePersonConflict(t *testing.T) {
 
 func TestDeletePersonForeignKeyViolation(t *testing.T) {
 	store := newPeopleTestStore()
-	// p9 has no references (PersonHasReferences returns false), but a concurrent
+	// Create a person with no references (PersonHasReferences returns false), but a concurrent
 	// request could insert a reference between the check and delete.
-	if err := store.CreatePerson(context.Background(), "p9", "Raced Person", "RP"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Raced Person", "RP")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 	store.deleteShouldFailWithFK = true
 
 	router, _ := newTestAPI(store)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/"+id, nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -1616,14 +1816,15 @@ func TestDeletePersonForeignKeyViolation(t *testing.T) {
 
 func TestUpsertAvailability(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Test User", "TU")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
 	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/people/"+id+"/availability/2026-07-10", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -1631,21 +1832,22 @@ func TestUpsertAvailability(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
-	if got := store.availability["p9"]["2026-07-10"]; got != "available" {
+	if got := store.availability[id]["2026-07-10"]; got != "available" {
 		t.Fatalf("expected persisted availability 'available', got %q", got)
 	}
 }
 
 func TestUpsertAvailabilityInvalidStatus(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Test User", "TU")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
 	body := `{"status":"unknown"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/people/"+id+"/availability/2026-07-10", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -1671,14 +1873,15 @@ func TestUpsertAvailabilityPersonNotFound(t *testing.T) {
 
 func TestUpsertAvailabilityOutOfWindow(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Test User", "TU")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
 	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2025-01-01", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/people/"+id+"/availability/2025-01-01", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -1690,14 +1893,15 @@ func TestUpsertAvailabilityOutOfWindow(t *testing.T) {
 
 func TestUpsertAvailabilityMalformedDate(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Test User", "TU")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
 	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/not-a-date", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/people/"+id+"/availability/not-a-date", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -1709,24 +1913,25 @@ func TestUpsertAvailabilityMalformedDate(t *testing.T) {
 
 func TestDeleteAvailability(t *testing.T) {
 	store := newPeopleTestStore()
-	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+	id, err := store.CreatePerson(context.Background(), "Test User", "TU")
+	if err != nil {
 		t.Fatalf("failed to seed person: %v", err)
 	}
 	date := pgtype.Date{Time: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC), Valid: true}
-	if err := store.UpsertAvailability(context.Background(), "p9", date, "available"); err != nil {
+	if err := store.UpsertAvailability(context.Background(), id, date, "available"); err != nil {
 		t.Fatalf("failed to seed availability: %v", err)
 	}
 
 	router, _ := newTestAPI(store)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9/availability/2026-07-10", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/"+id+"/availability/2026-07-10", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
-	if _, ok := store.availability["p9"]["2026-07-10"]; ok {
+	if _, ok := store.availability[id]["2026-07-10"]; ok {
 		t.Fatal("availability should have been deleted")
 	}
 }
@@ -2140,6 +2345,183 @@ func TestUpdateScheduleCard(t *testing.T) {
 	}
 }
 
+func TestUpdateScheduleCardWithTaskIdPreservesInheritedFields(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card referencing task-1 ("Disconnect kitchen appliances", high, Kitchen, 3 people).
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+	if card.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", card.Title)
+	}
+
+	router, _ := newTestAPI(store)
+
+	// Simulate frontend behavior: update ONLY scheduledDate and assignedTo,
+	// omitting title/priority/roomArea/peopleNeeded for a taskId-linked card.
+	body := `{"taskId":"task-1","scheduledDate":"2026-07-06","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Assert inherited fields from task-1 are preserved.
+	if resp.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected title 'Disconnect kitchen appliances' (inherited), got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high' (inherited), got %q", resp.Priority)
+	}
+	if resp.RoomArea != "Kitchen" {
+		t.Fatalf("expected roomArea 'Kitchen' (inherited), got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 3 {
+		t.Fatalf("expected peopleNeeded 3 (inherited from task-1), got %d", resp.PeopleNeeded)
+	}
+	if resp.TaskId == nil || *resp.TaskId != "task-1" {
+		t.Fatalf("expected taskId 'task-1', got %v", resp.TaskId)
+	}
+
+	// Verify store reflects the update correctly.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("store card title not preserved: got %q", stored.Title)
+	}
+}
+
+func TestUpdateScheduleCardPreservesTaskIdWhenOmitted(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card referencing task-1.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+	if card.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", card.Title)
+	}
+
+	// Call UpdateScheduleCard directly (bypass API validation) without sending taskId.
+	// This simulates a caller that omits taskId from the update body.
+	updated, err := store.UpdateScheduleCard(context.Background(), card.ID, backendapi.CreateScheduleCardInput{
+		ScheduledDate: "2026-07-06",
+		AssignedTo:    []string{"p1", "p2"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateScheduleCard failed: %v", err)
+	}
+
+	// Assert taskId is preserved even though it was not in the input.
+	if updated.TaskId == nil || *updated.TaskId != "task-1" {
+		t.Fatalf("expected taskId 'task-1' preserved, got %v", updated.TaskId)
+	}
+
+	// Assert inherited fields are preserved.
+	if updated.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected title 'Disconnect kitchen appliances', got %q", updated.Title)
+	}
+	if updated.Priority != "high" {
+		t.Fatalf("expected priority 'high', got %q", updated.Priority)
+	}
+	if updated.RoomArea != "Kitchen" {
+		t.Fatalf("expected roomArea 'Kitchen', got %q", updated.RoomArea)
+	}
+	if updated.PeopleNeeded != 3 {
+		t.Fatalf("expected peopleNeeded 3, got %d", updated.PeopleNeeded)
+	}
+
+	// Verify store reflects the update correctly.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.TaskId == nil || *stored.TaskId != "task-1" {
+		t.Fatalf("store card taskId not preserved: got %v", stored.TaskId)
+	}
+}
+
+func TestUpdateScheduleCardChangesTaskId(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card referencing task-1.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	// Update with a different taskId (task-2: "Wrap living room furniture", high, Living Room, 2 people).
+	body := `{"taskId":"task-2","scheduledDate":"2026-07-06","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Assert taskId has changed to task-2.
+	if resp.TaskId == nil || *resp.TaskId != "task-2" {
+		t.Fatalf("expected taskId 'task-2', got %v", resp.TaskId)
+	}
+
+	// Assert inherited fields from task-2.
+	if resp.Title != "Wrap living room furniture" {
+		t.Fatalf("expected title 'Wrap living room furniture' (inherited from task-2), got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high' (inherited from task-2), got %q", resp.Priority)
+	}
+	if resp.RoomArea != "Living Room" {
+		t.Fatalf("expected roomArea 'Living Room' (inherited from task-2), got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 2 {
+		t.Fatalf("expected peopleNeeded 2 (inherited from task-2), got %d", resp.PeopleNeeded)
+	}
+
+	// Verify store reflects the update.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.TaskId == nil || *stored.TaskId != "task-2" {
+		t.Fatalf("store card taskId not changed: got %v", stored.TaskId)
+	}
+}
+
 func TestUpdateScheduleCardNotFound(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
@@ -2151,6 +2533,32 @@ func TestUpdateScheduleCardNotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateScheduleCardWithInvalidTaskId(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Seed a schedule card referencing a valid task.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+
+	// Update the card to reference a non-existent task — should return 400.
+	body := `{"taskId":"task-999","scheduledDate":"2026-07-06","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -2238,11 +2646,62 @@ func TestScheduleCardWriteReflectsInDailySchedule(t *testing.T) {
 			if task.Priority != "high" {
 				t.Fatalf("reflected task has wrong priority: %q", task.Priority)
 			}
+			// Card was created without taskId, so it should be null.
+			if task.TaskId != nil {
+				t.Fatalf("expected taskId nil for card without reference, got %v", *task.TaskId)
+			}
 			break
 		}
 	}
 	if !found {
 		t.Fatal("created schedule card not found in daily schedule response")
+	}
+}
+
+func TestTaskIdReflectsInDailySchedule(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-1 on 2026-07-05.
+	createBody := `{"taskId":"task-1","scheduledDate":"2026-07-05","assignedTo":["p1"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create failed: status %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// GET the daily schedule and verify the new card appears with taskId.
+	getReq := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("daily schedule GET failed: status %d\nbody: %s", getRec.Code, getRec.Body.String())
+	}
+
+	var ds backendapi.DailyScheduleBody
+	if err := json.Unmarshal(getRec.Body.Bytes(), &ds); err != nil {
+		t.Fatalf("failed to unmarshal daily schedule: %v", err)
+	}
+
+	if len(ds.Days) == 0 {
+		t.Fatal("no days in daily schedule")
+	}
+	found := false
+	for _, task := range ds.Days[0].Tasks {
+		if task.TaskId != nil && *task.TaskId == "task-1" {
+			found = true
+			if task.Title != "Disconnect kitchen appliances" {
+				t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", task.Title)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("taskId-linked schedule card not found in daily schedule response")
 	}
 }
 

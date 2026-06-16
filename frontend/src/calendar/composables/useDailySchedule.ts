@@ -23,6 +23,7 @@ export interface ScheduleTaskCard {
 	assignedCount: number;
 	staffingStatus: "fullyStaffed" | "underStaffed";
 	scheduledDate: string;
+	taskId: string | null;
 }
 
 export interface ScheduleDay {
@@ -56,6 +57,7 @@ function adaptTaskCard(
 		assignedCount: card.assignedCount,
 		staffingStatus: card.staffingStatus as ScheduleTaskCard["staffingStatus"],
 		scheduledDate,
+		taskId: card.taskId ?? null,
 	};
 }
 

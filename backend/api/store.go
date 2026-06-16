@@ -15,7 +15,7 @@ type Store interface {
 	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
 	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
 	// Person CRUD
-	CreatePerson(ctx context.Context, id, name, initials string) error
+	CreatePerson(ctx context.Context, name, initials string) (string, error)
 	UpdatePerson(ctx context.Context, id, name, initials string) error
 	DeletePerson(ctx context.Context, id string) error
 	PersonExists(ctx context.Context, id string) (bool, error)
@@ -29,6 +29,8 @@ type Store interface {
 	CreateTask(ctx context.Context, input CreateTaskInput) (*TaskRow, error)
 	UpdateTask(ctx context.Context, id string, input UpdateTaskInput) (*TaskRow, error)
 	DeleteTask(ctx context.Context, id string) error
+	TaskExists(ctx context.Context, id string) (bool, error)
+	TaskHasScheduleCards(ctx context.Context, id string) (bool, error)
 
 	// Schedule-card CRUD
 	CreateScheduleCard(ctx context.Context, input CreateScheduleCardInput) (*TaskCard, error)

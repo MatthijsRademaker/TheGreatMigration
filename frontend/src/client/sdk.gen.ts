@@ -28,7 +28,7 @@ export const getDashboardDailySchedule = <ThrowOnError extends boolean = false>(
 /**
  * People availability for the dashboard
  *
- * Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the server-local current date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.
+ * Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the planning-window start date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.
  */
 export const getDashboardPeopleAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetDashboardPeopleAvailabilityData, ThrowOnError>): RequestResult<GetDashboardPeopleAvailabilityResponses, GetDashboardPeopleAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetDashboardPeopleAvailabilityResponses, GetDashboardPeopleAvailabilityErrors, ThrowOnError>({ url: '/api/dashboard/people-availability', ...options });
 
@@ -42,7 +42,7 @@ export const getHello = <ThrowOnError extends boolean = false>(options?: Options
 /**
  * Create a person
  *
- * Creates a new person with a client-supplied stable ID suitable for name-derived slugs.
+ * Creates a new person with a server-assigned sequential ID.
  */
 export const createPerson = <ThrowOnError extends boolean = false>(options: Options<CreatePersonData, ThrowOnError>): RequestResult<CreatePersonResponses, CreatePersonErrors, ThrowOnError> => (options.client ?? client).post<CreatePersonResponses, CreatePersonErrors, ThrowOnError>({
     url: '/api/people',

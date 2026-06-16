@@ -20,6 +20,7 @@ type CreateScheduleCardInput struct {
 	PeopleNeeded  int
 	ScheduledDate string
 	AssignedTo    []string
+	TaskId        string
 }
 
 // ErrScheduleCardNotFound is returned when a schedule card ID is not found.
@@ -69,6 +70,7 @@ type TaskCard struct {
 	PeopleNeeded   int              `json:"peopleNeeded" doc:"Number of people needed for the task (>=1)"`
 	AssignedCount  int              `json:"assignedCount" doc:"Number of people currently assigned (derived from assignedPeople)"`
 	StaffingStatus string           `json:"staffingStatus" doc:"One of: fullyStaffed, underStaffed"`
+	TaskId         *string          `json:"taskId" doc:"Referenced backlog task ID, null if no reference"`
 }
 
 // AssignedPerson represents a person assigned to a task card.
@@ -135,12 +137,13 @@ func registerDailySchedule(api huma.API, store Store) {
 
 // CreateScheduleCardRequestBody holds the fields for creating/updating a schedule card.
 type CreateScheduleCardRequestBody struct {
-	Title         string   `json:"title" required:"true" doc:"Task title"`
-	Priority      string   `json:"priority" required:"true" enum:"high,medium,low" doc:"One of: high, medium, low"`
-	RoomArea      string   `json:"roomArea" required:"true" doc:"Room or area name"`
-	PeopleNeeded  int      `json:"peopleNeeded" required:"true" minimum:"1" doc:"Number of people needed for the task (>=1)"`
+	Title         string   `json:"title" required:"false" doc:"Task title (required unless taskId is provided)"`
+	Priority      string   `json:"priority" required:"false" enum:"high,medium,low" doc:"One of: high, medium, low (required unless taskId is provided)"`
+	RoomArea      string   `json:"roomArea" required:"false" doc:"Room or area name (required unless taskId is provided)"`
+	PeopleNeeded  int      `json:"peopleNeeded" required:"false" minimum:"1" doc:"Number of people needed for the task >=1 (required unless taskId is provided)"`
+	TaskId        string   `json:"taskId" required:"false" doc:"Referenced backlog task ID. When provided, title/priority/roomArea/peopleNeeded inherit from the referenced task unless explicitly supplied."`
 	ScheduledDate string   `json:"scheduledDate" required:"true" format:"date" doc:"ISO 8601 date (YYYY-MM-DD) the card is scheduled for"`
-	AssignedTo    []string `json:"assignedTo" doc:"Person-ID strings for assigned helpers, may be empty"`
+	AssignedTo    []string `json:"assignedTo" required:"false" doc:"Person-ID strings for assigned helpers, may be empty"`
 }
 
 // CreateScheduleCardInputHuma is the Huma input for POST /api/schedule/cards.
@@ -155,7 +158,7 @@ type CreateScheduleCardOutput struct {
 
 // UpdateScheduleCardInputHuma is the Huma input for PUT /api/schedule/cards/{id}.
 type UpdateScheduleCardInputHuma struct {
-	ID   string                            `path:"id" doc:"Schedule card identifier (e.g., sched-1)"`
+	ID   string `path:"id" doc:"Schedule card identifier (e.g., sched-1)"`
 	Body CreateScheduleCardRequestBody
 }
 
@@ -176,17 +179,29 @@ type DeleteScheduleCardOutput struct{}
 
 // validateScheduleCardInput checks domain-level constraints and returns a Huma error or nil.
 func validateScheduleCardInput(body CreateScheduleCardRequestBody, store Store, ctx context.Context) error {
-	if body.Title == "" {
-		return huma.Error400BadRequest("title is required")
+	// When taskId is provided, the task fields may be inherited — only validate
+	// fields that are explicitly set (non-empty for strings, > 0 for peopleNeeded).
+	hasTaskId := body.TaskId != ""
+
+	if !hasTaskId || body.Title != "" {
+		if body.Title == "" {
+			return huma.Error400BadRequest("title is required")
+		}
 	}
-	if body.Priority != "high" && body.Priority != "medium" && body.Priority != "low" {
-		return huma.Error400BadRequest("priority must be one of: high, medium, low")
+	if !hasTaskId || body.Priority != "" {
+		if body.Priority != "high" && body.Priority != "medium" && body.Priority != "low" {
+			return huma.Error400BadRequest("priority must be one of: high, medium, low")
+		}
 	}
-	if body.PeopleNeeded < 1 {
-		return huma.Error400BadRequest("peopleNeeded must be at least 1")
+	if !hasTaskId || body.PeopleNeeded > 0 {
+		if body.PeopleNeeded < 1 {
+			return huma.Error400BadRequest("peopleNeeded must be at least 1")
+		}
 	}
-	if body.RoomArea == "" {
-		return huma.Error400BadRequest("roomArea is required")
+	if !hasTaskId || body.RoomArea != "" {
+		if body.RoomArea == "" {
+			return huma.Error400BadRequest("roomArea is required")
+		}
 	}
 
 	// Validate scheduled date is parseable.
@@ -218,8 +233,21 @@ func validateScheduleCardInput(body CreateScheduleCardRequestBody, store Store, 
 	}
 
 	// Reject assignment counts greater than peopleNeeded.
-	if len(body.AssignedTo) > body.PeopleNeeded {
-		return huma.Error400BadRequest("assignedTo count must not exceed peopleNeeded")
+	if !hasTaskId || body.PeopleNeeded > 0 {
+		if len(body.AssignedTo) > body.PeopleNeeded {
+			return huma.Error400BadRequest("assignedTo count must not exceed peopleNeeded")
+		}
+	}
+
+	// Validate taskId references an existing backlog task.
+	if hasTaskId {
+		exists, err := store.TaskExists(ctx, body.TaskId)
+		if err != nil {
+			return huma.Error500InternalServerError("failed to validate task reference", err)
+		}
+		if !exists {
+			return huma.Error400BadRequest("referenced task '" + body.TaskId + "' not found")
+		}
 	}
 
 	return nil
@@ -248,6 +276,7 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 			PeopleNeeded:  input.Body.PeopleNeeded,
 			ScheduledDate: input.Body.ScheduledDate,
 			AssignedTo:    input.Body.AssignedTo,
+			TaskId:        input.Body.TaskId,
 		})
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to create schedule card", err)
@@ -276,6 +305,7 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 			PeopleNeeded:  input.Body.PeopleNeeded,
 			ScheduledDate: input.Body.ScheduledDate,
 			AssignedTo:    input.Body.AssignedTo,
+			TaskId:        input.Body.TaskId,
 		})
 		if err != nil {
 			if errors.Is(err, ErrScheduleCardNotFound) {
@@ -289,12 +319,12 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 
 	// DELETE /api/schedule/cards/{id} — delete a schedule card.
 	huma.Register(api, huma.Operation{
-		OperationID:  "delete-schedule-card",
-		Method:       http.MethodDelete,
-		Path:         "/api/schedule/cards/{id}",
-		Summary:      "Delete a schedule card",
-		Description:  "Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.",
-		Tags:         []string{"Schedule"},
+		OperationID:   "delete-schedule-card",
+		Method:        http.MethodDelete,
+		Path:          "/api/schedule/cards/{id}",
+		Summary:       "Delete a schedule card",
+		Description:   "Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.",
+		Tags:          []string{"Schedule"},
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, input *DeleteScheduleCardInput) (*DeleteScheduleCardOutput, error) {
 		err := store.DeleteScheduleCard(ctx, input.ID)

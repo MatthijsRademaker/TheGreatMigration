@@ -64,35 +64,27 @@ function clearErrors() {
 }
 
 // --- Create person form ---
-const newId = ref('')
 const newName = ref('')
 const newInitials = ref('')
 
 async function handleCreate() {
   clearErrors()
-  if (!newId.value.trim() || !newName.value.trim() || !newInitials.value.trim()) {
-    createError.value = 'All fields are required.'
+  if (!newName.value.trim() || !newInitials.value.trim()) {
+    createError.value = 'Name and initials are required.'
     return
   }
   try {
     await createMutation.mutateAsync({
       body: {
-        id: newId.value.trim(),
         name: newName.value.trim(),
         initials: newInitials.value.trim(),
       },
     })
-    newId.value = ''
     newName.value = ''
     newInitials.value = ''
   } catch (err: unknown) {
-    const status = getHttpErrorStatus(err)
-    if (status === 409) {
-      createError.value = 'A person with this ID already exists.'
-    } else {
-      const msg = err instanceof Error ? err.message : String(err)
-      createError.value = `Failed to create person: ${msg}`
-    }
+    const msg = err instanceof Error ? err.message : String(err)
+    createError.value = `Failed to create person: ${msg}`
   }
 }
 
@@ -216,20 +208,10 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
       <Card>
         <CardHeader>
           <CardTitle>Add a person</CardTitle>
-          <CardDescription>Create a new person with a short unique ID.</CardDescription>
+          <CardDescription>Create a new person. The ID is assigned server-side.</CardDescription>
         </CardHeader>
         <CardContent>
           <div class="flex flex-wrap items-end gap-3">
-            <div class="flex flex-col gap-1">
-              <label for="new-id" class="text-xs font-medium text-muted-foreground">ID</label>
-              <Input
-                id="new-id"
-                v-model="newId"
-                placeholder="e.g. p9"
-                class="w-28"
-                :disabled="isMutationLoading(createMutation)"
-              />
-            </div>
             <div class="flex flex-col gap-1">
               <label for="new-name" class="text-xs font-medium text-muted-foreground">Name</label>
               <Input

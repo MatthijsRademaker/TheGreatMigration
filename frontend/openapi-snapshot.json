@@ -54,12 +54,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "id": {
-            "description": "Client-supplied stable person key (slug)",
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string"
-          },
           "initials": {
             "description": "Initials",
             "maxLength": 10,
@@ -74,7 +68,6 @@
           }
         },
         "required": [
-          "id",
           "name",
           "initials"
         ],
@@ -134,13 +127,13 @@
             ]
           },
           "peopleNeeded": {
-            "description": "Number of people needed for the task (\u003e=1)",
+            "description": "Number of people needed for the task \u003e=1 (required unless taskId is provided)",
             "format": "int64",
             "minimum": 1,
             "type": "integer"
           },
           "priority": {
-            "description": "One of: high, medium, low",
+            "description": "One of: high, medium, low (required unless taskId is provided)",
             "enum": [
               "high",
               "medium",
@@ -149,7 +142,7 @@
             "type": "string"
           },
           "roomArea": {
-            "description": "Room or area name",
+            "description": "Room or area name (required unless taskId is provided)",
             "type": "string"
           },
           "scheduledDate": {
@@ -157,18 +150,17 @@
             "format": "date",
             "type": "string"
           },
+          "taskId": {
+            "description": "Referenced backlog task ID. When provided, title/priority/roomArea/peopleNeeded inherit from the referenced task unless explicitly supplied.",
+            "type": "string"
+          },
           "title": {
-            "description": "Task title",
+            "description": "Task title (required unless taskId is provided)",
             "type": "string"
           }
         },
         "required": [
-          "title",
-          "priority",
-          "roomArea",
-          "peopleNeeded",
-          "scheduledDate",
-          "assignedTo"
+          "scheduledDate"
         ],
         "type": "object"
       },
@@ -873,6 +865,13 @@
             "description": "One of: fullyStaffed, underStaffed",
             "type": "string"
           },
+          "taskId": {
+            "description": "Referenced backlog task ID, null if no reference",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "title": {
             "description": "Task title",
             "type": "string"
@@ -886,7 +885,8 @@
           "assignedPeople",
           "peopleNeeded",
           "assignedCount",
-          "staffingStatus"
+          "staffingStatus",
+          "taskId"
         ],
         "type": "object"
       },
@@ -1289,7 +1289,7 @@
     },
     "/api/people": {
       "post": {
-        "description": "Creates a new person with a client-supplied stable ID suitable for name-derived slugs.",
+        "description": "Creates a new person with a server-assigned sequential ID.",
         "operationId": "create-person",
         "requestBody": {
           "content": {
@@ -1302,7 +1302,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1310,7 +1310,7 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "Created"
           },
           "default": {
             "content": {

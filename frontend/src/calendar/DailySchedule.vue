@@ -22,6 +22,7 @@ interface TaskCard {
   assignedCount: number
   staffingStatus: 'fullyStaffed' | 'underStaffed'
   scheduledDate: string
+  taskId: string | null
 }
 
 interface ScheduleDay {
@@ -99,9 +100,14 @@ const scheduleDays = computed(() => props.days ?? [])
               >
                 <div class="flex items-start justify-between gap-2 mb-2">
                   <span class="text-sm font-medium">{{ task.title }}</span>
-                  <Badge :variant="priorityVariantMap[task.priority]">
-                    {{ task.priority }}
-                  </Badge>
+                  <div class="flex items-center gap-1.5">
+                    <Badge v-if="task.taskId" variant="outline" class="text-[10px] px-1.5 py-0">
+                      From backlog
+                    </Badge>
+                    <Badge :variant="priorityVariantMap[task.priority]">
+                      {{ task.priority }}
+                    </Badge>
+                  </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 mb-2">
                   <span
