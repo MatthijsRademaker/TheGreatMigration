@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { Checkbox } from '@/shared/ui/checkbox'
 import {
   getTasksBacklogQuery,
   createTaskMutation,
@@ -18,6 +19,8 @@ import {
   deleteTaskMutation,
   getTasksBacklogQueryKey,
 } from '@/client/@pinia/colada.gen'
+import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
+
 // ---- State ----
 const editingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
@@ -27,9 +30,11 @@ const formPriority = ref<'high' | 'medium' | 'low'>('medium')
 const formPeopleNeeded = ref(2)
 const formRoom = ref('')
 const formStatus = ref<'backlog' | 'ready' | 'assigned'>('backlog')
+const formAssignedTo = ref<string[]>([])
 
 // ---- Queries ----
 const backlogQuery = useQuery(getTasksBacklogQuery())
+const { data: peopleData } = usePeopleAvailability()
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
@@ -47,13 +52,14 @@ const deleteMut = useMutation({
 })
 
 // ---- Actions ----
-function startEdit(task: { id: string; title: string; priority: string; peopleNeeded: number; room: string; status: string }) {
+function startEdit(task: { id: string; title: string; priority: string; peopleNeeded: number; room: string; status: string; assignedTo?: string[] | null }) {
   editingId.value = task.id
   formTitle.value = task.title
   formPriority.value = task.priority as 'high' | 'medium' | 'low'
   formPeopleNeeded.value = task.peopleNeeded
   formRoom.value = task.room
   formStatus.value = task.status as 'backlog' | 'ready' | 'assigned'
+  formAssignedTo.value = task.assignedTo ? [...task.assignedTo] : []
 }
 
 function cancelEdit() {
@@ -63,6 +69,16 @@ function cancelEdit() {
   formPeopleNeeded.value = 2
   formRoom.value = ''
   formStatus.value = 'backlog'
+  formAssignedTo.value = []
+}
+
+function toggleAssignment(personId: string) {
+  const idx = formAssignedTo.value.indexOf(personId)
+  if (idx === -1) {
+    formAssignedTo.value.push(personId)
+  } else {
+    formAssignedTo.value.splice(idx, 1)
+  }
 }
 
 async function handleSubmit() {
@@ -79,7 +95,7 @@ async function handleSubmit() {
           peopleNeeded: formPeopleNeeded.value,
           room: formRoom.value.trim(),
           status: formStatus.value,
-          assignedTo: null,
+          assignedTo: [...formAssignedTo.value],
         },
       })
       cancelEdit()
@@ -91,7 +107,7 @@ async function handleSubmit() {
           peopleNeeded: formPeopleNeeded.value,
           room: formRoom.value.trim(),
           status: formStatus.value,
-          assignedTo: null,
+          assignedTo: [...formAssignedTo.value],
         },
       })
       formTitle.value = ''
@@ -188,6 +204,25 @@ watch(() => backlogQuery.data.value?.tasks, (tasks) => {
               <Input v-model.number="formPeopleNeeded" type="number" min="1" />
             </div>
           </div>
+          <!-- Assignment -->
+          <fieldset v-if="peopleData.people?.length" class="rounded border border-border p-3">
+            <legend class="px-1 text-xs font-medium text-muted-foreground">Assign People</legend>
+            <div class="flex flex-wrap gap-3">
+              <label
+                v-for="person in peopleData.people"
+                :key="person.id"
+                class="flex items-center gap-1.5 text-sm"
+              >
+                <Checkbox
+                  :model-value="formAssignedTo.includes(person.id)"
+                  size="sm"
+                  @update:model-value="toggleAssignment(person.id)"
+                />
+                {{ person.name }}
+              </label>
+            </div>
+          </fieldset>
+
           <div class="flex gap-2">
             <Button type="submit" :disabled="createMut.isLoading.value || updateMut.isLoading.value">
               {{ editingId ? 'Save' : 'Add' }}

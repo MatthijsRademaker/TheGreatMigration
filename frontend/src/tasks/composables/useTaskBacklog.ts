@@ -42,6 +42,7 @@ function adaptToPanelState(
 		tasks: (data.tasks ?? []).map((task: GeneratedTaskRow) => ({
 			...task,
 			priority: task.priority as TaskRow["priority"],
+			status: task.status as TaskRow["status"],
 			assignedTo: task.assignedTo ?? [],
 		})),
 		priorities: data.priorities ?? [],
