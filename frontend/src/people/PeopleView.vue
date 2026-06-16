@@ -20,7 +20,7 @@ const queryCache = useQueryCache()
 
 const {
   data: availabilityData,
-  rawData,
+  daysISO,
   isLoading,
   isError,
   isEmpty,
@@ -124,9 +124,10 @@ async function handleCellUpdate(payload: CellChangePayload) {
   clearErrors()
   const { personId, dayIndex, status } = payload
 
-  const date = getISODate(dayIndex)
+  // Look up the ISO date from the adapted daysISO array (parallel to days labels).
+  const date = daysISO.value[dayIndex]
   if (!date) {
-    updateError.value = 'Could not determine date for the selected cell.'
+    updateError.value = 'Selected cell cannot be mapped to a date. Try refreshing the page.'
     return
   }
 
@@ -144,7 +145,17 @@ async function handleCellUpdate(payload: CellChangePayload) {
   } catch (err: unknown) {
     const httpStatus = getHttpErrorStatus(err)
     if (httpStatus === 400) {
-      updateError.value = 'Invalid status or date.'
+      // Inspect the Huma error detail field for distinct 400 subtypes.
+      const detail = ((err as any)?.cause?.body?.detail as string | undefined) ?? ''
+      if (detail.includes('outside the planning window')) {
+        updateError.value = 'This date is outside the planning window.'
+      } else if (detail.includes('must be a valid ISO 8601 date')) {
+        updateError.value = 'Invalid date format.'
+      } else if (detail.includes('status must be one of')) {
+        updateError.value = 'Invalid status value.'
+      } else {
+        updateError.value = `Failed to update: ${detail}`
+      }
     } else if (httpStatus === 404) {
       updateError.value = 'Person not found.'
     } else {
@@ -152,14 +163,6 @@ async function handleCellUpdate(payload: CellChangePayload) {
       updateError.value = `Failed to update availability: ${msg}`
     }
   }
-}
-
-// --- Derive ISO date from day index (UTC-based to match codebase convention) ---
-function getISODate(dayIndex: number): string {
-  if (!rawData.value?.range) return ''
-  const start = new Date(rawData.value.range.startDate)
-  start.setUTCDate(start.getUTCDate() + dayIndex)
-  return start.toISOString().slice(0, 10)
 }
 
 // Helper to safely access mutation loading state (SSR-safe).
