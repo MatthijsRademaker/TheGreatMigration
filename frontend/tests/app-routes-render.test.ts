@@ -8,9 +8,6 @@ import App from "../src/app/App.vue";
 import { configureApiClient } from "../src/shared/lib/api-client";
 import { routes } from "../src/app/routes";
 
-/** The mocked planning-window days value used in assertions. */
-const MOCK_PLAN_WINDOW_DAYS = 40;
-
 async function renderRoute(path: string) {
 	const router = createRouter({
 		history: createMemoryHistory(),
@@ -29,7 +26,7 @@ async function renderRoute(path: string) {
 					JSON.stringify({
 						startDate: "2026-07-05",
 						endDate: "2026-08-13",
-						days: MOCK_PLAN_WINDOW_DAYS,
+						days: 40,
 					}),
 					{
 						status: 200,
@@ -93,7 +90,7 @@ describe("application route rendering", () => {
 			path: "/calendar",
 			title: "Schedule board",
 			description: "Plan work across move days and balance available helpers.",
-			content: "Schedule board foundation",
+			content: "Daily Schedule",
 		},
 		{
 			path: "/people",
@@ -126,10 +123,13 @@ describe("application route rendering", () => {
 			expect(html).toContain(content);
 
 			if (path === "/calendar") {
-				// Each success day column carries data-testid="plan-day-column".
-				// Count occurrences to verify we render the mocked planning-window day count.
-				const columnMatches = html.match(/data-testid="plan-day-column"/g);
-				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
+				expect(html).toContain("Painting hall");
+				expect(html).toContain("2 / 2");
+				expect(html).toContain('data-variant="priorityHigh"');
+				expect(html).toContain("2 Jul (Tue)");
+				expect(html).toContain("5 Jul (Fri)");
+				expect(html).toContain("+ Add task");
+				expect(html).not.toContain("plan-day-column");
 			}
 
 			if (path === "/tasks") {
