@@ -62,6 +62,18 @@ const deleteMut = useMutation({
 })
 
 // ---- Actions ----
+function startNewTask() {
+  editingId.value = null
+  formTitle.value = ''
+  formPriority.value = 'medium'
+  formPeopleNeeded.value = 2
+  formRoom.value = ''
+  formStatus.value = 'backlog'
+  formAssignedTo.value = []
+  // Do NOT set sheetOpen here — SheetTrigger handles the toggle. Setting it
+  // to false in the same event cycle races with SheetTrigger opening the sheet.
+}
+
 function startEdit(task: TaskRow) {
   editingId.value = task.id
   formTitle.value = task.title
@@ -171,7 +183,7 @@ watch(() => data.value.tasks, (tasks) => {
           </div>
           <Sheet v-model:open="sheetOpen">
             <SheetTrigger as-child>
-              <Button @click="cancelEdit">
+              <Button @click="startNewTask">
                 + Add Task
               </Button>
             </SheetTrigger>

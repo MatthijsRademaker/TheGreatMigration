@@ -273,12 +273,13 @@ func registerTasksEndpoints(api huma.API, store Store) {
 
 	// DELETE /api/tasks/{id} — delete a task.
 	huma.Register(api, huma.Operation{
-		OperationID: "delete-task",
-		Method:      http.MethodDelete,
-		Path:        "/api/tasks/{id}",
-		Summary:     "Delete a backlog task",
-		Description: "Deletes a backlog task and its assignments transactionally. Returns 404 if the task ID is unknown.",
-		Tags:        []string{"Tasks"},
+		OperationID:  "delete-task",
+		Method:       http.MethodDelete,
+		Path:         "/api/tasks/{id}",
+		Summary:      "Delete a backlog task",
+		Description:  "Deletes a backlog task and its assignments transactionally. Returns 404 if the task ID is unknown.",
+		Tags:         []string{"Tasks"},
+		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, input *DeleteTaskInput) (*DeleteTaskOutput, error) {
 		err := store.DeleteTask(ctx, input.ID)
 		if err != nil {
