@@ -39,15 +39,15 @@ Additionally, `SidebarFooter` contains a redundant brand block that duplicates t
 
 ### Decision 1: Use native `title` attribute instead of Reka UI Tooltip for nav item labels
 
-Replace the `SidebarMenuButton` `tooltip` prop with the native HTML `title` attribute on the `RouterLink`:
+Replace the `SidebarMenuButton` `tooltip` prop with the native HTML `title` attribute, set via a custom `v-title` directive on the child `<a>` element:
 
 ```
 Before:                       After:
 ───────────────────────────── ─────────────────────────────
 SidebarMenuButton             SidebarMenuButton
   tooltip="People"              (no tooltip prop)
-  as-child                      (no as-child)
-  └─ RouterLink                └─ RouterLink title="People"
+  as-child                      as-child (kept)
+  └─ RouterLink                └─ <a v-title="item.title" v-click-nav="item.to">
 ```
 
 The `title` attribute provides identical UX in collapsed mode: hovering the icon shows a browser-native tooltip with the item name. In expanded mode, the label text is already visible so no tooltip is needed.
@@ -121,20 +121,28 @@ Then use Vue's `v-bind` or the `@click` handler with `router.push()` to navigate
 
 But this bypasses the sidebar primitives entirely.
 
-**Compromise: Keep `SidebarMenuButton` with `as-child`, but pass `as="a"` and the RouterLink's `to` as the `href`:**
+**Compromise: Keep `SidebarMenuButton` with `as-child`, and use custom Vue directives on the child `<a>` element:**
 
 ```vue
-<SidebarMenuButton as-child>
-  <a :href="item.to" :title="item.title" @click="handleNav($event, item.to)">
+<SidebarMenuButton :is-active="isActive(item.to)" as-child>
+  <a :href="item.to" v-title="item.title" v-click-nav="item.to">
     <component :is="item.icon" />
     <span>{{ item.title }}</span>
   </a>
 </SidebarMenuButton>
 ```
 
-Here, `as-child` is used once (no double forwarding since there's no Tooltip wrapping). The child `<a>` is a native DOM element, not a Vue component — `Primitive` handles this correctly. Navigation works natively through the `href`, plus the `@click` handler calls `router.push()` for SPA navigation.
+Here, `as-child` is used once (no double forwarding since there's no Tooltip wrapping). The child `<a>` is a native DOM element, not a Vue component — `Primitive` handles this correctly. Navigation works natively through the `href`, plus the `v-click-nav` directive intercepts standard left-clicks to call `router.push()` for SPA navigation, falling back to `window.location.assign()` if SPA navigation fails.
 
-The `title` attribute provides the collapsed-mode tooltip natively.
+**Why custom directives instead of `@click` and `:title`?**
+
+`SidebarMenuButton` passes its props through `SidebarMenuButtonChild` which uses Reka UI's `Primitive` component with `as-child`. During rendering, `Primitive` calls `cloneVNode()` on its child to merge its own props (data attributes, class, event handlers) with the child's props. However, `cloneVNode()` in Vue's Reka UI integration has a behavior where inline event handler props (`onClick`) and attribute bindings (`title`) on the child can be overwritten or dropped during the prop-merging process, while **custom directives are preserved** because they are stored separately on the VNode (in `vnode.dirs`) rather than merged into `vnode.props`.
+
+Using `v-click-nav` (which calls `el.addEventListener('click', handler)` in its `mounted` hook) and `v-title` (which calls `el.setAttribute('title', value)` in its `mounted` hook) guarantees the click handler and title attribute survive Primitive VNode cloning regardless of how props are merged.
+
+The `v-click-nav` directive also provides proper cleanup: registered event handlers are stored in a `WeakMap` keyed by the element, and the `unmounted` hook removes them to prevent memory leaks.
+
+The `v-title` directive provides the collapsed-mode tooltip natively via the HTML `title` attribute, both on initial mount and on updates.
 
 ### Decision 3: Remove duplicate brand block from SidebarFooter
 
@@ -163,6 +171,6 @@ This is an exact copy of the `SidebarHeader` branding. It serves no purpose and 
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Native `title` tooltip has different visual appearance than Reka UI Tooltip | Slight inconsistency in collapsed mode | Acceptable for a productivity app sidebar; the text label appears after a 1-2s delay, same as before |
-| Removing `as-child` changes the DOM structure of nav items | Potential CSS breakage in collapsed mode | `data-slot="sidebar-menu-button"` and `data-sidebar="menu-button"` are still on the `<a>` tag; the class string is unchanged. Verify all Tailwind selectors still match with tests. |
-| Without `RouterLink`, SPA navigation uses a custom click handler | Right-click → open in new tab must still work via native `href` | The `<a>` tag has a real `href` — right-click works natively. The `@click.prevent` handler only intercepts standard clicks. |
-| The `handleNav` function is duplicated across 6 nav items | Minor code repetition | Extract into a shared `navigate` function in the script setup. |
+| Custom directives must survive Primitive VNode cloning | Directive hooks may not fire if Primitive replaces the element | Directives are preserved by `cloneVNode()` because they are stored in `vnode.dirs`, separate from `vnode.props`. Verified via unit tests that assert click navigation and title attributes. |
+| Without `RouterLink`, SPA navigation uses a custom directive | Right-click → open in new tab must still work via native `href` | The `<a>` tag has a real `href` — right-click works natively. The `v-click-nav` directive only intercepts standard left-clicks (button === 0, no modifier keys). |
+| Event listener cleanup | Forgetting to remove `addEventListener` on unmount causes memory leaks | `v-click-nav` stores handlers in a `WeakMap<HTMLElement, Handler>` and removes them in the `unmounted` hook. |
