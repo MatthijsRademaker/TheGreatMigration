@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onUnmounted } from 'vue'
 import type { Component } from 'vue'
 import {
   Building2Icon,
@@ -11,7 +12,7 @@ import {
   SettingsIcon,
   UsersRoundIcon,
 } from '@lucide/vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +27,7 @@ import {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from '@/shared/ui/sidebar'
 
 type NavigationItem = {
@@ -35,6 +37,16 @@ type NavigationItem = {
 }
 
 const route = useRoute()
+const router = useRouter()
+const { isMobile, openMobile, setOpenMobile } = useSidebar()
+
+// Auto-close the mobile sidebar Sheet when navigating to a new route.
+const unregisterAfterEach = router.afterEach(() => {
+  if (isMobile.value && openMobile.value) {
+    setOpenMobile(false)
+  }
+})
+onUnmounted(() => unregisterAfterEach())
 
 // TODO: Re-add badge property to navigation items when real data subscriptions exist.
 // Badge counts should be driven by live backend queries (e.g. open task count,
@@ -75,7 +87,7 @@ function isActive(path: string) {
         </SidebarMenuItem>
       </SidebarMenu>
       <SidebarMenu>
-        <SidebarMenuItem>
+        <SidebarMenuItem v-if="!isMobile">
           <SidebarMenuButton as-child variant="ghost">
             <SidebarTrigger />
           </SidebarMenuButton>

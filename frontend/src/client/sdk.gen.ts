@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
+import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateScheduleCardData, CreateScheduleCardErrors, CreateScheduleCardResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteScheduleCardData, DeleteScheduleCardErrors, DeleteScheduleCardResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateScheduleCardData, UpdateScheduleCardErrors, UpdateScheduleCardResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -151,6 +151,41 @@ export const deleteRoom = <ThrowOnError extends boolean = false>(options: Option
  */
 export const updateRoom = <ThrowOnError extends boolean = false>(options: Options<UpdateRoomData, ThrowOnError>): RequestResult<UpdateRoomResponses, UpdateRoomErrors, ThrowOnError> => (options.client ?? client).put<UpdateRoomResponses, UpdateRoomErrors, ThrowOnError>({
     url: '/api/rooms/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create a schedule card
+ *
+ * Creates a new schedule card with server-assigned sched-* ID. Returns 400 for invalid input or out-of-window date.
+ */
+export const createScheduleCard = <ThrowOnError extends boolean = false>(options: Options<CreateScheduleCardData, ThrowOnError>): RequestResult<CreateScheduleCardResponses, CreateScheduleCardErrors, ThrowOnError> => (options.client ?? client).post<CreateScheduleCardResponses, CreateScheduleCardErrors, ThrowOnError>({
+    url: '/api/schedule/cards',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a schedule card
+ *
+ * Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.
+ */
+export const deleteScheduleCard = <ThrowOnError extends boolean = false>(options: Options<DeleteScheduleCardData, ThrowOnError>): RequestResult<DeleteScheduleCardResponses, DeleteScheduleCardErrors, ThrowOnError> => (options.client ?? client).delete<DeleteScheduleCardResponses, DeleteScheduleCardErrors, ThrowOnError>({ url: '/api/schedule/cards/{id}', ...options });
+
+/**
+ * Update a schedule card
+ *
+ * Updates a schedule card and replaces assignments transactionally. Returns 400 for validation errors, 404 if the card ID is unknown.
+ */
+export const updateScheduleCard = <ThrowOnError extends boolean = false>(options: Options<UpdateScheduleCardData, ThrowOnError>): RequestResult<UpdateScheduleCardResponses, UpdateScheduleCardErrors, ThrowOnError> => (options.client ?? client).put<UpdateScheduleCardResponses, UpdateScheduleCardErrors, ThrowOnError>({
+    url: '/api/schedule/cards/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
