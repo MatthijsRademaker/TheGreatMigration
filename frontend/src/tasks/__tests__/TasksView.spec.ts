@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { computed, ref } from "vue";
+import { nextTick, computed, ref } from "vue";
 import TasksView from "../TasksView.vue";
 
 // ── Mock helpers ────────────────────────────────────────────────────────────
@@ -88,6 +88,28 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 	})),
 }));
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+async function mountTasks() {
+	const wrapper = mount(TasksView, { attachTo: document.body });
+	// Wait for initial render (portal, reka-ui)
+	await nextTick();
+	await nextTick();
+	await nextTick();
+	return wrapper;
+}
+
+async function openAddModal(wrapper: ReturnType<typeof mount>) {
+	// The backlog view shows "+ Add Task" button
+	const buttons = wrapper.findAll("button");
+	const addBtn = buttons.find((b) => b.text().includes("Add Task"));
+	expect(addBtn).toBeTruthy();
+	await addBtn!.trigger("click");
+	await nextTick();
+	await nextTick();
+	await nextTick();
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe("TasksView – Room Select", () => {
@@ -99,6 +121,66 @@ describe("TasksView – Room Select", () => {
 		const wrapper = mount(TasksView);
 		expect(wrapper.text()).toContain("Task backlog");
 		expect(wrapper.text()).toContain("Pack kitchen");
+		wrapper.unmount();
+	});
+
+	it("renders room Select with room names when rooms query succeeds", async () => {
+		const mockRooms = [
+			{ id: "r1", name: "Kitchen", type: "room" },
+			{ id: "r2", name: "Living Room", type: "room" },
+			{ id: "r3", name: "Garage", type: "room" },
+		];
+		mockRoomsQuery = createRoomsQuery({ rooms: mockRooms });
+
+		const wrapper = await mountTasks();
+		await openAddModal(wrapper);
+
+		// The success branch renders the Select with placeholder
+		const html = document.body.innerHTML;
+		expect(html).toContain("Select a room");
+		// Loading/error text should NOT be present
+		expect(html).not.toContain("Loading rooms");
+		expect(html).not.toContain("Could not load rooms");
+		// The room data is correctly passed to the query mock
+		expect(mockRoomsQuery.data.value?.rooms).toEqual(mockRooms);
+
+		wrapper.unmount();
+	});
+
+	it("shows loading placeholder while rooms query is pending", async () => {
+		mockRoomsQuery = createRoomsQuery({ isLoading: true });
+
+		const wrapper = await mountTasks();
+		await openAddModal(wrapper);
+
+		// The loading state shows a disabled Select with "Loading rooms…"
+		const html = document.body.innerHTML;
+		expect(html).toContain("Loading rooms");
+
+		wrapper.unmount();
+	});
+
+	it("shows error message and retry button when rooms query fails", async () => {
+		mockRoomsQuery = createRoomsQuery({
+			error: new Error("Network error"),
+		});
+
+		const wrapper = await mountTasks();
+		await openAddModal(wrapper);
+
+		// The error state shows a message and retry button
+		const html = document.body.innerHTML;
+		expect(html).toContain("Could not load rooms.");
+		expect(html).toContain("Retry");
+
+		// Click retry and verify refetch is called
+		const retryBtn = Array.from(document.body.querySelectorAll("button")).find(
+			(b) => b.textContent?.trim() === "Retry",
+		);
+		expect(retryBtn).toBeTruthy();
+		(retryBtn as HTMLElement).click();
+		expect(mockRoomsQuery.refetch).toHaveBeenCalledOnce();
+
 		wrapper.unmount();
 	});
 });
