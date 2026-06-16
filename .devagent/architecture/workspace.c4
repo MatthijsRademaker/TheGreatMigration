@@ -102,6 +102,10 @@ model {
         description "People availability foundation for helpers, day-level availability, and assignment visibility."
       }
 
+      rooms = featureArea "Rooms & Areas" {
+        description "Room and area catalog management for move planning spaces."
+      }
+
       taskData = planningData "Task planning data" {
         description "Move jobs with priority, status, room, staffing needs, and assignments."
       }
@@ -112,6 +116,10 @@ model {
 
       scheduleData = planningData "Schedule planning data" {
         description "Move days, scheduled task blocks, helper counts, and staffing warnings."
+      }
+
+      roomsData = planningData "Rooms & Areas data" {
+        description "Move planning spaces — rooms and areas with names and types."
       }
     }
   }
@@ -124,11 +132,13 @@ model {
   migration.spa.router -[supports]-> migration.spa.tasks "Routes /tasks"
   migration.spa.router -[supports]-> migration.spa.calendar "Routes /calendar"
   migration.spa.router -[supports]-> migration.spa.people "Routes /people"
+  migration.spa.router -[supports]-> migration.spa.rooms "Routes /rooms"
 
   migration.spa.dashboard -> migration.spa.ui "Renders calm summary cards and notes with"
   migration.spa.tasks -> migration.spa.ui "Renders backlog status cards with"
   migration.spa.calendar -> migration.spa.ui "Renders day columns and staffing badges with"
   migration.spa.people -> migration.spa.ui "Renders helper availability cards with"
+  migration.spa.rooms -> migration.spa.ui "Renders room management forms and list with"
 
   migration.spa.tasks -> migration.spa.taskData "Captures and organizes"
   migration.spa.people -> migration.spa.peopleData "Captures and organizes"
@@ -143,6 +153,7 @@ model {
   migration.spa.tasks -[supports]-> migration.spa.calendar "Supplies ready work for scheduling"
   migration.spa.people -[supports]-> migration.spa.calendar "Supplies availability for assignments"
   migration.spa.calendar -[supports]-> migration.spa.dashboard "Publishes schedule state and staffing gaps"
+  migration.spa.rooms -> migration.spa.roomsData "Captures and organizes"
 }
 
 views {
@@ -179,11 +190,11 @@ views {
       color green
     }
 
-    style migration.spa.tasks, migration.spa.calendar, migration.spa.people {
+    style migration.spa.tasks, migration.spa.calendar, migration.spa.people, migration.spa.rooms {
       color indigo
     }
 
-    style migration.spa.taskData, migration.spa.peopleData, migration.spa.scheduleData {
+    style migration.spa.taskData, migration.spa.peopleData, migration.spa.scheduleData, migration.spa.roomsData {
       color slate
     }
 

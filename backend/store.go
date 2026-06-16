@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/user/the-great-migration/backend/db"
@@ -335,14 +337,7 @@ func (s *PgStore) ListRooms(ctx context.Context) ([]Room, error) {
 
 // CreateRoom creates a new room/area record and returns it.
 func (s *PgStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
-	existing, err := s.queries.ListRooms(ctx)
-	if err != nil {
-		return nil, err
-	}
-	id := fmt.Sprintf("room-%d", len(existing)+1)
-
 	r, err := s.queries.CreateRoom(ctx, db.CreateRoomParams{
-		ID:   id,
 		Name: input.Name,
 		Type: input.Type,
 	})
@@ -355,17 +350,15 @@ func (s *PgStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room,
 
 // UpdateRoom updates an existing room/area record by ID.
 func (s *PgStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
-	_, err := s.queries.GetRoomByID(ctx, id)
-	if err != nil {
-		return nil, ErrRoomNotFound
-	}
-
 	r, err := s.queries.UpdateRoom(ctx, db.UpdateRoomParams{
 		ID:   id,
 		Name: input.Name,
 		Type: input.Type,
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRoomNotFound
+		}
 		return nil, err
 	}
 	room := dbRoomToAPI(r)
@@ -374,11 +367,14 @@ func (s *PgStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInp
 
 // DeleteRoom deletes a room/area record by ID.
 func (s *PgStore) DeleteRoom(ctx context.Context, id string) error {
-	_, err := s.queries.GetRoomByID(ctx, id)
+	_, err := s.queries.DeleteRoom(ctx, id)
 	if err != nil {
-		return ErrRoomNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrRoomNotFound
+		}
+		return err
 	}
-	return s.queries.DeleteRoom(ctx, id)
+	return nil
 }
 
 // dbRoomToAPI converts a db.RoomsArea to the API-facing Room.

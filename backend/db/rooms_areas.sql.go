@@ -10,19 +10,21 @@ import (
 )
 
 const createRoom = `-- name: CreateRoom :one
+WITH next_id AS (
+  SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 6) AS INTEGER)), 0) + 1 AS num FROM rooms_areas
+)
 INSERT INTO rooms_areas (id, name, type)
-VALUES ($1, $2, $3)
+SELECT 'room-' || next_id.num, $1, $2 FROM next_id
 RETURNING id, name, type, created_at, updated_at
 `
 
 type CreateRoomParams struct {
-	ID   string
 	Name string
 	Type string
 }
 
 func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (RoomsArea, error) {
-	row := q.db.QueryRow(ctx, createRoom, arg.ID, arg.Name, arg.Type)
+	row := q.db.QueryRow(ctx, createRoom, arg.Name, arg.Type)
 	var i RoomsArea
 	err := row.Scan(
 		&i.ID,
@@ -34,14 +36,17 @@ func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (RoomsAr
 	return i, err
 }
 
-const deleteRoom = `-- name: DeleteRoom :exec
+const deleteRoom = `-- name: DeleteRoom :one
 DELETE FROM rooms_areas
 WHERE id = $1
+RETURNING id
 `
 
-func (q *Queries) DeleteRoom(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteRoom, id)
-	return err
+func (q *Queries) DeleteRoom(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, deleteRoom, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const getRoomByID = `-- name: GetRoomByID :one
