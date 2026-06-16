@@ -138,15 +138,15 @@ func buildMockPeople(startDate time.Time, days int, mp []struct {
 // Parameterless methods return pre-computed struct fields.
 // Parameterised methods compute from seed data on each call.
 type mockStore struct {
-	planningWindow    *api.PlanningWindowBody
-	tasks             map[string]api.TaskRow
-	nextTaskID        int
-	rooms             map[string]api.Room
-	nextRoomID        int
-	scheduleCards     map[string]api.TaskCard
-	scheduleDates     map[string]string // card ID -> scheduledDate string
-	scheduleTaskRefs  map[string]string // card ID -> referenced task ID
-	nextScheduleID    int
+	planningWindow   *api.PlanningWindowBody
+	tasks            map[string]api.TaskRow
+	nextTaskID       int
+	rooms            map[string]api.Room
+	nextRoomID       int
+	scheduleCards    map[string]api.TaskCard
+	scheduleDates    map[string]string // card ID -> scheduledDate string
+	scheduleTaskRefs map[string]string // card ID -> referenced task ID
+	nextScheduleID   int
 }
 
 func newMockStore() *mockStore {
@@ -172,11 +172,11 @@ func newMockStore() *mockStore {
 			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 			"room-2": {ID: "room-2", Name: "Living Room", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 		},
-		nextRoomID:      3,
-		scheduleCards:   make(map[string]api.TaskCard),
-		scheduleDates:   make(map[string]string),
+		nextRoomID:       3,
+		scheduleCards:    make(map[string]api.TaskCard),
+		scheduleDates:    make(map[string]string),
 		scheduleTaskRefs: make(map[string]string),
-		nextScheduleID:  1,
+		nextScheduleID:   1,
 	}
 }
 
@@ -412,6 +412,14 @@ func (m *mockStore) UpdateTask(ctx context.Context, id string, input api.UpdateT
 func (m *mockStore) DeleteTask(ctx context.Context, id string) error {
 	if _, ok := m.tasks[id]; !ok {
 		return api.ErrTaskNotFound
+	}
+	// Check for referencing schedule cards before deleting.
+	hasCards, err := m.TaskHasScheduleCards(ctx, id)
+	if err != nil {
+		return err
+	}
+	if hasCards {
+		return api.ErrTaskHasScheduleCards
 	}
 	delete(m.tasks, id)
 	return nil

@@ -52,6 +52,10 @@ const editingId = ref<string | null>(null)
 const isEditMode = computed(() => editingId.value !== null)
 const mutationError = ref<string | null>(null)
 const formTaskId = ref('')
+const formTitle = ref('')
+const formPriority = ref<'high' | 'medium' | 'low'>('medium')
+const formPeopleNeeded = ref(2)
+const formRoomArea = ref('')
 const formScheduledDate = ref('')
 const formAssignedTo = ref<string[]>([])
 const mutationLoading = ref(false)
@@ -83,6 +87,10 @@ const filteredTasks = computed(() => {
 function resetForm() {
   editingId.value = null
   formTaskId.value = ''
+  formTitle.value = ''
+  formPriority.value = 'medium'
+  formPeopleNeeded.value = 2
+  formRoomArea.value = ''
   taskSearch.value = ''
   formScheduledDate.value = ''
   formAssignedTo.value = []
@@ -100,9 +108,15 @@ function openCreate(date?: string) {
 function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string; assignedPeople?: { id: string }[]; taskId?: string | null }) {
   resetForm()
   editingId.value = card.id
-  // For cards linked to a backlog task, show task reference as read-only
   if (card.taskId) {
+    // For cards linked to a backlog task, show task reference as read-only
     formTaskId.value = card.taskId
+  } else {
+    // For unreferenced cards, populate free-form fields from existing values
+    formTitle.value = card.title
+    formPriority.value = card.priority as 'high' | 'medium' | 'low'
+    formPeopleNeeded.value = card.peopleNeeded
+    formRoomArea.value = card.roomArea
   }
   formScheduledDate.value = card.scheduledDate
   formAssignedTo.value = card.assignedPeople?.map(p => p.id) ?? []
@@ -122,11 +136,11 @@ async function handleSubmit() {
       // When referencing a backlog task, send taskId; omit title/priority/roomArea/peopleNeeded
       body.taskId = formTaskId.value
     } else {
-      // Fall back to free-form fields for cards with no backlog reference
-      body.title = ''
-      body.priority = 'medium'
-      body.roomArea = ''
-      body.peopleNeeded = 2
+      // Use free-form fields for cards with no backlog reference
+      body.title = formTitle.value
+      body.priority = formPriority.value
+      body.roomArea = formRoomArea.value
+      body.peopleNeeded = formPeopleNeeded.value
     }
     if (editingId.value) {
       await updateMut.mutateAsync({
@@ -233,8 +247,8 @@ function handleCancel() {
       @cancel="handleCancel"
     >
       <div class="flex flex-col gap-4">
-        <!-- Task selector (create mode, or edit mode for cards without taskId) -->
-        <template v-if="!isEditMode || (!selectedTask && editingId)">
+        <!-- Create mode: show task selector to pick a backlog task -->
+        <template v-if="!isEditMode">
           <!-- Empty backlog state -->
           <div v-if="backlogEmpty && !backlogLoading" class="rounded border border-dashed border-muted-foreground/30 p-4 text-center">
             <p class="text-sm text-muted-foreground mb-2">
@@ -285,7 +299,7 @@ function handleCancel() {
         </template>
 
         <!-- Edit mode: show read-only task info when card has taskId -->
-        <template v-if="selectedTask">
+        <template v-else-if="selectedTask">
           <div class="rounded border border-border bg-muted/30 p-3 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-medium text-muted-foreground">Task</span>
@@ -297,6 +311,38 @@ function handleCancel() {
               <span>Room: <strong>{{ selectedTask.room }}</strong></span>
               <span>People needed: <strong>{{ selectedTask.peopleNeeded }}</strong></span>
             </div>
+          </div>
+        </template>
+
+        <!-- Edit mode without taskId: show free-form fields for unreferenced cards -->
+        <template v-else>
+          <div class="flex flex-col gap-1.5">
+            <label for="form-title" class="text-xs font-medium text-muted-foreground">Title</label>
+            <Input id="form-title" v-model="formTitle" placeholder="Task title" />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label for="form-priority" class="text-xs font-medium text-muted-foreground">Priority</label>
+            <Select v-model="formPriority">
+              <SelectTrigger id="form-priority">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label for="form-room" class="text-xs font-medium text-muted-foreground">Room / Area</label>
+            <Input id="form-room" v-model="formRoomArea" placeholder="Room or area name" />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label for="form-people" class="text-xs font-medium text-muted-foreground">People needed</label>
+            <Input id="form-people" v-model.number="formPeopleNeeded" type="number" min="1" />
           </div>
         </template>
 

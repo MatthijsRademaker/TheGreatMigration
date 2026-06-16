@@ -297,7 +297,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 			if assignedCount == int(cr.PeopleNeeded) {
 				staffingStatus = "fullyStaffed"
 			}
-				var taskIDPtr *string
+			var taskIDPtr *string
 			if cr.TaskID.Valid {
 				taskIDPtr = &cr.TaskID.String
 			}
@@ -597,7 +597,7 @@ func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
 		return fmt.Errorf("check task schedule references: %w", err)
 	}
 	if hasCards {
-		return fmt.Errorf("cannot delete task '%s': it has scheduled cards referencing it. Remove them first", id)
+		return fmt.Errorf("%w: task '%s' has referencing schedule cards. Remove them first", api.ErrTaskHasScheduleCards, id)
 	}
 
 	pgxTx, err := s.pool.Begin(ctx)

@@ -158,7 +158,7 @@ type CreateScheduleCardOutput struct {
 
 // UpdateScheduleCardInputHuma is the Huma input for PUT /api/schedule/cards/{id}.
 type UpdateScheduleCardInputHuma struct {
-	ID   string                            `path:"id" doc:"Schedule card identifier (e.g., sched-1)"`
+	ID   string `path:"id" doc:"Schedule card identifier (e.g., sched-1)"`
 	Body CreateScheduleCardRequestBody
 }
 
@@ -319,12 +319,12 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 
 	// DELETE /api/schedule/cards/{id} — delete a schedule card.
 	huma.Register(api, huma.Operation{
-		OperationID:  "delete-schedule-card",
-		Method:       http.MethodDelete,
-		Path:         "/api/schedule/cards/{id}",
-		Summary:      "Delete a schedule card",
-		Description:  "Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.",
-		Tags:         []string{"Schedule"},
+		OperationID:   "delete-schedule-card",
+		Method:        http.MethodDelete,
+		Path:          "/api/schedule/cards/{id}",
+		Summary:       "Delete a schedule card",
+		Description:   "Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.",
+		Tags:          []string{"Schedule"},
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, input *DeleteScheduleCardInput) (*DeleteScheduleCardOutput, error) {
 		err := store.DeleteScheduleCard(ctx, input.ID)

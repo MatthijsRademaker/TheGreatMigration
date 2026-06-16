@@ -1122,6 +1122,36 @@ func TestDeleteTaskNotFound(t *testing.T) {
 	}
 }
 
+func TestDeleteTaskWithScheduleCards(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-1.
+	createBody := `{"title":"Scheduled card","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"taskId":"task-1","scheduledDate":"2026-07-10","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated && rec.Code != http.StatusOK {
+		t.Fatalf("create schedule card failed: status %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Now try to delete the referenced task — should return 400.
+	req = httptest.NewRequest(http.MethodDelete, "/api/tasks/task-1", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify the task still exists.
+	if _, exists := store.tasks["task-1"]; !exists {
+		t.Fatal("task should not have been deleted")
+	}
+}
+
 func TestTaskWriteReflectsInBacklog(t *testing.T) {
 	store := newMockStore()
 	router, _ := newTestAPI(store)
