@@ -64,6 +64,37 @@ export type CreateRoomRequestBody = {
     type: 'room' | 'area';
 };
 
+export type CreateTaskRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Person-ID strings for assigned helpers, may be empty
+     */
+    assignedTo: Array<string> | null;
+    /**
+     * Number of people required for the task, minimum 1
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: 'high' | 'medium' | 'low';
+    /**
+     * Room or area the task belongs to
+     */
+    room: string;
+    /**
+     * One of: backlog, ready, assigned
+     */
+    status: 'backlog' | 'ready' | 'assigned';
+    /**
+     * Human-readable task description
+     */
+    title: string;
+};
+
 export type DailyScheduleBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -406,6 +437,10 @@ export type TaskCard = {
 
 export type TaskRow = {
     /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
      * Person-ID strings for assigned helpers, may be empty
      */
     assignedTo: Array<string> | null;
@@ -559,6 +594,33 @@ export type CreateRoomRequestBodyWritable = {
     type: 'room' | 'area';
 };
 
+export type CreateTaskRequestBodyWritable = {
+    /**
+     * Person-ID strings for assigned helpers, may be empty
+     */
+    assignedTo: Array<string> | null;
+    /**
+     * Number of people required for the task, minimum 1
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: 'high' | 'medium' | 'low';
+    /**
+     * Room or area the task belongs to
+     */
+    room: string;
+    /**
+     * One of: backlog, ready, assigned
+     */
+    status: 'backlog' | 'ready' | 'assigned';
+    /**
+     * Human-readable task description
+     */
+    title: string;
+};
+
 export type DailyScheduleBodyWritable = {
     /**
      * One entry per date in the requested window
@@ -708,7 +770,38 @@ export type TaskBacklogBodyWritable = {
     /**
      * Backlog task rows
      */
-    tasks: Array<TaskRow> | null;
+    tasks: Array<TaskRowWritable> | null;
+};
+
+export type TaskRowWritable = {
+    /**
+     * Person-ID strings for assigned helpers, may be empty
+     */
+    assignedTo: Array<string> | null;
+    /**
+     * Stable task identifier, prefixed 'task-'
+     */
+    id: string;
+    /**
+     * Number of people required for the task, minimum 1
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: string;
+    /**
+     * Room or area the task belongs to
+     */
+    room: string;
+    /**
+     * One of: backlog, ready, assigned
+     */
+    status: string;
+    /**
+     * Human-readable task description
+     */
+    title: string;
 };
 
 export type UpdatePersonInputBodyWritable = {
@@ -1165,6 +1258,31 @@ export type UpdateRoomResponses = {
 
 export type UpdateRoomResponse = UpdateRoomResponses[keyof UpdateRoomResponses];
 
+export type CreateTaskData = {
+    body: CreateTaskRequestBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/tasks';
+};
+
+export type CreateTaskErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateTaskError = CreateTaskErrors[keyof CreateTaskErrors];
+
+export type CreateTaskResponses = {
+    /**
+     * OK
+     */
+    200: TaskRow;
+};
+
+export type CreateTaskResponse = CreateTaskResponses[keyof CreateTaskResponses];
+
 export type GetTasksBacklogData = {
     body?: never;
     path?: never;
@@ -1189,3 +1307,63 @@ export type GetTasksBacklogResponses = {
 };
 
 export type GetTasksBacklogResponse = GetTasksBacklogResponses[keyof GetTasksBacklogResponses];
+
+export type DeleteTaskData = {
+    body?: never;
+    path: {
+        /**
+         * Task identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/tasks/{id}';
+};
+
+export type DeleteTaskErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteTaskError = DeleteTaskErrors[keyof DeleteTaskErrors];
+
+export type DeleteTaskResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteTaskResponse = DeleteTaskResponses[keyof DeleteTaskResponses];
+
+export type UpdateTaskData = {
+    body: CreateTaskRequestBodyWritable;
+    path: {
+        /**
+         * Task identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/tasks/{id}';
+};
+
+export type UpdateTaskErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateTaskError = UpdateTaskErrors[keyof UpdateTaskErrors];
+
+export type UpdateTaskResponses = {
+    /**
+     * OK
+     */
+    200: TaskRow;
+};
+
+export type UpdateTaskResponse = UpdateTaskResponses[keyof UpdateTaskResponses];

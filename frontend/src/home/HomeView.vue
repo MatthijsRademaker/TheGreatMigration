@@ -15,7 +15,7 @@ const { data: availabilityData } = usePeopleAvailability()
     <KpiCards />
 
     <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-      <TaskManagementPanel />
+      <TaskManagementPanel read-only />
       <PeopleAvailability v-bind="availabilityData" />
     </div>
 

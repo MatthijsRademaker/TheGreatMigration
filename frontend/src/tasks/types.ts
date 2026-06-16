@@ -6,6 +6,6 @@ export interface TaskRow {
 	priority: TaskPriority;
 	peopleNeeded: number;
 	room: string;
-	status: string;
+	status: "backlog" | "ready" | "assigned";
 	assignedTo: string[];
 }

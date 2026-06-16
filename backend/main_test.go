@@ -758,6 +758,18 @@ func (f *failingStore) DeleteRoom(ctx context.Context, id string) error {
 	return errTestFailure
 }
 
+func (f *failingStore) CreateTask(ctx context.Context, input backendapi.CreateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) UpdateTask(ctx context.Context, id string, input backendapi.UpdateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) DeleteTask(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -874,6 +886,252 @@ func (f *partialFailingStore) UpdateRoom(ctx context.Context, id string, input b
 
 func (f *partialFailingStore) DeleteRoom(ctx context.Context, id string) error {
 	return errTestFailure
+}
+
+func (f *partialFailingStore) CreateTask(ctx context.Context, input backendapi.CreateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) UpdateTask(ctx context.Context, id string, input backendapi.UpdateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) DeleteTask(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+// ---------- Task CRUD tests ----------
+
+func TestCreateTask(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	body := `{"title":"Pack kitchen boxes","priority":"high","peopleNeeded":3,"room":"Kitchen","status":"backlog","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskRow
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Title != "Pack kitchen boxes" {
+		t.Fatalf("expected title 'Pack kitchen boxes', got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high', got %q", resp.Priority)
+	}
+	if resp.PeopleNeeded != 3 {
+		t.Fatalf("expected peopleNeeded 3, got %d", resp.PeopleNeeded)
+	}
+	if resp.Room != "Kitchen" {
+		t.Fatalf("expected room 'Kitchen', got %q", resp.Room)
+	}
+	if resp.Status != "backlog" {
+		t.Fatalf("expected status 'backlog', got %q", resp.Status)
+	}
+	if len(resp.AssignedTo) != 2 || resp.AssignedTo[0] != "p1" || resp.AssignedTo[1] != "p2" {
+		t.Fatalf("expected assignedTo [p1 p2], got %v", resp.AssignedTo)
+	}
+	if resp.ID == "" || resp.ID[:5] != "task-" {
+		t.Fatalf("expected task ID prefixed 'task-', got %q", resp.ID)
+	}
+}
+
+func TestCreateTaskValidation(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	tests := []struct {
+		name           string
+		body           string
+		expectedStatus int
+	}{
+		{
+			name:           "empty title",
+			body:           `{"title":"","priority":"medium","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":[]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid priority",
+			body:           `{"title":"Task","priority":"urgent","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":[]}`,
+			expectedStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:           "invalid status",
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"room":"Kitchen","status":"done","assignedTo":[]}`,
+			expectedStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:           "peopleNeeded < 1",
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":0,"room":"Kitchen","status":"backlog","assignedTo":[]}`,
+			expectedStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:           "empty room",
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"room":"","status":"backlog","assignedTo":[]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unknown assigned person",
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":["p99"]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != tt.expectedStatus {
+				t.Fatalf("expected status %d, got %d\nbody: %s", tt.expectedStatus, rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestUpdateTask(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Update an existing task (task-1 from seed data).
+	body := `{"title":"Updated kitchen task","priority":"low","peopleNeeded":1,"room":"Kitchen","status":"ready","assignedTo":["p3"]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/tasks/task-1", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskRow
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Title != "Updated kitchen task" {
+		t.Fatalf("expected title 'Updated kitchen task', got %q", resp.Title)
+	}
+	if resp.Priority != "low" {
+		t.Fatalf("expected priority 'low', got %q", resp.Priority)
+	}
+	if resp.PeopleNeeded != 1 {
+		t.Fatalf("expected peopleNeeded 1, got %d", resp.PeopleNeeded)
+	}
+	if resp.Status != "ready" {
+		t.Fatalf("expected status 'ready', got %q", resp.Status)
+	}
+	if len(resp.AssignedTo) != 1 || resp.AssignedTo[0] != "p3" {
+		t.Fatalf("expected assignedTo [p3], got %v", resp.AssignedTo)
+	}
+
+	// Verify the store reflects the update.
+	task := store.tasks["task-1"]
+	if task.Title != "Updated kitchen task" {
+		t.Fatalf("store task title not updated: got %q", task.Title)
+	}
+}
+
+func TestUpdateTaskNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	body := `{"title":"Nobody","priority":"low","peopleNeeded":1,"room":"Nowhere","status":"backlog","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/tasks/task-nonexistent", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteTask(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/tasks/task-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify the task was removed from the store.
+	if _, exists := store.tasks["task-1"]; exists {
+		t.Fatal("task should have been deleted")
+	}
+}
+
+func TestDeleteTaskNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/tasks/task-nonexistent", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestTaskWriteReflectsInBacklog(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a task.
+	createBody := `{"title":"New reflected task","priority":"high","peopleNeeded":2,"room":"Garage","status":"backlog","assignedTo":["p1"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create failed: status %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var created backendapi.TaskRow
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("failed to unmarshal created task: %v", err)
+	}
+
+	// GET the backlog and verify the new task appears.
+	getReq := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("backlog GET failed: status %d\nbody: %s", getRec.Code, getRec.Body.String())
+	}
+
+	var backlog backendapi.TaskBacklogBody
+	if err := json.Unmarshal(getRec.Body.Bytes(), &backlog); err != nil {
+		t.Fatalf("failed to unmarshal backlog: %v", err)
+	}
+
+	found := false
+	for _, task := range backlog.Tasks {
+		if task.ID == created.ID {
+			found = true
+			if task.Title != "New reflected task" {
+				t.Fatalf("reflected task has wrong title: %q", task.Title)
+			}
+			if task.Priority != "high" {
+				t.Fatalf("reflected task has wrong priority: %q", task.Priority)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("created task %s not found in backlog response", created.ID)
+	}
 }
 
 // ---------- People CRUD test store ----------
@@ -1530,7 +1788,9 @@ func TestOpenAPIIncludesMergedEndpoints(t *testing.T) {
 		"/api/dashboard/people-availability",
 		"/api/dashboard/daily-schedule",
 		"/api/planning-window",
+		"/api/tasks",
 		"/api/tasks/backlog",
+		"/api/tasks/{id}",
 		"/api/people",
 		"/api/people/{id}",
 		"/api/people/{id}/availability/{date}",
