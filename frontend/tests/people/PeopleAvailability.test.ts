@@ -62,7 +62,7 @@ describe("PeopleAvailability", () => {
 			render: () => h(PeopleAvailability),
 		});
 		const html = await renderToString(app);
-		expect(html).toContain("2 of 4 available today");
+		expect(html).toContain("1 of 4 available today");
 	});
 
 	it("renders person avatars with initials fallback", async () => {

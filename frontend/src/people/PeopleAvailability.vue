@@ -99,7 +99,8 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
     { id: 'partial', label: 'Partial' },
     { id: 'off', label: 'Off' },
   ],
-  availableToday: 2,
+  // Keep in sync with demo people data: counts people with status 'available' on the first day column.
+  availableToday: 1,
   totalPeople: 4,
 })
 </script>
@@ -119,14 +120,18 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
 
         <!-- Matrix -->
         <table class="w-full border-collapse">
+          <caption class="sr-only">
+            People availability matrix showing each person's status across the planning days
+          </caption>
           <thead>
             <tr>
-              <th class="px-2 py-1 text-left text-sm font-medium text-muted-foreground">
+              <th scope="col" class="px-2 py-1 text-left text-sm font-medium text-muted-foreground">
                 Person
               </th>
               <th
                 v-for="day in days"
                 :key="day"
+                scope="col"
                 class="px-2 py-1 text-center text-sm font-medium text-muted-foreground"
               >
                 {{ day }}
@@ -147,7 +152,7 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
               </td>
               <td
                 v-for="entry in person.availability"
-                :key="entry.date"
+                :key="`${person.id}-${entry.date}`"
                 class="px-2 py-2 text-center"
               >
                 <Badge :variant="entry.status">
