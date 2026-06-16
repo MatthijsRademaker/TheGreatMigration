@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useMutation, useQueryCache } from '@pinia/colada'
+import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
@@ -17,6 +17,7 @@ import {
   createTaskMutation,
   updateTaskMutation,
   deleteTaskMutation,
+  listRoomsQuery,
 } from '@/client/@pinia/colada.gen'
 import { useTaskBacklog } from '@/tasks/composables/useTaskBacklog'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
@@ -37,6 +38,7 @@ const formAssignedTo = ref<string[]>([])
 // ---- Queries ----
 const { data, isLoading, isError, isEmpty, queryKey } = useTaskBacklog()
 const { data: peopleData } = usePeopleAvailability()
+const roomsQuery = useQuery(listRoomsQuery())
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
@@ -254,7 +256,35 @@ watch(() => data.value.tasks, (tasks) => {
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-muted-foreground">Room / Area</label>
-          <Input v-model="formRoom" placeholder="e.g. Kitchen" />
+          <Select v-if="roomsQuery.isLoading.value" disabled>
+            <SelectTrigger>
+              <SelectValue placeholder="Loading rooms…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="loading" disabled>Loading…</SelectItem>
+            </SelectContent>
+          </Select>
+          <div v-else-if="roomsQuery.error.value" class="flex items-center gap-2">
+            <span class="text-xs text-destructive">Could not load rooms.</span>
+            <Button variant="outline" size="sm" @click="roomsQuery.refetch()">Retry</Button>
+          </div>
+          <Select
+            v-else
+            v-model="formRoom"
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a room…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="room in roomsQuery.data.value?.rooms ?? []"
+                :key="room.id"
+                :value="room.name"
+              >
+                {{ room.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-muted-foreground">Priority</label>
