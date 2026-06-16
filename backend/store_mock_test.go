@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -137,6 +138,8 @@ func buildMockPeople(startDate time.Time, days int, mp []struct {
 type mockStore struct {
 	planningWindow *PlanningWindowBody
 	taskBacklog    *TaskBacklogBody
+	rooms          map[string]Room
+	nextRoomID     int
 }
 
 func newMockStore() *mockStore {
@@ -177,6 +180,11 @@ func newMockStore() *mockStore {
 			Priorities: priorityLegend,
 			Statuses:   taskStatusLegend,
 		},
+		rooms: map[string]Room{
+			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
+			"room-2": {ID: "room-2", Name: "Living Room", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
+		},
+		nextRoomID: 3,
 	}
 }
 
@@ -312,5 +320,50 @@ func (m *mockStore) UpsertAvailability(ctx context.Context, personID string, dat
 }
 
 func (m *mockStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return nil
+}
+
+// ---------- Room CRUD (mockStore) ----------
+
+func (m *mockStore) ListRooms(ctx context.Context) ([]Room, error) {
+	rooms := make([]Room, 0, len(m.rooms))
+	for _, r := range m.rooms {
+		rooms = append(rooms, r)
+	}
+	sort.Slice(rooms, func(i, j int) bool { return rooms[i].Name < rooms[j].Name })
+	return rooms, nil
+}
+
+func (m *mockStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+	id := fmt.Sprintf("room-%d", m.nextRoomID)
+	m.nextRoomID++
+	now := time.Now().UTC().Format(time.RFC3339)
+	r := Room{
+		ID:        id,
+		Name:      input.Name,
+		Type:      input.Type,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	m.rooms[id] = r
+	return &r, nil
+}
+
+func (m *mockStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+	r, ok := m.rooms[id]
+	if !ok {
+		return nil, ErrRoomNotFound
+	}
+	r.Name = input.Name
+	r.Type = input.Type
+	m.rooms[id] = r
+	return &r, nil
+}
+
+func (m *mockStore) DeleteRoom(ctx context.Context, id string) error {
+	if _, ok := m.rooms[id]; !ok {
+		return ErrRoomNotFound
+	}
+	delete(m.rooms, id)
 	return nil
 }

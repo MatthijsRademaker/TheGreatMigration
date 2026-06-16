@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/user/the-great-migration/backend/db"
@@ -17,7 +19,6 @@ type Store interface {
 	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)
 	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
 	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
-
 	// Person CRUD
 	CreatePerson(ctx context.Context, id, name, initials string) error
 	UpdatePerson(ctx context.Context, id, name, initials string) error
@@ -28,6 +29,11 @@ type Store interface {
 	// Availability write
 	UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error
 	DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error
+
+	ListRooms(ctx context.Context) ([]Room, error)
+	CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error)
+	UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error)
+	DeleteRoom(ctx context.Context, id string) error
 }
 
 // PgStore implements Store backed by a pgx connection pool and sqlc queries.
@@ -402,4 +408,80 @@ func pgDateToTime(d pgtype.Date) time.Time {
 		return time.Time{}
 	}
 	return d.Time
+}
+
+// ---------- Room CRUD ----------
+
+// ListRooms returns all room/area records ordered by name.
+func (s *PgStore) ListRooms(ctx context.Context) ([]Room, error) {
+	rows, err := s.queries.ListRooms(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rooms := make([]Room, len(rows))
+	for i, r := range rows {
+		rooms[i] = dbRoomToAPI(r)
+	}
+	return rooms, nil
+}
+
+// CreateRoom creates a new room/area record and returns it.
+func (s *PgStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+	r, err := s.queries.CreateRoom(ctx, db.CreateRoomParams{
+		Name: input.Name,
+		Type: input.Type,
+	})
+	if err != nil {
+		return nil, err
+	}
+	room := dbRoomToAPI(r)
+	return &room, nil
+}
+
+// UpdateRoom updates an existing room/area record by ID.
+func (s *PgStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+	r, err := s.queries.UpdateRoom(ctx, db.UpdateRoomParams{
+		ID:   id,
+		Name: input.Name,
+		Type: input.Type,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRoomNotFound
+		}
+		return nil, err
+	}
+	room := dbRoomToAPI(r)
+	return &room, nil
+}
+
+// DeleteRoom deletes a room/area record by ID.
+func (s *PgStore) DeleteRoom(ctx context.Context, id string) error {
+	_, err := s.queries.DeleteRoom(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrRoomNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+// dbRoomToAPI converts a db.RoomsArea to the API-facing Room.
+func dbRoomToAPI(r db.RoomsArea) Room {
+	createdAt := ""
+	if r.CreatedAt.Valid {
+		createdAt = r.CreatedAt.Time.Format(time.RFC3339)
+	}
+	updatedAt := ""
+	if r.UpdatedAt.Valid {
+		updatedAt = r.UpdatedAt.Time.Format(time.RFC3339)
+	}
+	return Room{
+		ID:        r.ID,
+		Name:      r.Name,
+		Type:      r.Type,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}
 }

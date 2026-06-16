@@ -119,6 +119,7 @@ func main() {
 
 	// Register people management write endpoints.
 	registerPeopleEndpoints(api, store)
+	registerRoomsAreas(api, store)
 
 	fmt.Println("Backend listening on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {
