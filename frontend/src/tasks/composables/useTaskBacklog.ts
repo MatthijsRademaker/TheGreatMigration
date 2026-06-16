@@ -4,7 +4,11 @@ import {
 	getTasksBacklogQuery,
 	getTasksBacklogQueryKey,
 } from "@/client/@pinia/colada.gen";
-import type { TaskBacklogBody, TaskRow } from "@/client/types.gen";
+import type {
+	TaskBacklogBody,
+	TaskRow as GeneratedTaskRow,
+} from "@/client/types.gen";
+import type { TaskRow } from "../types";
 
 export interface TaskBacklogState {
 	tasks: TaskRow[];
@@ -35,7 +39,11 @@ function adaptToPanelState(
 	}
 
 	return {
-		tasks: data.tasks ?? [],
+		tasks: (data.tasks ?? []).map((task: GeneratedTaskRow) => ({
+			...task,
+			priority: task.priority as TaskRow["priority"],
+			assignedTo: task.assignedTo ?? [],
+		})),
 		priorities: data.priorities ?? [],
 		statuses: data.statuses ?? [],
 		summary: data.summary,

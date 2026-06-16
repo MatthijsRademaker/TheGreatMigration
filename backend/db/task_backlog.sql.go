@@ -9,6 +9,131 @@ import (
 	"context"
 )
 
+const createTask = `-- name: CreateTask :one
+INSERT INTO backlog_tasks (id, title, priority, people_needed, room, status, sort_order)
+VALUES ('task-' || nextval('backlog_tasks_id_seq'), $1, $2, $3, $4, $5, $6)
+RETURNING id, title, priority, people_needed, room, status
+`
+
+type CreateTaskParams struct {
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+	SortOrder    int32
+}
+
+type CreateTaskRow struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+}
+
+func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (CreateTaskRow, error) {
+	row := q.db.QueryRow(ctx, createTask,
+		arg.Title,
+		arg.Priority,
+		arg.PeopleNeeded,
+		arg.Room,
+		arg.Status,
+		arg.SortOrder,
+	)
+	var i CreateTaskRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.PeopleNeeded,
+		&i.Room,
+		&i.Status,
+	)
+	return i, err
+}
+
+const createTaskAssignment = `-- name: CreateTaskAssignment :exec
+INSERT INTO backlog_task_assignments (task_id, person_id, sort_order)
+VALUES ($1, $2, $3)
+`
+
+type CreateTaskAssignmentParams struct {
+	TaskID    string
+	PersonID  string
+	SortOrder int32
+}
+
+func (q *Queries) CreateTaskAssignment(ctx context.Context, arg CreateTaskAssignmentParams) error {
+	_, err := q.db.Exec(ctx, createTaskAssignment, arg.TaskID, arg.PersonID, arg.SortOrder)
+	return err
+}
+
+const deleteTask = `-- name: DeleteTask :exec
+DELETE FROM backlog_tasks
+WHERE id = $1
+`
+
+func (q *Queries) DeleteTask(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteTask, id)
+	return err
+}
+
+const deleteTaskAssignments = `-- name: DeleteTaskAssignments :exec
+DELETE FROM backlog_task_assignments
+WHERE task_id = $1
+`
+
+func (q *Queries) DeleteTaskAssignments(ctx context.Context, taskID string) error {
+	_, err := q.db.Exec(ctx, deleteTaskAssignments, taskID)
+	return err
+}
+
+const getMaxSortOrder = `-- name: GetMaxSortOrder :one
+SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort_order
+FROM backlog_tasks
+`
+
+func (q *Queries) GetMaxSortOrder(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, getMaxSortOrder)
+	var max_sort_order int32
+	err := row.Scan(&max_sort_order)
+	return max_sort_order, err
+}
+
+const getTaskAssignments = `-- name: GetTaskAssignments :many
+SELECT task_id, person_id
+FROM backlog_task_assignments
+WHERE task_id = $1
+ORDER BY sort_order
+`
+
+type GetTaskAssignmentsRow struct {
+	TaskID   string
+	PersonID string
+}
+
+func (q *Queries) GetTaskAssignments(ctx context.Context, taskID string) ([]GetTaskAssignmentsRow, error) {
+	rows, err := q.db.Query(ctx, getTaskAssignments, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTaskAssignmentsRow
+	for rows.Next() {
+		var i GetTaskAssignmentsRow
+		if err := rows.Scan(&i.TaskID, &i.PersonID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTaskBacklog = `-- name: GetTaskBacklog :many
 SELECT id, title, priority, people_needed, room, status
 FROM backlog_tasks
@@ -80,4 +205,79 @@ func (q *Queries) GetTaskBacklogAssignments(ctx context.Context) ([]GetTaskBackl
 		return nil, err
 	}
 	return items, nil
+}
+
+const getTaskByID = `-- name: GetTaskByID :one
+SELECT id, title, priority, people_needed, room, status
+FROM backlog_tasks
+WHERE id = $1
+`
+
+type GetTaskByIDRow struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+}
+
+func (q *Queries) GetTaskByID(ctx context.Context, id string) (GetTaskByIDRow, error) {
+	row := q.db.QueryRow(ctx, getTaskByID, id)
+	var i GetTaskByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.PeopleNeeded,
+		&i.Room,
+		&i.Status,
+	)
+	return i, err
+}
+
+const updateTask = `-- name: UpdateTask :one
+UPDATE backlog_tasks
+SET title = $2, priority = $3, people_needed = $4, room = $5, status = $6
+WHERE id = $1
+RETURNING id, title, priority, people_needed, room, status
+`
+
+type UpdateTaskParams struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+}
+
+type UpdateTaskRow struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+}
+
+func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateTaskRow, error) {
+	row := q.db.QueryRow(ctx, updateTask,
+		arg.ID,
+		arg.Title,
+		arg.Priority,
+		arg.PeopleNeeded,
+		arg.Room,
+		arg.Status,
+	)
+	var i UpdateTaskRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.PeopleNeeded,
+		&i.Room,
+		&i.Status,
+	)
+	return i, err
 }

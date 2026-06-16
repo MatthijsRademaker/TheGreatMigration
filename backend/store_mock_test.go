@@ -140,6 +140,8 @@ func buildMockPeople(startDate time.Time, days int, mp []struct {
 type mockStore struct {
 	planningWindow *api.PlanningWindowBody
 	taskBacklog    *api.TaskBacklogBody
+	tasks          map[string]api.TaskRow
+	nextTaskID     int
 	rooms          map[string]api.Room
 	nextRoomID     int
 }
@@ -165,6 +167,12 @@ func newMockStore() *mockStore {
 		}
 	}
 
+	// Build mutable task map from seed tasks.
+	tasks := make(map[string]api.TaskRow, len(seedTasks))
+	for _, t := range seedTasks {
+		tasks[t.ID] = t
+	}
+
 	return &mockStore{
 		planningWindow: &api.PlanningWindowBody{
 			StartDate: "2026-07-05",
@@ -182,6 +190,8 @@ func newMockStore() *mockStore {
 			Priorities: api.PriorityLegendData,
 			Statuses:   api.TaskStatusLegendData,
 		},
+		tasks:      tasks,
+		nextTaskID: 12,
 		rooms: map[string]api.Room{
 			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 			"room-2": {ID: "room-2", Name: "Living Room", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
@@ -310,6 +320,11 @@ func (m *mockStore) DeletePerson(ctx context.Context, id string) error {
 }
 
 func (m *mockStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	for _, sp := range seedPeople {
+		if sp.Id == id {
+			return true, nil
+		}
+	}
 	return false, nil
 }
 
@@ -322,6 +337,62 @@ func (m *mockStore) UpsertAvailability(ctx context.Context, personID string, dat
 }
 
 func (m *mockStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return nil
+}
+
+// ---------- Task CRUD (mockStore) ----------
+
+func (m *mockStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (*api.TaskRow, error) {
+	id := fmt.Sprintf("task-%d", m.nextTaskID)
+	m.nextTaskID++
+
+	assigned := input.AssignedTo
+	if assigned == nil {
+		assigned = []string{}
+	}
+
+	task := api.TaskRow{
+		ID:           id,
+		Title:        input.Title,
+		Priority:     input.Priority,
+		PeopleNeeded: input.PeopleNeeded,
+		Room:         input.Room,
+		Status:       input.Status,
+		AssignedTo:   assigned,
+	}
+	m.tasks[id] = task
+	return &task, nil
+}
+
+func (m *mockStore) UpdateTask(ctx context.Context, id string, input api.UpdateTaskInput) (*api.TaskRow, error) {
+	_, ok := m.tasks[id]
+	if !ok {
+		return nil, api.ErrTaskNotFound
+	}
+
+	assigned := input.AssignedTo
+	if assigned == nil {
+		assigned = []string{}
+	}
+
+	task := api.TaskRow{
+		ID:           id,
+		Title:        input.Title,
+		Priority:     input.Priority,
+		PeopleNeeded: input.PeopleNeeded,
+		Room:         input.Room,
+		Status:       input.Status,
+		AssignedTo:   assigned,
+	}
+	m.tasks[id] = task
+	return &task, nil
+}
+
+func (m *mockStore) DeleteTask(ctx context.Context, id string) error {
+	if _, ok := m.tasks[id]; !ok {
+		return api.ErrTaskNotFound
+	}
+	delete(m.tasks, id)
 	return nil
 }
 

@@ -3,15 +3,23 @@ import { ListFilterIcon, PlusIcon } from '@lucide/vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
-import { taskFixtures } from '../fixtures'
+import { useTaskBacklog } from '../composables/useTaskBacklog'
 import { priorityLabels, priorityBadgeVariant } from '../helpers'
 import type { TaskPriority } from '../types'
 import TaskRow from './TaskRow.vue'
+
+withDefaults(defineProps<{
+  readOnly?: boolean
+}>(), {
+  readOnly: false,
+})
 
 defineEmits<{
   filter: []
   'add-task': []
 }>()
+
+const { data, isLoading, isError, isEmpty } = useTaskBacklog()
 
 const priorities: TaskPriority[] = ['high', 'medium', 'low']
 </script>
@@ -21,7 +29,7 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
     <CardHeader>
       <div class="flex items-center justify-between gap-4">
         <CardTitle>Task Management</CardTitle>
-        <div class="flex items-center gap-2">
+        <div v-if="!readOnly" class="flex items-center gap-2">
           <Button variant="outline" @click="$emit('filter')">
             <ListFilterIcon />
             Filter
@@ -34,31 +42,49 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
       </div>
     </CardHeader>
     <CardContent>
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead>
-            <tr class="border-b border-border">
-              <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Task</th>
-              <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Priority</th>
-              <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">People Needed</th>
-              <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Room / Area</th>
-              <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <TaskRow v-for="task in taskFixtures" :key="task.id" :task="task" />
-          </tbody>
-        </table>
+      <!-- Loading state -->
+      <div v-if="isLoading" class="py-8 text-center text-sm text-muted-foreground">
+        Loading tasks&hellip;
       </div>
 
-      <div class="mt-4 flex items-center gap-3 border-t border-border pt-4">
-        <span class="text-sm text-muted-foreground">Priority:</span>
-        <div class="flex items-center gap-2">
-          <Badge v-for="p in priorities" :key="p" :variant="priorityBadgeVariant[p]">
-            {{ priorityLabels[p] }}
-          </Badge>
-        </div>
+      <!-- Error state -->
+      <div v-else-if="isError" class="py-8 text-center text-sm text-destructive">
+        Could not load tasks. Please try again.
       </div>
+
+      <!-- Empty state -->
+      <div v-else-if="isEmpty" class="py-8 text-center text-sm text-muted-foreground">
+        No tasks yet.
+      </div>
+
+      <!-- Data state -->
+      <template v-else>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-border">
+                <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Task</th>
+                <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Priority</th>
+                <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">People Needed</th>
+                <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Room / Area</th>
+                <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <TaskRow v-for="task in data.tasks" :key="task.id" :task="task" />
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-4 flex items-center gap-3 border-t border-border pt-4">
+          <span class="text-sm text-muted-foreground">Priority:</span>
+          <div class="flex items-center gap-2">
+            <Badge v-for="p in priorities" :key="p" :variant="priorityBadgeVariant[p]">
+              {{ priorityLabels[p] }}
+            </Badge>
+          </div>
+        </div>
+      </template>
     </CardContent>
   </Card>
 </template>

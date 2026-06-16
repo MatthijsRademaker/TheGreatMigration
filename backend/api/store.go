@@ -25,6 +25,11 @@ type Store interface {
 	UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error
 	DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error
 
+	// Task CRUD
+	CreateTask(ctx context.Context, input CreateTaskInput) (*TaskRow, error)
+	UpdateTask(ctx context.Context, id string, input UpdateTaskInput) (*TaskRow, error)
+	DeleteTask(ctx context.Context, id string) error
+
 	ListRooms(ctx context.Context) ([]Room, error)
 	CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error)
 	UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error)

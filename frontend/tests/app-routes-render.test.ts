@@ -97,14 +97,50 @@ async function renderRoute(path: string) {
 				return new Response(
 					JSON.stringify({
 						summary: {
-							totalTasks: 11,
-							highPriorityTasks: 4,
-							unassignedTasks: 3,
-							understaffedTasks: 2,
+							totalTasks: 3,
+							highPriorityTasks: 1,
+							unassignedTasks: 1,
+							understaffedTasks: 1,
 						},
-						tasks: [],
-						priorities: [],
-						statuses: [],
+						tasks: [
+							{
+								id: "task-1",
+								title: "Pack kitchen boxes",
+								priority: "high",
+								peopleNeeded: 3,
+								room: "Kitchen",
+								status: "ready",
+								assignedTo: [],
+							},
+							{
+								id: "task-2",
+								title: "Disassemble bed frames",
+								priority: "medium",
+								peopleNeeded: 2,
+								room: "Bedroom",
+								status: "ready",
+								assignedTo: [],
+							},
+							{
+								id: "task-3",
+								title: "Move living room furniture",
+								priority: "medium",
+								peopleNeeded: 4,
+								room: "Living Room",
+								status: "assigned",
+								assignedTo: ["p1"],
+							},
+						],
+						priorities: [
+							{ id: "high", label: "High", colorIntent: "destructive" },
+							{ id: "medium", label: "Medium", colorIntent: "warning" },
+							{ id: "low", label: "Low", colorIntent: "success" },
+						],
+						statuses: [
+							{ id: "backlog", label: "Backlog", colorIntent: "muted" },
+							{ id: "ready", label: "Ready", colorIntent: "info" },
+							{ id: "assigned", label: "Assigned", colorIntent: "success" },
+						],
 					}),
 					{
 						status: 200,
@@ -188,7 +224,7 @@ describe("application route rendering", () => {
 			title: "Task backlog",
 			description:
 				"Capture jobs, priorities, staffing needs, and planning status.",
-			content: "Task Management",
+			content: "Add Task",
 		},
 		{
 			path: "/calendar",
@@ -251,10 +287,17 @@ describe("application route rendering", () => {
 				expect(html).toContain("6");
 				expect(html).toContain("of 8");
 				expect(html).toContain("available");
-				expect(html).toContain("4");
-				expect(html).toContain("3");
+				expect(html).toContain("1");
 
+				// Home renders TaskManagementPanel in readOnly mode
 				expect(html).toContain("Task Management");
+				// readOnly mode: no Filter or Add Task buttons
+				expect(html).not.toContain("Filter");
+				expect(html).not.toContain("Add Task");
+				// Backlog-backed task rows
+				expect(html).toContain("Pack kitchen boxes");
+				expect(html).toContain("Disassemble bed frames");
+
 				expect(html).toContain("People availability");
 				expect(html).toContain("Daily Schedule");
 				expect(html).toContain("Move notes");
@@ -272,12 +315,18 @@ describe("application route rendering", () => {
 			}
 
 			if (path === "/tasks") {
-				expect(html).toContain("Painting hall");
-				expect(html).toContain("People Needed");
-				expect(html).toContain("Room / Area");
-				expect(html).toContain("Unassigned");
-				expect(html).toContain("Filter");
+				// TasksView renders its own management controls and backlog-backed task list
 				expect(html).toContain("Add Task");
+				expect(html).toContain("Task backlog");
+				// Backlog-backed task rows from the mock
+				expect(html).toContain("Pack kitchen boxes");
+				expect(html).toContain("Disassemble bed frames");
+				expect(html).toContain("Move living room furniture");
+				// Management controls
+				expect(html).toContain("Edit");
+				expect(html).toContain("Delete");
+				// No fixture content
+				expect(html).not.toContain("Painting hall");
 			}
 		});
 	}

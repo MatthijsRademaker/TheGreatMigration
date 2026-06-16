@@ -758,6 +758,18 @@ func (f *failingStore) DeleteRoom(ctx context.Context, id string) error {
 	return errTestFailure
 }
 
+func (f *failingStore) CreateTask(ctx context.Context, input backendapi.CreateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) UpdateTask(ctx context.Context, id string, input backendapi.UpdateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) DeleteTask(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -873,6 +885,18 @@ func (f *partialFailingStore) UpdateRoom(ctx context.Context, id string, input b
 }
 
 func (f *partialFailingStore) DeleteRoom(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) CreateTask(ctx context.Context, input backendapi.CreateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) UpdateTask(ctx context.Context, id string, input backendapi.UpdateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) DeleteTask(ctx context.Context, id string) error {
 	return errTestFailure
 }
 
