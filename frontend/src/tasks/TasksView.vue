@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
+import { useMutation, useQueryCache } from '@pinia/colada'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
@@ -13,13 +13,13 @@ import {
 } from '@/shared/ui/select'
 import { Checkbox } from '@/shared/ui/checkbox'
 import {
-  getTasksBacklogQuery,
   createTaskMutation,
   updateTaskMutation,
   deleteTaskMutation,
-  getTasksBacklogQueryKey,
 } from '@/client/@pinia/colada.gen'
+import { useTaskBacklog } from '@/tasks/composables/useTaskBacklog'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
+import type { TaskRow } from '@/tasks/types'
 
 // ---- State ----
 const editingId = ref<string | null>(null)
@@ -33,26 +33,26 @@ const formStatus = ref<'backlog' | 'ready' | 'assigned'>('backlog')
 const formAssignedTo = ref<string[]>([])
 
 // ---- Queries ----
-const backlogQuery = useQuery(getTasksBacklogQuery())
+const { data, isLoading, isError, isEmpty, queryKey } = useTaskBacklog()
 const { data: peopleData } = usePeopleAvailability()
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
 const createMut = useMutation({
   ...createTaskMutation(),
-  onSuccess: () => queryCache.invalidateQueries({ key: getTasksBacklogQueryKey() }),
+  onSuccess: () => queryCache.invalidateQueries({ key: queryKey }),
 })
 const updateMut = useMutation({
   ...updateTaskMutation(),
-  onSuccess: () => queryCache.invalidateQueries({ key: getTasksBacklogQueryKey() }),
+  onSuccess: () => queryCache.invalidateQueries({ key: queryKey }),
 })
 const deleteMut = useMutation({
   ...deleteTaskMutation(),
-  onSuccess: () => queryCache.invalidateQueries({ key: getTasksBacklogQueryKey() }),
+  onSuccess: () => queryCache.invalidateQueries({ key: queryKey }),
 })
 
 // ---- Actions ----
-function startEdit(task: { id: string; title: string; priority: string; peopleNeeded: number; room: string; status: string; assignedTo?: string[] | null }) {
+function startEdit(task: TaskRow) {
   editingId.value = task.id
   formTitle.value = task.title
   formPriority.value = task.priority as 'high' | 'medium' | 'low'
@@ -115,6 +115,7 @@ async function handleSubmit() {
       formPeopleNeeded.value = 2
       formRoom.value = ''
       formStatus.value = 'backlog'
+      formAssignedTo.value = []
     }
   } catch (e: any) {
     mutationError.value = e?.message || 'Something went wrong. Please try again.'
@@ -134,7 +135,7 @@ async function handleDelete(id: string) {
 }
 
 // Reset form when a pending task is deleted while editing.
-watch(() => backlogQuery.data.value?.tasks, (tasks) => {
+watch(() => data.value.tasks, (tasks) => {
   if (editingId.value && tasks && !tasks.find((t) => t.id === editingId.value)) {
     cancelEdit()
   }
@@ -249,18 +250,18 @@ watch(() => backlogQuery.data.value?.tasks, (tasks) => {
       </CardHeader>
       <CardContent>
         <!-- Loading -->
-        <p v-if="backlogQuery.isLoading.value" class="text-sm text-muted-foreground">
+        <p v-if="isLoading" class="text-sm text-muted-foreground">
           Loading&hellip;
         </p>
 
         <!-- Error -->
-        <p v-else-if="backlogQuery.error.value" class="text-sm text-destructive">
+        <p v-else-if="isError" class="text-sm text-destructive">
           Could not load tasks. Please try again.
         </p>
 
         <!-- Empty -->
         <p
-          v-else-if="!backlogQuery.data.value?.tasks?.length"
+          v-else-if="isEmpty"
           class="text-sm text-muted-foreground"
         >
           No tasks yet. Add one above.
@@ -269,7 +270,7 @@ watch(() => backlogQuery.data.value?.tasks, (tasks) => {
         <!-- List with management controls -->
         <ul v-else class="divide-y">
           <li
-            v-for="task in backlogQuery.data.value.tasks"
+            v-for="task in data.tasks"
             :key="task.id"
             class="flex items-center justify-between py-2 first:pt-0 last:pb-0"
           >
