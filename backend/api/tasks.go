@@ -25,6 +25,10 @@ var canonicalTaskStatuses = map[string]bool{
 // ErrTaskNotFound is returned when a task ID is not found.
 var ErrTaskNotFound = errors.New("task not found")
 
+// ErrTaskHasScheduleCards is returned when a delete is rejected because the
+// task has referencing schedule cards.
+var ErrTaskHasScheduleCards = errors.New("task has referencing schedule cards")
+
 // ---------- Domain input types ----------
 
 // CreateTaskInput is the domain-layer input for creating a task.
@@ -161,7 +165,7 @@ type CreateTaskOutput struct {
 
 // UpdateTaskInputHuma is the Huma input for PUT /api/tasks/{id}.
 type UpdateTaskInputHuma struct {
-	ID   string                `path:"id" doc:"Task identifier"`
+	ID   string `path:"id" doc:"Task identifier"`
 	Body CreateTaskRequestBody
 }
 
@@ -273,18 +277,21 @@ func registerTasksEndpoints(api huma.API, store Store) {
 
 	// DELETE /api/tasks/{id} — delete a task.
 	huma.Register(api, huma.Operation{
-		OperationID:  "delete-task",
-		Method:       http.MethodDelete,
-		Path:         "/api/tasks/{id}",
-		Summary:      "Delete a backlog task",
-		Description:  "Deletes a backlog task and its assignments transactionally. Returns 404 if the task ID is unknown.",
-		Tags:         []string{"Tasks"},
+		OperationID:   "delete-task",
+		Method:        http.MethodDelete,
+		Path:          "/api/tasks/{id}",
+		Summary:       "Delete a backlog task",
+		Description:   "Deletes a backlog task and its assignments transactionally. Returns 404 if the task ID is unknown.",
+		Tags:          []string{"Tasks"},
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, input *DeleteTaskInput) (*DeleteTaskOutput, error) {
 		err := store.DeleteTask(ctx, input.ID)
 		if err != nil {
 			if errors.Is(err, ErrTaskNotFound) {
 				return nil, huma.Error404NotFound("task not found", err)
+			}
+			if errors.Is(err, ErrTaskHasScheduleCards) {
+				return nil, huma.Error400BadRequest("task has referencing schedule cards", err)
 			}
 			return nil, huma.Error500InternalServerError("failed to delete task", err)
 		}

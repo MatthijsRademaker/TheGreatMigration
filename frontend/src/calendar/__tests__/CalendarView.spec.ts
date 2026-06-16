@@ -6,32 +6,84 @@ import CalendarView from "../CalendarView.vue";
 
 // ── Mock helpers ────────────────────────────────────────────────────────────
 
-function createRoomsQuery(
+function createBacklogMock(
 	overrides: Partial<{
 		isLoading: boolean;
-		error: Error | null;
-		rooms: { id: string; name: string; type: string }[] | null;
+		isEmpty: boolean;
+		tasks: {
+			id: string;
+			title: string;
+			priority: string;
+			room: string;
+			peopleNeeded: number;
+		}[];
 	}> = {},
 ) {
 	const state = {
 		isLoading: overrides.isLoading ?? false,
-		error: overrides.error ?? null,
-		rooms: overrides.rooms,
+		isEmpty: overrides.isEmpty ?? true,
+		tasks: overrides.tasks ?? [],
 	};
 	return {
+		data: computed(() => ({
+			tasks: state.tasks,
+			priorities: [],
+			statuses: [],
+			summary: {
+				totalTasks: state.tasks.length,
+				highPriorityTasks: 0,
+				unassignedTasks: 0,
+				understaffedTasks: 0,
+			},
+		})),
 		isLoading: ref(state.isLoading),
-		error: ref(state.error),
-		data: ref(state.rooms ? { rooms: state.rooms } : null),
-		refetch: vi.fn(),
+		isEmpty: ref(state.isEmpty),
+		refresh: vi.fn(),
+		queryKey: ["task-backlog"],
 	};
 }
 
+function createDailyScheduleMock(
+	overrides: Partial<{
+		isLoading: boolean;
+		isError: boolean;
+		isEmpty: boolean;
+		days: unknown[];
+	}> = {},
+) {
+	const state = {
+		isLoading: overrides.isLoading ?? false,
+		isError: overrides.isError ?? false,
+		isEmpty: overrides.isEmpty ?? true,
+		days: overrides.days ?? [],
+	};
+	return {
+		data: computed(() => ({ days: state.days })),
+		isLoading: ref(state.isLoading),
+		isError: ref(state.isError),
+		isEmpty: ref(state.isEmpty),
+		queryKey: ["daily-schedule"],
+	};
+}
+
+let mockBacklog = createBacklogMock();
+let mockDailySchedule = createDailyScheduleMock();
+
+// Capturing mutation spies — recreated before each test so assertions are clean.
+let createMutateAsync: ReturnType<typeof vi.fn>;
+let updateMutateAsync: ReturnType<typeof vi.fn>;
+let deleteMutateAsync: ReturnType<typeof vi.fn>;
+
 // ── Module mocks ────────────────────────────────────────────────────────────
 
-let mockRoomsQuery = createRoomsQuery();
-
 vi.mock("@pinia/colada", () => ({
-	useQuery: vi.fn(() => mockRoomsQuery),
+	useQuery: vi.fn(() => ({
+		isLoading: ref(false),
+		error: ref(null),
+		data: ref(null),
+		refetch: vi.fn(),
+		isPending: ref(false),
+	})),
 	useMutation: vi.fn(() => ({
 		mutateAsync: vi.fn(),
 		isLoading: { value: false },
@@ -42,20 +94,17 @@ vi.mock("@pinia/colada", () => ({
 }));
 
 vi.mock("@/client/@pinia/colada.gen", () => ({
-	listRoomsQuery: vi.fn(() => ({ key: ["listRooms"], query: vi.fn() })),
+	getTasksBacklogQuery: vi.fn(() => ({
+		key: ["task-backlog"],
+		query: vi.fn(),
+	})),
 	createScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 	updateScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 	deleteScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 }));
 
 vi.mock("@/calendar/composables/useDailySchedule", () => ({
-	useDailySchedule: vi.fn(() => ({
-		data: computed(() => ({ days: [] })),
-		isLoading: ref(false),
-		isError: ref(false),
-		isEmpty: ref(true),
-		queryKey: ["daily-schedule"],
-	})),
+	useDailySchedule: vi.fn(() => mockDailySchedule),
 }));
 
 vi.mock("@/shared/composables/usePeopleAvailability", () => ({
@@ -64,11 +113,38 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 	})),
 }));
 
+vi.mock("@/tasks/composables/useTaskBacklog", () => ({
+	useTaskBacklog: vi.fn(() => mockBacklog),
+}));
+
+// We need distinct spies per mutation. Patch the useMutation mock after imports.
+import { useMutation } from "@pinia/colada";
+
+function setupMutationSpies() {
+	createMutateAsync = vi.fn().mockResolvedValue(undefined);
+	updateMutateAsync = vi.fn().mockResolvedValue(undefined);
+	deleteMutateAsync = vi.fn().mockResolvedValue(undefined);
+	// The component creates three useMutation calls in order: createMut, updateMut, deleteMut.
+	const callOrder: (() => {
+		mutateAsync: typeof createMutateAsync;
+		isLoading: { value: boolean };
+	})[] = [
+		() => ({ mutateAsync: createMutateAsync, isLoading: { value: false } }),
+		() => ({ mutateAsync: updateMutateAsync, isLoading: { value: false } }),
+		() => ({ mutateAsync: deleteMutateAsync, isLoading: { value: false } }),
+	];
+	let callIndex = 0;
+	(useMutation as ReturnType<typeof vi.fn>).mockImplementation(() => {
+		const result = callOrder[callIndex % callOrder.length]();
+		callIndex++;
+		return result;
+	});
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 async function mountCalendar() {
 	const wrapper = mount(CalendarView, { attachTo: document.body });
-	// Wait for initial render (portal, reka-ui)
 	await nextTick();
 	await nextTick();
 	await nextTick();
@@ -76,7 +152,6 @@ async function mountCalendar() {
 }
 
 async function openAddModal(wrapper: ReturnType<typeof mount>) {
-	// The empty state shows "Add your first task" button
 	const addBtn = wrapper.find("button");
 	expect(addBtn.exists()).toBe(true);
 	await addBtn.trigger("click");
@@ -87,94 +162,249 @@ async function openAddModal(wrapper: ReturnType<typeof mount>) {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-describe("CalendarView – Room Select", () => {
+describe("CalendarView – Task Selector", () => {
 	beforeEach(() => {
-		mockRoomsQuery = createRoomsQuery();
+		mockBacklog = createBacklogMock();
+		mockDailySchedule = createDailyScheduleMock();
+		setupMutationSpies();
 	});
 
 	it("renders without crashing and shows empty state", async () => {
 		const wrapper = mount(CalendarView);
-		// The component renders the empty state with the add button
 		expect(wrapper.text()).toContain("Add your first task");
 		wrapper.unmount();
 	});
 
-	it("renders room Select with room names when rooms query succeeds", async () => {
-		const mockRooms = [
-			{ id: "r1", name: "Kitchen", type: "room" },
-			{ id: "r2", name: "Living Room", type: "room" },
-			{ id: "r3", name: "Garage", type: "room" },
+	it("shows empty backlog guidance when no tasks exist", async () => {
+		mockBacklog = createBacklogMock({ isEmpty: true, tasks: [] });
+
+		const wrapper = await mountCalendar();
+		await openAddModal(wrapper);
+
+		const html = document.body.innerHTML;
+		expect(html).toContain("No tasks in the backlog yet");
+		expect(html).toContain("Task Panel");
+
+		wrapper.unmount();
+	});
+
+	it("shows task selector with backlog tasks when tasks exist", async () => {
+		const mockTasks = [
+			{
+				id: "task-1",
+				title: "Pack kitchen",
+				priority: "high",
+				room: "Kitchen",
+				peopleNeeded: 2,
+			},
 		];
-		mockRoomsQuery = createRoomsQuery({ rooms: mockRooms });
-
-		const wrapper = await mountCalendar();
-		await openAddModal(wrapper);
-
-		// The success branch renders the Select with placeholder
-		const html = document.body.innerHTML;
-		expect(html).toContain("Select a room");
-		// Loading/error text should NOT be present
-		expect(html).not.toContain("Loading rooms");
-		expect(html).not.toContain("Could not load rooms");
-		// The room data is correctly passed to the query mock
-		expect(mockRoomsQuery.data.value?.rooms).toEqual(mockRooms);
-
-		wrapper.unmount();
-	});
-
-	it("shows loading placeholder while rooms query is pending", async () => {
-		mockRoomsQuery = createRoomsQuery({ isLoading: true });
-
-		const wrapper = await mountCalendar();
-		await openAddModal(wrapper);
-
-		// The loading state shows a disabled Select with "Loading rooms…"
-		const html = document.body.innerHTML;
-		expect(html).toContain("Loading rooms");
-
-		wrapper.unmount();
-	});
-
-	it("shows error message and retry button when rooms query fails", async () => {
-		mockRoomsQuery = createRoomsQuery({
-			error: new Error("Network error"),
+		mockBacklog = createBacklogMock({
+			isEmpty: false,
+			tasks: mockTasks,
 		});
 
 		const wrapper = await mountCalendar();
 		await openAddModal(wrapper);
 
-		// The error state shows a message and retry button
 		const html = document.body.innerHTML;
-		expect(html).toContain("Could not load rooms.");
-		expect(html).toContain("Retry");
+		expect(html).toContain("Select a task");
+		expect(html).toContain("Search task");
 
-		// Click retry and verify refetch is called
-		const retryBtn = Array.from(document.body.querySelectorAll("button")).find(
-			(b) => b.textContent?.trim() === "Retry",
+		wrapper.unmount();
+	});
+
+	it("shows DatePicker for the scheduled date", async () => {
+		mockBacklog = createBacklogMock();
+
+		const wrapper = await mountCalendar();
+		await openAddModal(wrapper);
+
+		const html = document.body.innerHTML;
+		expect(html).toContain("Select date");
+
+		wrapper.unmount();
+	});
+
+	it("sends taskId in create mutation body when a task is selected", async () => {
+		mockBacklog = createBacklogMock({
+			isEmpty: false,
+			tasks: [
+				{
+					id: "task-1",
+					title: "Pack kitchen",
+					priority: "high",
+					room: "Kitchen",
+					peopleNeeded: 2,
+				},
+			],
+		});
+
+		const wrapper = await mountCalendar();
+		await openAddModal(wrapper);
+
+		// Set formTaskId directly via the component's exposed refs.
+		// wrapper.vm auto-unwraps Vue refs, so we set the value directly.
+		(wrapper.vm as unknown as Record<string, unknown>).formTaskId = "task-1";
+		await nextTick();
+
+		// Click Save
+		const saveBtn = Array.from(document.body.querySelectorAll("button")).find(
+			(b) => b.textContent?.trim() === "Save",
 		);
-		expect(retryBtn).toBeTruthy();
-		(retryBtn as HTMLElement).click();
-		expect(mockRoomsQuery.refetch).toHaveBeenCalledOnce();
+		expect(saveBtn).toBeTruthy();
+		(saveBtn as HTMLElement).click();
+		await nextTick();
+		await nextTick();
+
+		expect(createMutateAsync).toHaveBeenCalledTimes(1);
+		const callArg = createMutateAsync.mock.calls[0][0];
+		expect(callArg.body.taskId).toBe("task-1");
 
 		wrapper.unmount();
 	});
 });
 
-describe("CalendarView – DatePicker", () => {
+describe("CalendarView – Edit Modal", () => {
 	beforeEach(() => {
-		mockRoomsQuery = createRoomsQuery();
+		mockBacklog = createBacklogMock();
+		mockDailySchedule = createDailyScheduleMock();
+		setupMutationSpies();
 	});
 
-	it("renders DatePicker instead of a free-form date Input", async () => {
+	it("shows read-only task info when editing a referenced card (has taskId)", async () => {
+		mockBacklog = createBacklogMock({
+			isEmpty: false,
+			tasks: [
+				{
+					id: "task-1",
+					title: "Pack kitchen",
+					priority: "high",
+					room: "Kitchen",
+					peopleNeeded: 2,
+				},
+			],
+		});
+		mockDailySchedule = createDailyScheduleMock({
+			isEmpty: false,
+			days: [
+				{
+					date: "2026-07-10",
+					cards: [
+						{
+							id: "card-1",
+							title: "Pack kitchen",
+							priority: "high",
+							roomArea: "Kitchen",
+							peopleNeeded: 2,
+							scheduledDate: "2026-07-10",
+							taskId: "task-1",
+							staffingStatus: "underStaffed",
+							assignedCount: 0,
+							assignedPeople: [],
+						},
+					],
+				},
+			],
+		});
+
 		const wrapper = await mountCalendar();
-		await openAddModal(wrapper);
 
-		// The DatePicker renders a button with "Select date" placeholder and a CalendarIcon
+		// Open the edit modal programmatically by calling the component's openEdit.
+		const anyVM = wrapper.vm as unknown as Record<string, unknown>;
+		const openEditFn = anyVM["openEdit"] as
+			| ((card: Record<string, unknown>) => void)
+			| undefined;
+		if (openEditFn) {
+			openEditFn({
+				id: "card-1",
+				title: "Pack kitchen",
+				priority: "high",
+				roomArea: "Kitchen",
+				peopleNeeded: 2,
+				scheduledDate: "2026-07-10",
+				assignedPeople: [],
+				taskId: "task-1",
+			});
+		} else {
+			// Fallback: trigger edit via DailySchedule by finding an action button
+			const allBtns = wrapper.findAll("button");
+			// Click the first non-"Add" button
+			for (const btn of allBtns) {
+				const text = btn.text();
+				if (text !== "Add your first task" && text !== "Save") {
+					await btn.trigger("click");
+					break;
+				}
+			}
+		}
+		await nextTick();
+		await nextTick();
+		await nextTick();
+
 		const html = document.body.innerHTML;
-		expect(html).toContain("Select date");
+		expect(html).toContain("From backlog");
+		expect(html).toContain("Pack kitchen");
 
-		// A plain text Input for the date should NOT be present in the modal body
-		expect(html).not.toContain('id="form-date"');
+		wrapper.unmount();
+	});
+
+	it("shows free-form fields when editing an unreferenced card (no taskId)", async () => {
+		mockBacklog = createBacklogMock({
+			isEmpty: false,
+			tasks: [],
+		});
+		mockDailySchedule = createDailyScheduleMock({
+			isEmpty: false,
+			days: [
+				{
+					date: "2026-07-10",
+					cards: [
+						{
+							id: "card-2",
+							title: "Legacy card",
+							priority: "low",
+							roomArea: "Garage",
+							peopleNeeded: 3,
+							scheduledDate: "2026-07-10",
+							taskId: null,
+							staffingStatus: "underStaffed",
+							assignedCount: 0,
+							assignedPeople: [],
+						},
+					],
+				},
+			],
+		});
+
+		const wrapper = await mountCalendar();
+
+		// Call openEdit programmatically
+		const anyVM = wrapper.vm as unknown as Record<string, unknown>;
+		const openEditFn = anyVM["openEdit"] as
+			| ((card: Record<string, unknown>) => void)
+			| undefined;
+		if (openEditFn) {
+			openEditFn({
+				id: "card-2",
+				title: "Legacy card",
+				priority: "low",
+				roomArea: "Garage",
+				peopleNeeded: 3,
+				scheduledDate: "2026-07-10",
+				assignedPeople: [],
+				taskId: null,
+			});
+		}
+		await nextTick();
+		await nextTick();
+		await nextTick();
+
+		const html = document.body.innerHTML;
+		expect(html).toContain("form-title");
+		expect(html).toContain("form-priority");
+		expect(html).toContain("form-room");
+		expect(html).toContain("form-people");
+		expect(html).not.toContain("From backlog");
 
 		wrapper.unmount();
 	});
