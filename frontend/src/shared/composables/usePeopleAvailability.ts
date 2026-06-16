@@ -135,12 +135,12 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 		return !planningWindow?.isLoading.value && startParam.value != null;
 	});
 
-	const query = useQuery({
+	const query = useQuery(() => ({
 		...getDashboardPeopleAvailabilityQuery(
 			startParam.value ? { query: { start: startParam.value } } : undefined,
 		),
-		enabled: queryEnabled,
-	});
+		enabled: queryEnabled.value,
+	}));
 
 	const adapted = computed<AdaptedResult>(() =>
 		adaptToComponentProps(query.data.value),

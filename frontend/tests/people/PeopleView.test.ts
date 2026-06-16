@@ -1,12 +1,19 @@
 import { renderToString } from "@vue/server-renderer";
 import { createSSRApp, h, nextTick } from "vue";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref, computed } from "vue";
+
+// --- Shared mutation mock functions (controllable from tests) ---
+const mutationMockState = {
+	mutateAsync: vi
+		.fn<(...args: unknown[]) => Promise<unknown>>()
+		.mockResolvedValue(undefined),
+};
 
 // --- Mock Pinia Colada ---
 vi.mock("@pinia/colada", () => ({
 	useMutation: () => ({
-		mutateAsync: vi.fn(),
+		mutateAsync: mutationMockState.mutateAsync,
 		mutate: vi.fn(),
 		isLoading: ref(false),
 		error: ref(null),
@@ -204,6 +211,285 @@ describe("PeopleView loading state wiring", () => {
 		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
 		expect(matrix.exists()).toBe(true);
 		expect(matrix.props("editable")).toBe(true);
+
+		wrapper.unmount();
+	});
+});
+
+// --- Client-render tests for handleCellUpdate ---
+// @vitest-environment jsdom
+
+describe("PeopleView handleCellUpdate", () => {
+	beforeEach(() => {
+		mutationMockState.mutateAsync.mockReset();
+		mutationMockState.mutateAsync.mockResolvedValue(undefined);
+	});
+
+	it("derives correct date from daysISO by index", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+		await nextTick();
+
+		// The mutation should be called with the ISO date from daysISO[0] ("2026-07-05")
+		expect(mutationMockState.mutateAsync).toHaveBeenCalledWith(
+			expect.objectContaining({
+				path: expect.objectContaining({ id: "p1", date: "2026-07-05" }),
+				body: expect.objectContaining({ status: "busy" }),
+			}),
+		);
+
+		wrapper.unmount();
+	});
+
+	it("derives date from daysISO for non-zero index", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p2",
+			dayIndex: 1,
+			status: "available",
+		});
+		await nextTick();
+
+		// The mutation should be called with daysISO[1] ("2026-07-06")
+		expect(mutationMockState.mutateAsync).toHaveBeenCalledWith(
+			expect.objectContaining({
+				path: expect.objectContaining({ id: "p2", date: "2026-07-06" }),
+			}),
+		);
+
+		wrapper.unmount();
+	});
+
+	it("shows error without API call when dayIndex is out of range", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 10,
+			status: "busy",
+		});
+		await nextTick();
+
+		// Error message without API call
+		expect(wrapper.text()).toContain(
+			"Selected cell cannot be mapped to a date",
+		);
+		expect(mutationMockState.mutateAsync).not.toHaveBeenCalled();
+
+		wrapper.unmount();
+	});
+
+	it("shows planning window error for 400 outside planning window", async () => {
+		mutationMockState.mutateAsync.mockRejectedValueOnce({
+			status: 400,
+			cause: {
+				body: { detail: "date 2026-07-05 is outside the planning window" },
+			},
+		});
+
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+
+		// Wait for the async mutation rejection to propagate through Vue's reactivity
+		await new Promise((r) => setTimeout(r, 0));
+		await nextTick();
+
+		expect(wrapper.text()).toContain(
+			"This date is outside the planning window.",
+		);
+
+		wrapper.unmount();
+	});
+
+	it("shows invalid date format error for 400 with invalid ISO date", async () => {
+		mutationMockState.mutateAsync.mockRejectedValueOnce({
+			status: 400,
+			cause: {
+				body: {
+					detail:
+						"must be a valid ISO 8601 date: invalid-date' does not match pattern '^\\d{4}-\\d{2}-\\d{2}$'",
+				},
+			},
+		});
+
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+
+		// Wait for the async mutation rejection to propagate
+		await new Promise((r) => setTimeout(r, 0));
+		await nextTick();
+
+		expect(wrapper.text()).toContain("Invalid date format.");
+
+		wrapper.unmount();
+	});
+
+	it("shows invalid status error for 400 with invalid status value", async () => {
+		mutationMockState.mutateAsync.mockRejectedValueOnce({
+			status: 400,
+			cause: {
+				body: {
+					detail: "status must be one of [available, busy, partial, off]",
+				},
+			},
+		});
+
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+
+		// Wait for the async mutation rejection to propagate
+		await new Promise((r) => setTimeout(r, 0));
+		await nextTick();
+
+		expect(wrapper.text()).toContain("Invalid status value.");
+
+		wrapper.unmount();
+	});
+
+	it("shows person not found for 404 error", async () => {
+		mutationMockState.mutateAsync.mockRejectedValueOnce({
+			status: 404,
+		});
+
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+
+		// Wait for the async mutation rejection to propagate
+		await new Promise((r) => setTimeout(r, 0));
+		await nextTick();
+
+		expect(wrapper.text()).toContain("Person not found.");
+
+		wrapper.unmount();
+	});
+
+	it("shows fallback for generic 400 error without known detail", async () => {
+		mutationMockState.mutateAsync.mockRejectedValueOnce({
+			status: 400,
+			cause: {
+				body: { detail: "some unexpected validation error" },
+			},
+		});
+
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+
+		// Wait for the async mutation rejection to propagate
+		await new Promise((r) => setTimeout(r, 0));
+		await nextTick();
+
+		expect(wrapper.text()).toContain(
+			"Failed to update: some unexpected validation error",
+		);
+
+		wrapper.unmount();
+	});
+
+	it("shows generic error for non-HTTP errors", async () => {
+		mutationMockState.mutateAsync.mockRejectedValueOnce(
+			new Error("Network failure"),
+		);
+
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		matrix.vm.$emit("update-cell", {
+			personId: "p1",
+			dayIndex: 0,
+			status: "busy",
+		});
+
+		// Wait for the async mutation rejection to propagate
+		await new Promise((r) => setTimeout(r, 0));
+		await nextTick();
+
+		expect(wrapper.text()).toContain(
+			"Failed to update availability: Network failure",
+		);
 
 		wrapper.unmount();
 	});
