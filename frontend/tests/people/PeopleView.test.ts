@@ -67,6 +67,7 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 			availableToday: 1,
 			totalPeople: 2,
 		}),
+		daysISO: ref(["2026-07-05", "2026-07-06"]),
 		rawData: ref({
 			range: {
 				startDate: "2026-07-05",

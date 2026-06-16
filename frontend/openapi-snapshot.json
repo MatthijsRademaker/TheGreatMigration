@@ -1203,16 +1203,16 @@
     },
     "/api/dashboard/people-availability": {
       "get": {
-        "description": "Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the server-local current date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.",
+        "description": "Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the planning-window start date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.",
         "operationId": "get-dashboard-people-availability",
         "parameters": [
           {
-            "description": "Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the server-local current date.",
+            "description": "Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date.",
             "explode": false,
             "in": "query",
             "name": "start",
             "schema": {
-              "description": "Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the server-local current date.",
+              "description": "Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date.",
               "type": "string"
             }
           },
