@@ -345,7 +345,7 @@ describe("application route rendering", () => {
 
 			if (path === "/people") {
 				expect(html).toContain("Add a person");
-				expect(html).toContain("Manage people");
+				expect(html).toContain("Actions");
 				expect(html).toContain('data-variant="available"');
 				expect(html).toContain('data-variant="busy"');
 				expect(html).toContain("Sophia Chen");
