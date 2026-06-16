@@ -182,6 +182,16 @@ func (m *mockStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody,
 	return m.planningWindow, nil
 }
 
+func (m *mockStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+	days := int(endDate.Sub(startDate).Hours()/24) + 1
+	m.planningWindow = &PlanningWindowBody{
+		StartDate: startDate.Format("2006-01-02"),
+		EndDate:   endDate.Format("2006-01-02"),
+		Days:      days,
+	}
+	return m.planningWindow, nil
+}
+
 func (m *mockStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
 	return m.taskBacklog, nil
 }

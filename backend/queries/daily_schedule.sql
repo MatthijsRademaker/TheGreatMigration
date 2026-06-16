@@ -1,5 +1,5 @@
 -- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, day_group, sort_order
+SELECT id, title, priority, room_area, people_needed, day_group, sort_order, created_at
 FROM schedule_task_cards
 ORDER BY day_group, sort_order;
 

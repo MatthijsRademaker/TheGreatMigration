@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses } from './types.gen';
+import type { GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,13 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Daily schedule for the dashboard
+ *
+ * Returns a dashboard-ready daily schedule read model with date columns, available-helper counts, and ordered schedule task cards. The start parameter defaults to the planning-window start date (2026-07-05); clients should pass start explicitly for a different window.
+ */
+export const getDashboardDailySchedule = <ThrowOnError extends boolean = false>(options?: Options<GetDashboardDailyScheduleData, ThrowOnError>): RequestResult<GetDashboardDailyScheduleResponses, GetDashboardDailyScheduleErrors, ThrowOnError> => (options?.client ?? client).get<GetDashboardDailyScheduleResponses, GetDashboardDailyScheduleErrors, ThrowOnError>({ url: '/api/dashboard/daily-schedule', ...options });
 
 /**
  * People availability for the dashboard
@@ -38,6 +45,20 @@ export const getHello = <ThrowOnError extends boolean = false>(options?: Options
  * Returns the global move range with startDate, endDate, and inclusive day count. The planning window is the canonical source of truth for the move timeline. All date-dependent views derive their rendered content from this contract.
  */
 export const getPlanningWindow = <ThrowOnError extends boolean = false>(options?: Options<GetPlanningWindowData, ThrowOnError>): RequestResult<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError> => (options?.client ?? client).get<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError>({ url: '/api/planning-window', ...options });
+
+/**
+ * Update planning window
+ *
+ * Updates the planning window start and end dates. Both dates are required and endDate must be >= startDate. Returns the updated planning window with recalculated inclusive day count.
+ */
+export const putPlanningWindow = <ThrowOnError extends boolean = false>(options: Options<PutPlanningWindowData, ThrowOnError>): RequestResult<PutPlanningWindowResponses, PutPlanningWindowErrors, ThrowOnError> => (options.client ?? client).put<PutPlanningWindowResponses, PutPlanningWindowErrors, ThrowOnError>({
+    url: '/api/planning-window',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Task backlog data

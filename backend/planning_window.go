@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -15,6 +16,14 @@ type PlanningWindowInput struct{}
 // PlanningWindowOutput is the response wrapper for GET /api/planning-window.
 type PlanningWindowOutput struct {
 	Body PlanningWindowBody
+}
+
+// UpdatePlanningWindowInput is the request body for PUT /api/planning-window.
+type UpdatePlanningWindowInput struct {
+	Body struct {
+		StartDate string `json:"startDate" required:"true" doc:"Start date (ISO 8601, YYYY-MM-DD)"`
+		EndDate   string `json:"endDate" required:"true" doc:"End date (ISO 8601, YYYY-MM-DD)"`
+	}
 }
 
 // PlanningWindowBody is the response body for the planning-window endpoint.
@@ -40,6 +49,37 @@ func registerPlanningWindow(api huma.API, store Store) {
 		body, err := store.GetPlanningWindow(ctx)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to retrieve planning window", err)
+		}
+
+		return &PlanningWindowOutput{
+			Body: *body,
+		}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "put-planning-window",
+		Method:      http.MethodPut,
+		Path:        "/api/planning-window",
+		Summary:     "Update planning window",
+		Description: "Updates the planning window start and end dates. Both dates are required and endDate must be >= startDate. Returns the updated planning window with recalculated inclusive day count.",
+		Tags:        []string{"Planning"},
+		Errors:      []int{422},
+	}, func(ctx context.Context, input *UpdatePlanningWindowInput) (*PlanningWindowOutput, error) {
+		startDate, err := time.Parse("2006-01-02", input.Body.StartDate)
+		if err != nil {
+			return nil, huma.Error422UnprocessableEntity("invalid startDate format, expected YYYY-MM-DD", err)
+		}
+		endDate, err := time.Parse("2006-01-02", input.Body.EndDate)
+		if err != nil {
+			return nil, huma.Error422UnprocessableEntity("invalid endDate format, expected YYYY-MM-DD", err)
+		}
+		if endDate.Before(startDate) {
+			return nil, huma.Error422UnprocessableEntity("endDate must be >= startDate")
+		}
+
+		body, err := store.UpdatePlanningWindow(ctx, startDate, endDate)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to update planning window", err)
 		}
 
 		return &PlanningWindowOutput{

@@ -15,15 +15,24 @@ FROM backlog_tasks
 ORDER BY sort_order
 `
 
-func (q *Queries) GetTaskBacklog(ctx context.Context) ([]BacklogTask, error) {
+type GetTaskBacklogRow struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+	Status       string
+}
+
+func (q *Queries) GetTaskBacklog(ctx context.Context) ([]GetTaskBacklogRow, error) {
 	rows, err := q.db.Query(ctx, getTaskBacklog)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []BacklogTask
+	var items []GetTaskBacklogRow
 	for rows.Next() {
-		var i BacklogTask
+		var i GetTaskBacklogRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -48,19 +57,21 @@ FROM backlog_task_assignments
 ORDER BY task_id, sort_order
 `
 
-func (q *Queries) GetTaskBacklogAssignments(ctx context.Context) ([]BacklogTaskAssignment, error) {
+type GetTaskBacklogAssignmentsRow struct {
+	TaskID   string
+	PersonID string
+}
+
+func (q *Queries) GetTaskBacklogAssignments(ctx context.Context) ([]GetTaskBacklogAssignmentsRow, error) {
 	rows, err := q.db.Query(ctx, getTaskBacklogAssignments)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []BacklogTaskAssignment
+	var items []GetTaskBacklogAssignmentsRow
 	for rows.Next() {
-		var i BacklogTaskAssignment
-		if err := rows.Scan(
-			&i.TaskID,
-			&i.PersonID,
-		); err != nil {
+		var i GetTaskBacklogAssignmentsRow
+		if err := rows.Scan(&i.TaskID, &i.PersonID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

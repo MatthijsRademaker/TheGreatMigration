@@ -4,6 +4,21 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AssignedPerson = {
+    /**
+     * Stable person key
+     */
+    id: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
 export type AvailabilityEntry = {
     /**
      * Date in ISO 8601 format (YYYY-MM-DD)
@@ -13,6 +28,21 @@ export type AvailabilityEntry = {
      * One of: available, busy, partial, off
      */
     status: string;
+};
+
+export type DailyScheduleBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * One entry per date in the requested window
+     */
+    days: Array<ScheduleDay> | null;
+    /**
+     * Date range metadata
+     */
+    range: ScheduleRange;
 };
 
 export type DashboardBody = {
@@ -164,6 +194,40 @@ export type Range = {
     startDate: string;
 };
 
+export type ScheduleDay = {
+    /**
+     * Number of people available on this date
+     */
+    availablePeopleCount: number;
+    /**
+     * Date in ISO 8601 format (YYYY-MM-DD)
+     */
+    date: string;
+    /**
+     * Human-readable day header
+     */
+    label: string;
+    /**
+     * Ordered schedule task cards
+     */
+    tasks: Array<TaskCard> | null;
+};
+
+export type ScheduleRange = {
+    /**
+     * Number of dates in the window (inclusive of startDate)
+     */
+    days: number;
+    /**
+     * End date of the window (ISO 8601)
+     */
+    endDate: string;
+    /**
+     * Start date of the window (ISO 8601)
+     */
+    startDate: string;
+};
+
 export type StatusLegend = {
     /**
      * Design system color intent
@@ -192,6 +256,10 @@ export type Summary = {
 
 export type TaskBacklogBody = {
     /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
      * Canonical priority legend
      */
     priorities: Array<PriorityLegend> | null;
@@ -207,6 +275,41 @@ export type TaskBacklogBody = {
      * Backlog task rows
      */
     tasks: Array<TaskRow> | null;
+};
+
+export type TaskCard = {
+    /**
+     * Number of people currently assigned (derived from assignedPeople)
+     */
+    assignedCount: number;
+    /**
+     * People assigned to this task
+     */
+    assignedPeople: Array<AssignedPerson> | null;
+    /**
+     * Stable task identifier
+     */
+    id: string;
+    /**
+     * Number of people needed for the task (>=1)
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: string;
+    /**
+     * Room or area name
+     */
+    roomArea: string;
+    /**
+     * One of: fullyStaffed, underStaffed
+     */
+    staffingStatus: string;
+    /**
+     * Task title
+     */
+    title: string;
 };
 
 export type TaskRow = {
@@ -274,6 +377,32 @@ export type TaskSummary = {
     understaffedTasks: number;
 };
 
+export type UpdatePlanningWindowInputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * End date (ISO 8601, YYYY-MM-DD)
+     */
+    endDate: string;
+    /**
+     * Start date (ISO 8601, YYYY-MM-DD)
+     */
+    startDate: string;
+};
+
+export type DailyScheduleBodyWritable = {
+    /**
+     * One entry per date in the requested window
+     */
+    days: Array<ScheduleDay> | null;
+    /**
+     * Date range metadata
+     */
+    range: ScheduleRange;
+};
+
 export type DashboardBodyWritable = {
     /**
      * People with daily availability
@@ -338,6 +467,70 @@ export type PlanningWindowBodyWritable = {
      */
     startDate: string;
 };
+
+export type TaskBacklogBodyWritable = {
+    /**
+     * Canonical priority legend
+     */
+    priorities: Array<PriorityLegend> | null;
+    /**
+     * Canonical task-status legend
+     */
+    statuses: Array<TaskStatusLegend> | null;
+    /**
+     * Derived summary counts
+     */
+    summary: TaskSummary;
+    /**
+     * Backlog task rows
+     */
+    tasks: Array<TaskRow> | null;
+};
+
+export type UpdatePlanningWindowInputBodyWritable = {
+    /**
+     * End date (ISO 8601, YYYY-MM-DD)
+     */
+    endDate: string;
+    /**
+     * Start date (ISO 8601, YYYY-MM-DD)
+     */
+    startDate: string;
+};
+
+export type GetDashboardDailyScheduleData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date 2026-07-05.
+         */
+        start?: string;
+        /**
+         * Number of days inclusive of start date.
+         */
+        days?: number;
+    };
+    url: '/api/dashboard/daily-schedule';
+};
+
+export type GetDashboardDailyScheduleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetDashboardDailyScheduleError = GetDashboardDailyScheduleErrors[keyof GetDashboardDailyScheduleErrors];
+
+export type GetDashboardDailyScheduleResponses = {
+    /**
+     * OK
+     */
+    200: DailyScheduleBody;
+};
+
+export type GetDashboardDailyScheduleResponse = GetDashboardDailyScheduleResponses[keyof GetDashboardDailyScheduleResponses];
 
 export type GetDashboardPeopleAvailabilityData = {
     body?: never;
@@ -422,6 +615,35 @@ export type GetPlanningWindowResponses = {
 };
 
 export type GetPlanningWindowResponse = GetPlanningWindowResponses[keyof GetPlanningWindowResponses];
+
+export type PutPlanningWindowData = {
+    body: UpdatePlanningWindowInputBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/planning-window';
+};
+
+export type PutPlanningWindowErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type PutPlanningWindowError = PutPlanningWindowErrors[keyof PutPlanningWindowErrors];
+
+export type PutPlanningWindowResponses = {
+    /**
+     * OK
+     */
+    200: PlanningWindowBody;
+};
+
+export type PutPlanningWindowResponse = PutPlanningWindowResponses[keyof PutPlanningWindowResponses];
 
 export type GetTasksBacklogData = {
     body?: never;

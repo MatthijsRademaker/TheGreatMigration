@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getPlanningWindow = `-- name: GetPlanningWindow :one
@@ -17,6 +19,32 @@ LIMIT 1
 
 func (q *Queries) GetPlanningWindow(ctx context.Context) (PlanningWindow, error) {
 	row := q.db.QueryRow(ctx, getPlanningWindow)
+	var i PlanningWindow
+	err := row.Scan(
+		&i.ID,
+		&i.StartDate,
+		&i.EndDate,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertPlanningWindow = `-- name: UpsertPlanningWindow :one
+INSERT INTO planning_windows (id, start_date, end_date)
+VALUES (1, $1, $2)
+ON CONFLICT (id)
+DO UPDATE SET start_date = $1, end_date = $2, updated_at = NOW()
+RETURNING id, start_date, end_date, created_at, updated_at
+`
+
+type UpsertPlanningWindowParams struct {
+	StartDate pgtype.Date
+	EndDate   pgtype.Date
+}
+
+func (q *Queries) UpsertPlanningWindow(ctx context.Context, arg UpsertPlanningWindowParams) (PlanningWindow, error) {
+	row := q.db.QueryRow(ctx, upsertPlanningWindow, arg.StartDate, arg.EndDate)
 	var i PlanningWindow
 	err := row.Scan(
 		&i.ID,
