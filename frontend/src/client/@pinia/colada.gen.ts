@@ -66,7 +66,7 @@ export const getDashboardPeopleAvailabilityQueryKey = (options?: Options<GetDash
 /**
  * People availability for the dashboard
  *
- * Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the server-local current date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.
+ * Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. The start parameter defaults to the planning-window start date; clients should pass start explicitly for timezone-correct results. availableToday counts only people whose status on selectedDate equals 'available'.
  */
 export const getDashboardPeopleAvailabilityQuery = defineQueryOptions<Options<GetDashboardPeopleAvailabilityData>, GetDashboardPeopleAvailabilityResponse, GetDashboardPeopleAvailabilityError>((options?: Options<GetDashboardPeopleAvailabilityData>) => ({
     key: getDashboardPeopleAvailabilityQueryKey(options),
@@ -102,7 +102,7 @@ export const getHelloQuery = defineQueryOptions<Options<GetHelloData>, GetHelloR
 /**
  * Create a person
  *
- * Creates a new person with a client-supplied stable ID suitable for name-derived slugs.
+ * Creates a new person with a server-assigned sequential ID.
  */
 export const createPersonMutation = (options?: Partial<Options<CreatePersonData>>): UseMutationOptions<CreatePersonResponse, Options<CreatePersonData>, CreatePersonError> => ({
     mutation: async (vars) => {

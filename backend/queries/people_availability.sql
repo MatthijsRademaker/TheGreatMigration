@@ -19,9 +19,10 @@ SELECT EXISTS (
     SELECT 1 FROM people WHERE id = $1
 ) AS exists;
 
--- name: CreatePerson :exec
+-- name: CreatePerson :one
 INSERT INTO people (id, name, initials)
-VALUES ($1, $2, $3);
+VALUES ('p' || nextval('people_id_seq'), $1, $2)
+RETURNING id;
 
 -- name: UpdatePerson :exec
 UPDATE people

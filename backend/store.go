@@ -334,10 +334,9 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 	}, nil
 }
 
-// CreatePerson inserts a new person row.
-func (s *PgStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+// CreatePerson inserts a new person row and returns the generated ID.
+func (s *PgStore) CreatePerson(ctx context.Context, name, initials string) (string, error) {
 	return s.queries.CreatePerson(ctx, db.CreatePersonParams{
-		ID:       id,
 		Name:     name,
 		Initials: initials,
 	})
