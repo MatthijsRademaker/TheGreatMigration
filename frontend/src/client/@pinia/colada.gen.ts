@@ -82,11 +82,6 @@ export const getDashboardPeopleAvailabilityQuery = defineQueryOptions<Options<Ge
 
 export const getHelloQueryKey = (options?: Options<GetHelloData>) => createQueryKey('getHello', options);
 
-/**
- * Hello world
- *
- * Returns a hello-world message confirming the backend is reachable.
- */
 export const getHelloQuery = defineQueryOptions<Options<GetHelloData>, GetHelloResponse, GetHelloError>((options?: Options<GetHelloData>) => ({
     key: getHelloQueryKey(options),
     query: async (context) => {

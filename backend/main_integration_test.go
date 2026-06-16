@@ -458,4 +458,23 @@ func TestDBBackedEndpoints(t *testing.T) {
 			}
 		}
 	})
+
+	// Write the OpenAPI spec to the frontend snapshot file for offline
+	// code generation. The path is relative to the workspace root where
+	// the frontend directory lives.
+	t.Run("WriteSnapshot", func(t *testing.T) {
+		snapshotPath := os.Getenv("OPENAPI_SNAPSHOT_PATH")
+		if snapshotPath == "" {
+			t.Skip("OPENAPI_SNAPSHOT_PATH not set; skipping snapshot write")
+		}
+		openapiBytes, err := json.MarshalIndent(api.OpenAPI(), "", "  ")
+		if err != nil {
+			t.Fatalf("failed to marshal OpenAPI: %v", err)
+		}
+		openapiBytes = append(openapiBytes, '\n')
+		if err := os.WriteFile(snapshotPath, openapiBytes, 0o644); err != nil {
+			t.Fatalf("failed to write OpenAPI snapshot to %s: %v", snapshotPath, err)
+		}
+		t.Logf("OpenAPI snapshot written to %s (%d bytes)", snapshotPath, len(openapiBytes))
+	})
 }

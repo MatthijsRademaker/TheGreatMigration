@@ -32,15 +32,15 @@ const roomsQuery = useQuery(listRoomsQuery())
 const queryCache = useQueryCache()
 const createMut = useMutation({
   ...createRoomMutation(),
-  onSettled: () => queryCache.invalidateQueries({ key: ['listRooms'] }),
+  onSuccess: () => queryCache.invalidateQueries({ key: [{ _id: 'listRooms' }] }),
 })
 const updateMut = useMutation({
   ...updateRoomMutation(),
-  onSettled: () => queryCache.invalidateQueries({ key: ['listRooms'] }),
+  onSuccess: () => queryCache.invalidateQueries({ key: [{ _id: 'listRooms' }] }),
 })
 const deleteMut = useMutation({
   ...deleteRoomMutation(),
-  onSettled: () => queryCache.invalidateQueries({ key: ['listRooms'] }),
+  onSuccess: () => queryCache.invalidateQueries({ key: [{ _id: 'listRooms' }] }),
 })
 
 // ---- Actions ----

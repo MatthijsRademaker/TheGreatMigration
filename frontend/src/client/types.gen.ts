@@ -240,7 +240,7 @@ export type Room = {
     /**
      * One of: room, area
      */
-    type: string;
+    type: 'room' | 'area';
     /**
      * ISO 8601 timestamp of last update
      */
@@ -555,7 +555,7 @@ export type RoomWritable = {
     /**
      * One of: room, area
      */
-    type: string;
+    type: 'room' | 'area';
     /**
      * ISO 8601 timestamp of last update
      */

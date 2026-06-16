@@ -32,11 +32,6 @@ export const getDashboardDailySchedule = <ThrowOnError extends boolean = false>(
  */
 export const getDashboardPeopleAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetDashboardPeopleAvailabilityData, ThrowOnError>): RequestResult<GetDashboardPeopleAvailabilityResponses, GetDashboardPeopleAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetDashboardPeopleAvailabilityResponses, GetDashboardPeopleAvailabilityErrors, ThrowOnError>({ url: '/api/dashboard/people-availability', ...options });
 
-/**
- * Hello world
- *
- * Returns a hello-world message confirming the backend is reachable.
- */
 export const getHello = <ThrowOnError extends boolean = false>(options?: Options<GetHelloData, ThrowOnError>): RequestResult<GetHelloResponses, GetHelloErrors, ThrowOnError> => (options?.client ?? client).get<GetHelloResponses, GetHelloErrors, ThrowOnError>({ url: '/api/hello', ...options });
 
 /**
