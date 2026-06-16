@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -737,8 +738,9 @@ func (f *partialFailingStore) DeleteAvailability(ctx context.Context, personID s
 // peopleTestStore wraps a mockStore with in-memory CRUD support for testing the write surface.
 type peopleTestStore struct {
 	*mockStore
-	people       map[string]testPerson
-	availability map[string]map[string]string // personID -> date -> status
+	people                 map[string]testPerson
+	availability           map[string]map[string]string // personID -> date -> status
+	deleteShouldFailWithFK bool
 }
 
 type testPerson struct {
@@ -771,6 +773,9 @@ func (s *peopleTestStore) UpdatePerson(ctx context.Context, id, name, initials s
 }
 
 func (s *peopleTestStore) DeletePerson(ctx context.Context, id string) error {
+	if s.deleteShouldFailWithFK {
+		return &pgconn.PgError{Code: "23503", Message: "violates foreign key constraint"}
+	}
 	delete(s.people, id)
 	return nil
 }
@@ -1005,6 +1010,25 @@ func TestDeletePersonConflict(t *testing.T) {
 
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected status 409, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePersonForeignKeyViolation(t *testing.T) {
+	store := newPeopleTestStore()
+	// p9 has no references (PersonHasReferences returns false), but
+	// a concurrent request could insert a reference between the check
+	// and the delete, causing a foreign-key violation at the DB level.
+	store.CreatePerson(context.Background(), "p9", "Raced Person", "RP")
+	store.deleteShouldFailWithFK = true
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409 for FK violation, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
 

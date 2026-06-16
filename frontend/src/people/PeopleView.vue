@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useMutation } from '@pinia/colada'
+import { useMutation, useQueryCache } from '@pinia/colada'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -10,9 +10,14 @@ import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailabilit
 import {
   createPersonMutation,
   deletePersonMutation,
+  deletePersonAvailabilityMutation,
+  getDashboardPeopleAvailabilityQueryKey,
   upsertPersonAvailabilityMutation,
 } from '@/client/@pinia/colada.gen'
+import { getHttpErrorStatus } from '@/shared/lib/errorStatus'
 import type { AvailabilityStatus } from './types'
+
+const queryCache = useQueryCache()
 
 const {
   data: availabilityData,
@@ -20,13 +25,33 @@ const {
   isLoading,
   isError,
   isEmpty,
-  refresh,
 } = usePeopleAvailability()
 
 // --- Mutation state ---
-const createMutation = useMutation(createPersonMutation())
-const deleteMutation = useMutation(deletePersonMutation())
-const upsertMutation = useMutation(upsertPersonAvailabilityMutation())
+const createMutation = useMutation({
+  ...createPersonMutation(),
+  onSettled: () => {
+    queryCache.invalidateQueries({ key: getDashboardPeopleAvailabilityQueryKey() })
+  },
+})
+const deleteMutation = useMutation({
+  ...deletePersonMutation(),
+  onSettled: () => {
+    queryCache.invalidateQueries({ key: getDashboardPeopleAvailabilityQueryKey() })
+  },
+})
+const upsertMutation = useMutation({
+  ...upsertPersonAvailabilityMutation(),
+  onSettled: () => {
+    queryCache.invalidateQueries({ key: getDashboardPeopleAvailabilityQueryKey() })
+  },
+})
+const deleteAvailabilityMutation = useMutation({
+  ...deletePersonAvailabilityMutation(),
+  onSettled: () => {
+    queryCache.invalidateQueries({ key: getDashboardPeopleAvailabilityQueryKey() })
+  },
+})
 
 // --- Create person form ---
 const newId = ref('')
@@ -51,12 +76,12 @@ async function handleCreate() {
     newId.value = ''
     newName.value = ''
     newInitials.value = ''
-    await refresh()
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('409')) {
+    const status = getHttpErrorStatus(err)
+    if (status === 409) {
       createError.value = 'A person with this ID already exists.'
     } else {
+      const msg = err instanceof Error ? err.message : String(err)
       createError.value = `Failed to create person: ${msg}`
     }
   }
@@ -72,15 +97,15 @@ async function handleDelete(id: string) {
   try {
     await deleteMutation.mutateAsync({ path: { id } })
     deletingId.value = null
-    await refresh()
   } catch (err: unknown) {
     deletingId.value = null
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('409')) {
+    const status = getHttpErrorStatus(err)
+    if (status === 409) {
       deleteError.value = `Cannot delete this person: they are referenced by existing assignments.`
-    } else if (msg.includes('404')) {
+    } else if (status === 404) {
       deleteError.value = 'Person not found.'
     } else {
+      const msg = err instanceof Error ? err.message : String(err)
       deleteError.value = `Failed to delete person: ${msg}`
     }
   }
@@ -100,15 +125,39 @@ async function handleStatusUpdate(status: string) {
       body: { status: status as AvailabilityStatus },
     })
     editingCell.value = null
-    await refresh()
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('400')) {
+    const status = getHttpErrorStatus(err)
+    if (status === 400) {
       statusError.value = 'Invalid status or date.'
-    } else if (msg.includes('404')) {
+    } else if (status === 404) {
       statusError.value = 'Person not found.'
     } else {
+      const msg = err instanceof Error ? err.message : String(err)
       statusError.value = `Failed to update status: ${msg}`
+    }
+    editingCell.value = null
+  }
+}
+
+// --- Clear availability (delete) ---
+const clearAvailabilityError = ref('')
+
+async function handleClearAvailability() {
+  if (!editingCell.value) return
+  clearAvailabilityError.value = ''
+  const { personId, date } = editingCell.value
+  try {
+    await deleteAvailabilityMutation.mutateAsync({
+      path: { id: personId, date },
+    })
+    editingCell.value = null
+  } catch (err: unknown) {
+    const status = getHttpErrorStatus(err)
+    if (status === 404) {
+      clearAvailabilityError.value = 'Person not found.'
+    } else {
+      const msg = err instanceof Error ? err.message : String(err)
+      clearAvailabilityError.value = `Failed to clear availability: ${msg}`
     }
     editingCell.value = null
   }
@@ -125,7 +174,7 @@ function getISODate(dayIndex: number): string {
 const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'off']
 
 // Helper to safely access mutation loading state (SSR-safe).
-function isMutationLoading(mutation: typeof createMutation | typeof deleteMutation): boolean {
+function isMutationLoading(mutation: typeof createMutation | typeof deleteMutation | typeof upsertMutation | typeof deleteAvailabilityMutation): boolean {
   return mutation?.isLoading?.value ?? false
 }
 </script>
@@ -248,10 +297,21 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
                 {{ s.charAt(0).toUpperCase() + s.slice(1) }}
               </Badge>
             </div>
-            <Button variant="ghost" size="sm" class="mt-2" @click="editingCell = null">
-              Cancel
-            </Button>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="isMutationLoading(deleteAvailabilityMutation)"
+                @click="handleClearAvailability"
+              >
+                {{ isMutationLoading(deleteAvailabilityMutation) ? 'Clearing…' : 'Clear (reset to off)' }}
+              </Button>
+              <Button variant="ghost" size="sm" @click="editingCell = null">
+                Cancel
+              </Button>
+            </div>
           </div>
+          <p v-if="clearAvailabilityError" class="mb-3 text-sm text-destructive">{{ clearAvailabilityError }}</p>
           <p v-if="statusError" class="mb-3 text-sm text-destructive">{{ statusError }}</p>
           <p v-if="deleteError" class="mb-3 text-sm text-destructive">{{ deleteError }}</p>
 

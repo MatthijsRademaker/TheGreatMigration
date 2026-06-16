@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -118,6 +120,15 @@ func isoToDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
 }
 
+// isForeignKeyViolation returns true if err is a PostgreSQL foreign-key violation (SQLSTATE 23503).
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return true
+	}
+	return false
+}
+
 // ---------- Handlers ----------
 
 // registerPeopleEndpoints registers all people management endpoints.
@@ -220,6 +231,9 @@ func registerPeopleEndpoints(api huma.API, store Store) {
 		}
 
 		if err := store.DeletePerson(ctx, input.ID); err != nil {
+			if isForeignKeyViolation(err) {
+				return nil, huma.Error409Conflict("person is referenced by backlog or schedule assignments and cannot be deleted")
+			}
 			return nil, huma.Error500InternalServerError("failed to delete person", err)
 		}
 
