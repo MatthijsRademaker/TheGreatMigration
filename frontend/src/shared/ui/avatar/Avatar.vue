@@ -9,6 +9,7 @@ import { cn } from '@/shared/lib/utils'
 interface Props extends AvatarRootProps {
   src?: AvatarImageProps["src"]
   name?: string
+  initials?: string
   class?: HTMLAttributes["class"]
 }
 
@@ -18,10 +19,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emits = defineEmits<AvatarImageEmits>()
 
-const delegatedProps = reactiveOmit(props, "class", "src", "name")
+const delegatedProps = reactiveOmit(props, "class", "src", "name", "initials")
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
-const initials = computed(() => props.name.charAt(0).toUpperCase())
+const initials = computed(() => props.initials || props.name.charAt(0).toUpperCase())
 </script>
 
 <template>
