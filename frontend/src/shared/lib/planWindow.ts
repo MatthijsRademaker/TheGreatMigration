@@ -38,6 +38,38 @@ export function formatPlanDayLabel(date: Date): string {
 	}).format(date);
 }
 
+/**
+ * Format a planning window range as a compact human-readable string.
+ *
+ * Accepts ISO 8601 date strings from the raw API response and an inclusive
+ * day count. Uses `Intl.DateTimeFormat` with `en-US` locale and explicit
+ * `UTC` timezone for deterministic labels regardless of runtime timezone,
+ * mirroring the existing `formatPlanDayLabel` pattern.
+ *
+ * Produces format like: `"5 Jul – 13 Aug 2026 · 40 days"`
+ */
+export function formatPlanWindowRange(
+	startDate: string,
+	endDate: string,
+	days: number,
+): string {
+	const monthFmt = new Intl.DateTimeFormat("en-US", {
+		month: "short",
+		timeZone: "UTC",
+	});
+
+	const start = new Date(startDate);
+	const end = new Date(endDate);
+
+	const startMonth = monthFmt.format(start);
+	const startDay = start.getUTCDate();
+	const endMonth = monthFmt.format(end);
+	const endDay = end.getUTCDate();
+	const year = start.getUTCFullYear();
+
+	return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${year} · ${days} days`;
+}
+
 export interface PlanWindowDay {
 	date: Date;
 	label: string;
