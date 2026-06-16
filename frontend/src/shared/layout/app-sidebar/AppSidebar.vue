@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { onUnmounted, type Directive } from 'vue'
 import type { Component } from 'vue'
 import {
   Building2Icon,
@@ -66,6 +66,37 @@ const organizationNavigation: NavigationItem[] = [
 function isActive(path: string) {
   return route.path === path
 }
+
+/**
+ * Custom directive that navigates via SPA routing on standard left-click.
+ * Uses addEventListener directly to survive Primitive(as-child) VNode cloning
+ * which drops onClick from merged props but preserves custom directives.
+ */
+const vClickNav: Directive<HTMLElement, string> = {
+  mounted(el, binding) {
+    const to = binding.value
+    el.addEventListener('click', (event: MouseEvent) => {
+      if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+        event.preventDefault()
+        router.push(to)
+      }
+    })
+  },
+}
+
+/**
+ * Custom directive that sets the native HTML title attribute.
+ * Survives Primitive(as-child) cloning where :title binding is dropped.
+ */
+const vTitle: Directive<HTMLElement, string> = {
+  mounted(el, binding) {
+    el.setAttribute('title', binding.value)
+  },
+  updated(el, binding) {
+    el.setAttribute('title', binding.value)
+  },
+}
+
 </script>
 
 <template>
@@ -101,11 +132,11 @@ function isActive(path: string) {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in planNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
-                <RouterLink :to="item.to">
+              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
+                <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>
-                </RouterLink>
+                </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -119,11 +150,11 @@ function isActive(path: string) {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in organizationNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
-                <RouterLink :to="item.to">
+              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
+                <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>
-                </RouterLink>
+                </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -134,19 +165,6 @@ function isActive(path: string) {
     <SidebarFooter>
       <!-- TODO: Make utility actions interactive when backend wiring is available for
            creating notes and opening help/support flows. -->
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg">
-            <div class="flex aspect-square size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <NotebookTabsIcon />
-            </div>
-            <div class="grid flex-1 text-left leading-tight">
-              <span class="truncate text-sm font-semibold">The Great Migration</span>
-              <span class="truncate text-xs text-muted-foreground">House move planner</span>
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton>

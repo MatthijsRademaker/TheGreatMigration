@@ -5,9 +5,9 @@
 // ---------------------------------------------------------------------------
 import { vi } from "vitest";
 
-// Stub matchMedia before the jsdom window is fully initialized by test setup.
-// The @vueuse/core useMediaQuery composable checks window.matchMedia, so we
-// must provide a working stub before any component imports execute.
+// Stub matchMedia for MOBILE viewport so the sidebar renders as a Sheet.
+// Must execute before module imports because @vueuse/core checks
+// window.matchMedia synchronously during module initialization.
 const matchMediaStub = vi.fn((query: string) => ({
 	matches: query === "(max-width: 768px)",
 	media: query,
@@ -16,7 +16,6 @@ const matchMediaStub = vi.fn((query: string) => ({
 	removeEventListener: vi.fn(),
 }));
 
-// jsdom may already define matchMedia; override it if possible
 try {
 	Object.defineProperty(window, "matchMedia", {
 		writable: true,
@@ -24,7 +23,7 @@ try {
 		value: matchMediaStub,
 	});
 } catch {
-	// If defineProperty fails, the stub was already in place or isn't needed
+	// Global already stubbed
 }
 
 // ---------------------------------------------------------------------------
