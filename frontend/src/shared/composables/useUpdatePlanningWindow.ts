@@ -10,7 +10,7 @@ export function useUpdatePlanningWindow() {
 
 	const { mutate, status, error } = useMutation({
 		...putPlanningWindowMutation(),
-		onSettled: () => {
+		onSuccess: () => {
 			queryCache.invalidateQueries({
 				key: getPlanningWindowQueryKey(),
 				exact: true,

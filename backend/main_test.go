@@ -271,6 +271,32 @@ func TestUpdatePlanningWindowValidationFailure(t *testing.T) {
 	}
 }
 
+func TestUpdatePlanningWindowMaxRange(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// Range exactly at the max (365 days) should succeed.
+	bodyJSON := `{"startDate": "2026-01-01", "endDate": "2026-12-31"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for exactly 365 days, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Range exceeding max (366 days) should be rejected.
+	bodyJSON = `{"startDate": "2026-01-01", "endDate": "2027-01-01"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 422 {
+		t.Fatalf("expected status 422 for range exceeding max, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestUpdatePlanningWindowStoreFailure(t *testing.T) {
 	router, _ := newTestAPI(&failingStore{})
 

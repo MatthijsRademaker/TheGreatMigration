@@ -88,12 +88,12 @@ Every navigation item rendered in the sidebar SHALL have a corresponding route e
 - **AND** the rendered HTML contains the route's `meta.title` value
 - **AND** the rendered HTML contains minimal placeholder content indicating the feature is forthcoming
 
-#### Scenario: Settings route exists and renders placeholder content
+#### Scenario: Settings route exists and renders planning-window form
 
 - **WHEN** the application routes to `/settings`
 - **THEN** the route resolves to a `SettingsView` component
 - **AND** the rendered HTML contains the route's `meta.title` value
-- **AND** the rendered HTML contains minimal placeholder content indicating the feature is forthcoming
+- **AND** the rendered HTML contains the interactive planning-window card with date picker controls and Save/Reset buttons
 
 ### Requirement: New placeholder views SHALL render through the shared AppShell
 

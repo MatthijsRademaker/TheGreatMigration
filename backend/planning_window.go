@@ -26,6 +26,10 @@ type UpdatePlanningWindowInput struct {
 	}
 }
 
+// maxPlanningWindowDays is the maximum allowed span (inclusive) for the planning window.
+// This prevents absurd ranges that would cause downstream views to generate enormous responses.
+const maxPlanningWindowDays = 365
+
 // PlanningWindowBody is the response body for the planning-window endpoint.
 type PlanningWindowBody struct {
 	StartDate string `json:"startDate" doc:"Start date of the planning window (ISO 8601)"`
@@ -75,6 +79,11 @@ func registerPlanningWindow(api huma.API, store Store) {
 		}
 		if endDate.Before(startDate) {
 			return nil, huma.Error422UnprocessableEntity("endDate must be >= startDate")
+		}
+
+		days := int(endDate.Sub(startDate).Hours()/24) + 1
+		if days > maxPlanningWindowDays {
+			return nil, huma.Error422UnprocessableEntity("planning window exceeds the maximum allowed range of 365 days")
 		}
 
 		body, err := store.UpdatePlanningWindow(ctx, startDate, endDate)
