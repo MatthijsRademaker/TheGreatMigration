@@ -1,7 +1,46 @@
 -- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, day_group, sort_order, created_at
+SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at
 FROM schedule_task_cards
-ORDER BY day_group, sort_order;
+WHERE scheduled_date >= sqlc.arg(start_date)::date
+  AND scheduled_date < (sqlc.arg(start_date)::date + sqlc.arg(days)::int * interval '1 day')
+ORDER BY scheduled_date, sort_order;
+
+-- name: CreateScheduleCard :one
+INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order)
+VALUES (sqlc.arg(title), sqlc.arg(priority), sqlc.arg(room_area), sqlc.arg(people_needed), sqlc.arg(scheduled_date), sqlc.arg(sort_order))
+RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at;
+
+-- name: CreateScheduleAssignment :exec
+INSERT INTO schedule_task_assignments (task_card_id, person_id, sort_order)
+VALUES (sqlc.arg(task_card_id), sqlc.arg(person_id), sqlc.arg(sort_order));
+
+-- name: DeleteScheduleAssignments :exec
+DELETE FROM schedule_task_assignments
+WHERE task_card_id = sqlc.arg(task_card_id);
+
+-- name: UpdateScheduleCard :one
+UPDATE schedule_task_cards
+SET title = sqlc.arg(title),
+    priority = sqlc.arg(priority),
+    room_area = sqlc.arg(room_area),
+    people_needed = sqlc.arg(people_needed),
+    scheduled_date = sqlc.arg(scheduled_date),
+    sort_order = sqlc.arg(sort_order)
+WHERE id = sqlc.arg(id)
+RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at;
+
+-- name: DeleteScheduleCard :exec
+DELETE FROM schedule_task_cards
+WHERE id = sqlc.arg(id);
+
+-- name: GetScheduleCardByID :one
+SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at
+FROM schedule_task_cards
+WHERE id = sqlc.arg(id);
+
+-- name: GetMaxScheduleSortOrder :one
+SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort_order
+FROM schedule_task_cards;
 
 -- name: GetDailyScheduleAssignments :many
 SELECT task_card_id, person_id

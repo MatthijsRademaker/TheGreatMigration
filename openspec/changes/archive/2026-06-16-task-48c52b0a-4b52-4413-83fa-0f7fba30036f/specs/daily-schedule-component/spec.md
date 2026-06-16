@@ -1,8 +1,11 @@
-# daily-schedule-component Specification
+# daily-schedule-component Specification (Delta)
 
 ## Purpose
-TBD - created by archiving change task-ad30ae03-429d-4556-93db-b3f37727e49c. Update Purpose after archive.
-## Requirements
+
+Update the component capability so Daily Schedule remains a presentational board while the app wires it to the dashboard BFF and lets `/calendar` own persisted schedule management.
+
+## MODIFIED Requirements
+
 ### Requirement: Daily Schedule add-task affordances SHALL emit future-ready add intents without scheduling persistence
 
 `frontend/src/calendar/DailySchedule.vue` SHALL keep its header `Add task` control and per-day `+ Add task` affordances visible and continue to emit typed add intents. The component SHALL stay presentational: it SHALL accept typed props for days and task cards, and it SHALL NOT fetch `GET /api/dashboard/daily-schedule` or call schedule write endpoints directly. Route-level containers MAY use the emitted intents to launch persisted create, update, and delete flows. The home dashboard SHALL remain read-only, while `/calendar` SHALL own any editable schedule workflow introduced by this change.
@@ -30,6 +33,8 @@ TBD - created by archiving change task-ad30ae03-429d-4556-93db-b3f37727e49c. Upd
 - **WHEN** the `/calendar` route renders Daily Schedule with editable route-owned state
 - **THEN** the route can attach handlers that persist schedule changes through the BFF
 - **AND** `DailySchedule.vue` remains a prop-driven presentation component
+
+## ADDED Requirements
 
 ### Requirement: The frontend SHALL adapt dashboard daily schedule data into the Daily Schedule component contract
 

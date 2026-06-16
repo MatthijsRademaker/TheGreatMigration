@@ -228,7 +228,10 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 		peopleMap[p.ID] = p
 	}
 
-	cardRows, err := s.queries.GetDailyScheduleTaskCards(ctx)
+	cardRows, err := s.queries.GetDailyScheduleTaskCards(ctx, db.GetDailyScheduleTaskCardsParams{
+		StartDate: pgtype.Date{Time: startDate, Valid: true},
+		Days:      int32(days),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -258,10 +261,13 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 		}
 	}
 
-	// Group cards by day_group for modulo-based lookup.
-	groupCards := make(map[int32][]db.ScheduleTaskCard)
+	// Group cards by scheduled_date for date-based lookup.
+	dateCards := make(map[string][]db.GetDailyScheduleTaskCardsRow)
 	for _, cr := range cardRows {
-		groupCards[cr.DayGroup] = append(groupCards[cr.DayGroup], cr)
+		if cr.ScheduledDate.Valid {
+			dateStr := cr.ScheduledDate.Time.Format("2006-01-02")
+			dateCards[dateStr] = append(dateCards[dateStr], cr)
+		}
 	}
 
 	endDate := startDate.AddDate(0, 0, days-1)
@@ -271,8 +277,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 		date := startDate.AddDate(0, 0, d)
 		dateStr := date.Format("2006-01-02")
 
-		dayGroup := int32(d % len(groupCards))
-		cards := groupCards[dayGroup]
+		cards := dateCards[dateStr]
 
 		tasks := make([]api.TaskCard, 0, len(cards))
 		for _, cr := range cards {
@@ -293,7 +298,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 				staffingStatus = "fullyStaffed"
 			}
 			tasks = append(tasks, api.TaskCard{
-				ID:             fmt.Sprintf("task-d%d-%d", d, cr.SortOrder),
+				ID:             fmt.Sprintf("sched-%d", cr.ID),
 				Title:          cr.Title,
 				Priority:       cr.Priority,
 				RoomArea:       cr.RoomArea,
@@ -609,6 +614,202 @@ func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+// ---------- Schedule-card CRUD ----------
+
+// CreateScheduleCard creates a new schedule card with assignments in a single transaction.
+func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
+	scheduledDate, err := time.Parse("2006-01-02", input.ScheduledDate)
+	if err != nil {
+		return nil, fmt.Errorf("parse scheduledDate: %w", err)
+	}
+
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	maxSort, err := tx.GetMaxScheduleSortOrder(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get max sort order: %w", err)
+	}
+
+	cardRow, err := tx.CreateScheduleCard(ctx, db.CreateScheduleCardParams{
+		Title:         input.Title,
+		Priority:      input.Priority,
+		RoomArea:      input.RoomArea,
+		PeopleNeeded:  int32(input.PeopleNeeded),
+		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
+		SortOrder:     maxSort + 1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create schedule card: %w", err)
+	}
+
+	for i, pid := range input.AssignedTo {
+		if err := tx.CreateScheduleAssignment(ctx, db.CreateScheduleAssignmentParams{
+			TaskCardID: cardRow.ID,
+			PersonID:   pid,
+			SortOrder:  int32(i),
+		}); err != nil {
+			return nil, fmt.Errorf("create schedule assignment: %w", err)
+		}
+	}
+
+	if err := pgxTx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, ctx)
+}
+
+// UpdateScheduleCard updates a schedule card and replaces assignments transactionally.
+func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
+	// Parse the sched-{id} identifier.
+	var id int32
+	if _, err := fmt.Sscanf(idStr, "sched-%d", &id); err != nil || id <= 0 {
+		return nil, api.ErrScheduleCardNotFound
+	}
+
+	scheduledDate, err := time.Parse("2006-01-02", input.ScheduledDate)
+	if err != nil {
+		return nil, fmt.Errorf("parse scheduledDate: %w", err)
+	}
+
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	// Check card exists and preserve its sort order.
+	existing, err := tx.GetScheduleCardByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrScheduleCardNotFound
+		}
+		return nil, fmt.Errorf("get schedule card by id: %w", err)
+	}
+
+	// Replace assignment rows.
+	if err := tx.DeleteScheduleAssignments(ctx, id); err != nil {
+		return nil, fmt.Errorf("delete schedule assignments: %w", err)
+	}
+
+	for i, pid := range input.AssignedTo {
+		if err := tx.CreateScheduleAssignment(ctx, db.CreateScheduleAssignmentParams{
+			TaskCardID: id,
+			PersonID:   pid,
+			SortOrder:  int32(i),
+		}); err != nil {
+			return nil, fmt.Errorf("create schedule assignment: %w", err)
+		}
+	}
+
+	cardRow, err := tx.UpdateScheduleCard(ctx, db.UpdateScheduleCardParams{
+		ID:            id,
+		Title:         input.Title,
+		Priority:      input.Priority,
+		RoomArea:      input.RoomArea,
+		PeopleNeeded:  int32(input.PeopleNeeded),
+		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
+		SortOrder:     existing.SortOrder, // Preserve existing sort order.
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrScheduleCardNotFound
+		}
+		return nil, fmt.Errorf("update schedule card: %w", err)
+	}
+
+	if err := pgxTx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, ctx)
+}
+
+// DeleteScheduleCard removes a schedule card and its assignments in a single transaction.
+func (s *PgStore) DeleteScheduleCard(ctx context.Context, idStr string) error {
+	var id int32
+	if _, err := fmt.Sscanf(idStr, "sched-%d", &id); err != nil || id <= 0 {
+		return api.ErrScheduleCardNotFound
+	}
+
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	_, err = tx.GetScheduleCardByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.ErrScheduleCardNotFound
+		}
+		return fmt.Errorf("get schedule card by id: %w", err)
+	}
+
+	if err := tx.DeleteScheduleAssignments(ctx, id); err != nil {
+		return fmt.Errorf("delete schedule assignments: %w", err)
+	}
+
+	if err := tx.DeleteScheduleCard(ctx, id); err != nil {
+		return fmt.Errorf("delete schedule card: %w", err)
+	}
+
+	if err := pgxTx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	return nil
+}
+
+// buildTaskCardResponse resolves assignee identities and constructs the API TaskCard.
+func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, ctx context.Context) (*api.TaskCard, error) {
+	// Fetch all people once and build a lookup map.
+	peopleRows, err := s.queries.GetAllPeople(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get all people: %w", err)
+	}
+	peopleByID := make(map[string]db.Person, len(peopleRows))
+	for _, p := range peopleRows {
+		peopleByID[p.ID] = p
+	}
+
+	assignees := make([]api.AssignedPerson, 0, len(assigneeIDs))
+	for _, pid := range assigneeIDs {
+		if p, ok := peopleByID[pid]; ok {
+			assignees = append(assignees, api.AssignedPerson{
+				ID:       p.ID,
+				Name:     p.Name,
+				Initials: p.Initials,
+			})
+		}
+	}
+	assignedCount := len(assignees)
+	staffingStatus := "underStaffed"
+	if assignedCount == peopleNeeded {
+		staffingStatus = "fullyStaffed"
+	}
+	return &api.TaskCard{
+		ID:             fmt.Sprintf("sched-%d", id),
+		Title:          title,
+		Priority:       priority,
+		RoomArea:       roomArea,
+		AssignedPeople: assignees,
+		PeopleNeeded:   peopleNeeded,
+		AssignedCount:  assignedCount,
+		StaffingStatus: staffingStatus,
+	}, nil
 }
 
 // dbRoomToAPI converts a db.RoomsArea to the API-facing Room.

@@ -4,6 +4,84 @@ import type { Component } from "vue";
 import { describe, expect, it } from "vitest";
 import DailySchedule from "../../src/calendar/DailySchedule.vue";
 
+interface AssignedPerson {
+	id: string;
+	name: string;
+	initials: string;
+}
+
+interface TaskCard {
+	id: string;
+	title: string;
+	priority: "high" | "medium" | "low";
+	roomArea: string;
+	assignedPeople: AssignedPerson[];
+	peopleNeeded: number;
+	assignedCount: number;
+	staffingStatus: "fullyStaffed" | "underStaffed";
+	scheduledDate: string;
+}
+
+interface ScheduleDay {
+	date: string;
+	label: string;
+	availablePeopleCount: number;
+	tasks: TaskCard[];
+}
+
+const sampleDays: ScheduleDay[] = [
+	{
+		date: "2026-08-01",
+		label: "1 Aug (Sat)",
+		availablePeopleCount: 3,
+		tasks: [
+			{
+				id: "c1",
+				title: "Custom task",
+				priority: "low",
+				roomArea: "Test Room",
+				assignedPeople: [{ id: "x1", name: "Taylor", initials: "T" }],
+				peopleNeeded: 1,
+				assignedCount: 1,
+				staffingStatus: "fullyStaffed",
+				scheduledDate: "2026-08-01",
+			},
+			{
+				id: "c2",
+				title: "Urgent fix",
+				priority: "high",
+				roomArea: "Main Hall",
+				assignedPeople: [
+					{ id: "x2", name: "Alex", initials: "A" },
+					{ id: "x3", name: "Morgan", initials: "M" },
+				],
+				peopleNeeded: 3,
+				assignedCount: 2,
+				staffingStatus: "underStaffed",
+				scheduledDate: "2026-08-01",
+			},
+		],
+	},
+	{
+		date: "2026-08-02",
+		label: "2 Aug (Sun)",
+		availablePeopleCount: 5,
+		tasks: [
+			{
+				id: "c3",
+				title: "Medium work",
+				priority: "medium",
+				roomArea: "Office",
+				assignedPeople: [{ id: "x4", name: "Sam", initials: "S" }],
+				peopleNeeded: 1,
+				assignedCount: 1,
+				staffingStatus: "fullyStaffed",
+				scheduledDate: "2026-08-02",
+			},
+		],
+	},
+];
+
 async function renderComponent(
 	component: Component,
 	props?: Record<string, unknown>,
@@ -16,111 +94,107 @@ async function renderComponent(
 
 describe("DailySchedule", () => {
 	it("renders the panel title", async () => {
-		const html = await renderComponent(DailySchedule);
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain("Daily Schedule");
 	});
 
 	it("renders header controls", async () => {
-		const html = await renderComponent(DailySchedule);
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain("View by: Day");
 		expect(html).toContain("Add task");
 	});
 
-	it("renders four day labels", async () => {
-		const html = await renderComponent(DailySchedule);
-		expect(html).toContain("2 Jul (Tue)");
-		expect(html).toContain("3 Jul (Wed)");
-		expect(html).toContain("4 Jul (Thu)");
-		expect(html).toContain("5 Jul (Fri)");
+	it("renders day labels from props", async () => {
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
+		expect(html).toContain("1 Aug (Sat)");
+		expect(html).toContain("2 Aug (Sun)");
 	});
 
 	it("renders availability counts", async () => {
-		const html = await renderComponent(DailySchedule);
-		expect(html).toContain("6 available");
-		expect(html).toContain("7 available");
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
+		expect(html).toContain("3 available");
 		expect(html).toContain("5 available");
 	});
 
-	it("renders representative task titles", async () => {
-		const html = await renderComponent(DailySchedule);
-		expect(html).toContain("Painting hall");
-		expect(html).toContain("Steam walls");
-		expect(html).toContain("Clean up");
-		expect(html).toContain("Sanding");
-		expect(html).toContain("Bedroom painting");
-		expect(html).toContain("Touch up woodwork");
-		expect(html).toContain("Living room finishing");
-		expect(html).toContain("2nd floor walls");
-		expect(html).toContain("Kitchen painting");
-		expect(html).toContain("Final clean");
+	it("renders task titles from props", async () => {
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
+		expect(html).toContain("Custom task");
+		expect(html).toContain("Urgent fix");
+		expect(html).toContain("Medium work");
 	});
 
 	it("renders priority badges with correct variants", async () => {
-		const html = await renderComponent(DailySchedule);
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain('data-variant="priorityHigh"');
 		expect(html).toContain('data-variant="priorityMedium"');
 		expect(html).toContain('data-variant="priorityLow"');
 	});
 
 	it("renders staffing counts", async () => {
-		const html = await renderComponent(DailySchedule);
-		expect(html).toContain("2 / 2");
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain("1 / 1");
-		expect(html).toContain("1 / 2");
+		expect(html).toContain("2 / 3");
 	});
 
 	it("renders under-staffed indicator for applicable tasks", async () => {
-		const html = await renderComponent(DailySchedule);
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain("— needs help");
-		expect(html.match(/— needs help/g)?.length).toBe(4);
 	});
 
 	it("renders per-column Add task placeholders", async () => {
-		const html = await renderComponent(DailySchedule);
-		// Four day columns × one placeholder each
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		const matches = html.match(/\+ Add task/g);
-		expect(matches?.length).toBe(4);
+		expect(matches?.length).toBe(2);
 	});
 
 	it("renders assignee metadata", async () => {
-		const html = await renderComponent(DailySchedule);
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
+		expect(html).toContain("Taylor");
 		expect(html).toContain("Alex");
 		expect(html).toContain("Morgan");
 		expect(html).toContain("Sam");
-		expect(html).toContain("Riley");
 	});
 
 	it("renders a Card shell", async () => {
-		const html = await renderComponent(DailySchedule);
+		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain('data-slot="card"');
 		expect(html).toContain('data-slot="card-title"');
 	});
 
-	it("accepts custom props and renders them", async () => {
+	it("renders correctly with empty days array (no crash)", async () => {
+		const html = await renderComponent(DailySchedule, { days: [] });
+		expect(html).toContain("Daily Schedule");
+		expect(html).toContain("View by: Day");
+		// Should render but with no day columns or task cards
+	});
+
+	it("renders correctly with undefined days (graceful empty)", async () => {
+		const html = await renderComponent(DailySchedule, {});
+		expect(html).toContain("Daily Schedule");
+		// No crash, renders shell with no days
+	});
+
+	it("hides edit, delete, and add-task controls when readonly is true", async () => {
 		const html = await renderComponent(DailySchedule, {
-			days: [
-				{
-					date: "2026-08-01",
-					label: "1 Aug (Sat)",
-					availablePeopleCount: 3,
-					tasks: [
-						{
-							id: "c1",
-							title: "Custom task",
-							priority: "low",
-							roomArea: "Test Room",
-							assignedPeople: [{ id: "x1", name: "Taylor", initials: "T" }],
-							peopleNeeded: 1,
-							assignedCount: 1,
-							staffingStatus: "fullyStaffed",
-						},
-					],
-				},
-			],
+			days: sampleDays,
+			readOnly: true,
 		});
-		expect(html).toContain("1 Aug (Sat)");
-		expect(html).toContain("3 available");
+		expect(html).toContain("Daily Schedule");
 		expect(html).toContain("Custom task");
-		expect(html).toContain("Taylor");
+		expect(html).not.toContain(">Edit<");
+		expect(html).not.toContain(">Delete<");
+		expect(html).not.toContain("+ Add task");
+		expect(html).not.toContain("Add task");
+	});
+
+	it("shows edit, delete, and add-task controls when readonly is false (default)", async () => {
+		const html = await renderComponent(DailySchedule, {
+			days: sampleDays,
+			readOnly: false,
+		});
+		expect(html).toContain(">Edit<");
+		expect(html).toContain(">Delete<");
+		expect(html).toContain("+ Add task");
+		expect(html).toContain("Add task");
 	});
 });
