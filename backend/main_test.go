@@ -1921,7 +1921,7 @@ func TestCreateScheduleCardValidation(t *testing.T) {
 		{
 			name:           "malformed date",
 			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"not-a-date","assignedTo":[]}`,
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus: http.StatusUnprocessableEntity,
 		},
 	}
 

@@ -154,6 +154,7 @@
           },
           "scheduledDate": {
             "description": "ISO 8601 date (YYYY-MM-DD) the card is scheduled for",
+            "format": "date",
             "type": "string"
           },
           "title": {

@@ -139,7 +139,7 @@ type CreateScheduleCardRequestBody struct {
 	Priority      string   `json:"priority" required:"true" enum:"high,medium,low" doc:"One of: high, medium, low"`
 	RoomArea      string   `json:"roomArea" required:"true" doc:"Room or area name"`
 	PeopleNeeded  int      `json:"peopleNeeded" required:"true" minimum:"1" doc:"Number of people needed for the task (>=1)"`
-	ScheduledDate string   `json:"scheduledDate" required:"true" doc:"ISO 8601 date (YYYY-MM-DD) the card is scheduled for"`
+	ScheduledDate string   `json:"scheduledDate" required:"true" format:"date" doc:"ISO 8601 date (YYYY-MM-DD) the card is scheduled for"`
 	AssignedTo    []string `json:"assignedTo" doc:"Person-ID strings for assigned helpers, may be empty"`
 }
 

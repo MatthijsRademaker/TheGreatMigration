@@ -7,6 +7,7 @@ import {
   deleteScheduleCardMutation,
 } from '@/client/@pinia/colada.gen'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
+import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -18,10 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { Checkbox } from '@/shared/ui/checkbox'
 import AddOperationModal from '@/shared/components/AddOperationModal.vue'
 
 // ---- Queries ----
 const { data: scheduleData, isLoading, isError, isEmpty, queryKey } = useDailySchedule()
+const { data: peopleData } = usePeopleAvailability()
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
@@ -47,6 +50,7 @@ const formPriority = ref<'high' | 'medium' | 'low'>('medium')
 const formPeopleNeeded = ref(2)
 const formRoomArea = ref('')
 const formScheduledDate = ref('')
+const formAssignedTo = ref<string[]>([])
 const mutationLoading = ref(false)
 
 // ---- Helpers ----
@@ -57,6 +61,7 @@ function resetForm() {
   formPeopleNeeded.value = 2
   formRoomArea.value = ''
   formScheduledDate.value = ''
+  formAssignedTo.value = []
   mutationError.value = null
 }
 
@@ -76,6 +81,7 @@ function openEdit(card: { id: string; title: string; priority: string; roomArea:
   formPeopleNeeded.value = card.peopleNeeded
   formRoomArea.value = card.roomArea
   formScheduledDate.value = card.scheduledDate
+  formAssignedTo.value = []
   modalOpen.value = true
 }
 
@@ -89,7 +95,7 @@ async function handleSubmit() {
       roomArea: formRoomArea.value,
       peopleNeeded: formPeopleNeeded.value,
       scheduledDate: formScheduledDate.value,
-      assignedTo: [],
+      assignedTo: [...formAssignedTo.value],
     }
     if (editingId.value) {
       await updateMut.mutateAsync({
@@ -113,6 +119,15 @@ async function handleDelete(id: string) {
     await deleteMut.mutateAsync({ path: { id } })
   } catch (e: unknown) {
     mutationError.value = e instanceof Error ? e.message : 'Failed to delete'
+  }
+}
+
+function toggleAssignment(personId: string) {
+  const idx = formAssignedTo.value.indexOf(personId)
+  if (idx === -1) {
+    formAssignedTo.value.push(personId)
+  } else {
+    formAssignedTo.value.splice(idx, 1)
   }
 }
 
@@ -216,6 +231,25 @@ function handleCancel() {
           <label for="form-date" class="text-xs font-medium text-muted-foreground">Scheduled date</label>
           <Input id="form-date" v-model="formScheduledDate" placeholder="YYYY-MM-DD" />
         </div>
+
+        <!-- Assignment -->
+        <fieldset v-if="peopleData.people?.length" class="rounded border border-border p-3">
+          <legend class="px-1 text-xs font-medium text-muted-foreground">Assign People</legend>
+          <div class="flex flex-wrap gap-3">
+            <label
+              v-for="person in peopleData.people"
+              :key="person.id"
+              class="flex items-center gap-1.5 text-sm"
+            >
+              <Checkbox
+                :model-value="formAssignedTo.includes(person.id)"
+                size="sm"
+                @update:model-value="toggleAssignment(person.id)"
+              />
+              {{ person.name }}
+            </label>
+          </div>
+        </fieldset>
 
         <p v-if="mutationError" class="text-sm text-destructive">{{ mutationError }}</p>
       </div>
