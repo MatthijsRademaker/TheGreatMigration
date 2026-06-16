@@ -178,6 +178,13 @@ describe("application route rendering", () => {
 				expect(html).toContain("High priority tasks");
 				expect(html).toContain("Unassigned jobs");
 				expect(html).toContain("Rooms completed");
+
+				// Verify rendered KPI values from mock data
+				expect(html).toContain("6");
+				expect(html).toContain("of 8");
+				expect(html).toContain("available");
+				expect(html).toContain("4");
+				expect(html).toContain("3");
 			}
 
 			if (path === "/tasks") {
