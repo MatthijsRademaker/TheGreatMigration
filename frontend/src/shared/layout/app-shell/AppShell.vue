@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import AppSidebar from '@/shared/layout/app-sidebar/AppSidebar.vue'
-import { SidebarInset, SidebarProvider } from '@/shared/ui/sidebar'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/shared/ui/sidebar'
 import { usePlanningWindow } from '@/shared/composables/usePlanningWindow'
 
 const route = useRoute()
@@ -18,6 +18,7 @@ const { formattedRange, isLoading, isError } = usePlanningWindow()
     <AppSidebar />
     <SidebarInset class="overflow-hidden">
       <header class="flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <SidebarTrigger class="md:hidden" />
         <div class="flex min-w-0 flex-1 flex-col gap-1 py-3">
           <div class="flex items-center gap-2">
             <div class="flex h-6 items-center">
