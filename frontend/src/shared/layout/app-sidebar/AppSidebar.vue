@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { CalendarDaysIcon, ClipboardListIcon, HomeIcon, NotebookTabsIcon, UsersRoundIcon } from '@lucide/vue'
+import {
+  Building2Icon,
+  CalendarDaysIcon,
+  CircleHelpIcon,
+  ClipboardListIcon,
+  HomeIcon,
+  NotebookTabsIcon,
+  PlusIcon,
+  SettingsIcon,
+  UsersRoundIcon,
+} from '@lucide/vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   Sidebar,
@@ -11,26 +21,33 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
 } from '@/shared/ui/sidebar'
 
 type NavigationItem = {
   title: string
   to: string
   icon: Component
-  badge?: string
 }
 
 const route = useRoute()
 
-const primaryNavigation: NavigationItem[] = [
+// TODO: Re-add badge property to navigation items when real data subscriptions exist.
+// Badge counts should be driven by live backend queries (e.g. open task count,
+// assigned helper count) rather than hardcoded values.
+const planNavigation: NavigationItem[] = [
   { title: 'Dashboard', to: '/', icon: HomeIcon },
-  { title: 'Tasks', to: '/tasks', icon: ClipboardListIcon, badge: '12' },
+  { title: 'Tasks', to: '/tasks', icon: ClipboardListIcon },
   { title: 'Schedule', to: '/calendar', icon: CalendarDaysIcon },
-  { title: 'People', to: '/people', icon: UsersRoundIcon, badge: '6' },
+  { title: 'People', to: '/people', icon: UsersRoundIcon },
+]
+
+const organizationNavigation: NavigationItem[] = [
+  { title: 'Rooms / Areas', to: '/rooms', icon: Building2Icon },
+  { title: 'Settings', to: '/settings', icon: SettingsIcon },
 ]
 
 function isActive(path: string) {
@@ -63,27 +80,64 @@ function isActive(path: string) {
         <SidebarGroupLabel>Plan</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem v-for="item in primaryNavigation" :key="item.to">
+            <SidebarMenuItem v-for="item in planNavigation" :key="item.to">
               <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
                 <RouterLink :to="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>
                 </RouterLink>
               </SidebarMenuButton>
-              <SidebarMenuBadge v-if="item.badge">{{ item.badge }}</SidebarMenuBadge>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
 
+      <SidebarSeparator />
+
+      <SidebarGroup>
+        <SidebarGroupLabel>Organization</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem v-for="item in organizationNavigation" :key="item.to">
+              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
+                <RouterLink :to="item.to">
+                  <component :is="item.icon" />
+                  <span>{{ item.title }}</span>
+                </RouterLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
     </SidebarContent>
 
     <SidebarFooter>
+      <!-- TODO: Make utility actions interactive when backend wiring is available for
+           creating notes and opening help/support flows. -->
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg">
+            <div class="flex aspect-square size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <NotebookTabsIcon />
+            </div>
+            <div class="grid flex-1 text-left leading-tight">
+              <span class="truncate text-sm font-semibold">The Great Migration</span>
+              <span class="truncate text-xs text-muted-foreground">House move planner</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton>
-            <span class="flex size-6 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold">GM</span>
-            <span>The Great Migration</span>
+            <PlusIcon />
+            <span>Add note</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton>
+            <CircleHelpIcon />
+            <span>Help &amp; Support</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

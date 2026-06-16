@@ -66,8 +66,12 @@ describe("application route rendering", () => {
 		expect(html).toContain("Tasks");
 		expect(html).toContain("Schedule");
 		expect(html).toContain("People");
+		expect(html).toContain("Rooms / Areas");
+		expect(html).toContain("Settings");
 		expect(html).toContain("Moving dashboard");
 		expect(html).toContain("Today’s plan");
+		expect(html).toContain("Add note");
+		expect(html).toContain("Help &amp; Support");
 	});
 
 	const routeCases = [
@@ -96,6 +100,20 @@ describe("application route rendering", () => {
 			title: "People availability",
 			description: "Track who is available and where each person can help.",
 			content: "People availability foundation",
+		},
+		{
+			path: "/rooms",
+			title: "Rooms / Areas",
+			description:
+				"Organize and label rooms, floors, and zones for a clear move-day plan.",
+			content: "Feature coming soon",
+		},
+		{
+			path: "/settings",
+			title: "Settings",
+			description:
+				"Configure your move preferences, notification defaults, and account details.",
+			content: "Feature coming soon",
 		},
 	] as const;
 

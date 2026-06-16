@@ -1,9 +1,8 @@
+# sidebar-navigation Specification
+
 ## Purpose
-
-This specification defines the sidebar navigation structure and behavior for the application shell. It covers the navigation items, their grouping, active/inactive visual states, footer content, and the route contract that backs each nav item. The sidebar is implemented in `AppSidebar.vue` using shadcn-vue sidebar primitives, lucide-vue icons, and semantic sidebar tokens from `frontend/src/app/styles.css`.
-
-## ADDED Requirements
-
+TBD - created by archiving change task-dcb90e61-3e80-48c9-9a07-3813a882d623. Update Purpose after archive.
+## Requirements
 ### Requirement: Sidebar SHALL render six navigation items across two groups
 
 The `AppSidebar` component SHALL render two `SidebarGroup` sections separated by a `SidebarSeparator`. The first group, labeled "Plan", SHALL contain navigation items for Dashboard, Tasks, Schedule, and People. The second group, labeled "Organization", SHALL contain navigation items for Rooms / Areas and Settings. Each navigation item SHALL use a `SidebarMenuButton` wrapping a `RouterLink` to its target route and displaying a lucide-vue icon alongside the item title.
