@@ -45,10 +45,12 @@ const priorityVariantMap: Record<TaskCard['priority'], BadgeVariants['variant']>
 
 interface DailyScheduleProps {
   days?: ScheduleDay[]
+  readOnly?: boolean
   readonly?: boolean
 }
 
 const props = withDefaults(defineProps<DailyScheduleProps>(), {
+  readOnly: false,
   readonly: false,
 })
 
@@ -59,6 +61,7 @@ const emit = defineEmits<{
 }>()
 
 const scheduleDays = computed(() => props.days ?? [])
+const isReadOnly = computed(() => props.readOnly || props.readonly)
 </script>
 
 <template>
@@ -70,7 +73,7 @@ const scheduleDays = computed(() => props.days ?? [])
       <!-- Header controls -->
       <div class="flex items-center justify-between mb-4">
         <Button variant="link" size="sm">View by: Day</Button>
-        <Button v-if="!readonly" variant="link" size="sm" @click="emit('add-task')">Add task</Button>
+        <Button v-if="!isReadOnly" variant="link" size="sm" @click="emit('add-task')">Add task</Button>
       </div>
 
       <!-- Day columns -->
@@ -126,7 +129,7 @@ const scheduleDays = computed(() => props.days ?? [])
                     class="text-destructive"
                   >&nbsp;— needs help</span>
                 </p>
-                <div v-if="!readonly" class="flex items-center gap-1 mt-2">
+                <div v-if="!isReadOnly" class="flex items-center gap-1 mt-2">
                   <Button variant="ghost" size="xs" @click.stop="emit('edit-task', task)">Edit</Button>
                   <Button variant="ghost" size="xs" @click.stop="emit('delete-task', task.id)">Delete</Button>
                 </div>
@@ -134,7 +137,7 @@ const scheduleDays = computed(() => props.days ?? [])
 
               <!-- Task creation placeholder -->
               <div
-                v-if="!readonly"
+                v-if="!isReadOnly"
                 class="rounded-lg border-2 border-dashed border-muted-foreground/25 p-3 text-center"
               >
                 <Button variant="ghost" size="xs" @click="emit('add-task', day.date)">+ Add task</Button>

@@ -73,7 +73,7 @@ function openCreate(date?: string) {
   modalOpen.value = true
 }
 
-function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string }) {
+function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string; assignedPeople?: { id: string }[] }) {
   resetForm()
   editingId.value = card.id
   formTitle.value = card.title
@@ -81,7 +81,7 @@ function openEdit(card: { id: string; title: string; priority: string; roomArea:
   formPeopleNeeded.value = card.peopleNeeded
   formRoomArea.value = card.roomArea
   formScheduledDate.value = card.scheduledDate
-  formAssignedTo.value = []
+  formAssignedTo.value = card.assignedPeople?.map(p => p.id) ?? []
   modalOpen.value = true
 }
 

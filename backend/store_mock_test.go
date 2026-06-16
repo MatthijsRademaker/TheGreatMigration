@@ -284,7 +284,7 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 			}
 
 			tasks[ti] = api.TaskCard{
-				ID:             fmt.Sprintf("task-d%d-%d", d, ti),
+				ID:             fmt.Sprintf("sched-d%d-%d", d, ti),
 				Title:          tmpl.title,
 				Priority:       tmpl.priority,
 				RoomArea:       tmpl.roomArea,
