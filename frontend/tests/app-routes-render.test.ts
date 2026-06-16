@@ -24,6 +24,47 @@ async function renderRoute(path: string) {
 		baseUrl: "http://example.test",
 		fetch: vi.fn(async (input: RequestInfo | URL) => {
 			const url = input instanceof Request ? input.url : input.toString();
+			if (url.includes("/api/dashboard/people-availability")) {
+				return new Response(
+					JSON.stringify({
+						range: {
+							startDate: "2026-07-05",
+							endDate: "2026-08-13",
+							days: 40,
+							selectedDate: "2026-07-05",
+						},
+						summary: {
+							availableToday: 6,
+							totalPeople: 8,
+						},
+						people: [],
+						statuses: [],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+			if (url.includes("/api/tasks/backlog")) {
+				return new Response(
+					JSON.stringify({
+						summary: {
+							totalTasks: 11,
+							highPriorityTasks: 4,
+							unassignedTasks: 3,
+							understaffedTasks: 2,
+						},
+						tasks: [],
+						priorities: [],
+						statuses: [],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
 			if (url.includes("/api/planning-window")) {
 				return new Response(
 					JSON.stringify({
@@ -130,6 +171,13 @@ describe("application route rendering", () => {
 				// Count occurrences to verify we render the mocked planning-window day count.
 				const columnMatches = html.match(/data-testid="plan-day-column"/g);
 				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
+			}
+
+			if (path === "/") {
+				expect(html).toContain("People available today");
+				expect(html).toContain("High priority tasks");
+				expect(html).toContain("Unassigned jobs");
+				expect(html).toContain("Rooms completed");
 			}
 
 			if (path === "/tasks") {

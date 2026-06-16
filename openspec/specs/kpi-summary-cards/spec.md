@@ -1,10 +1,8 @@
 # kpi-summary-cards Specification
 
 ## Purpose
-Defines the home-dashboard KPI summary card component, its data wiring to existing backend contracts, and the placeholder treatment for the fourth design card that lacks a backend contract. Covers the replacement of the current static top-row summary cards in `HomeView.vue` with live data-driven KPI cards.
-
-## ADDED Requirements
-
+TBD - created by archiving change task-aab6366f-b8d0-4f4f-91b8-9f1dadab9d8a. Update Purpose after archive.
+## Requirements
 ### Requirement: The home page SHALL render a KPI summary card grid driven by contract-backed backend data
 
 The `/` route SHALL render a feature-local `KpiCards` component in place of the current static summary row. The component SHALL display four KPI cards structurally aligned to section 3 of `designs/components.png`, using existing Card, CardHeader, CardContent, CardTitle, and CardDescription primitives from the shared UI library. The component SHALL live at `frontend/src/home/components/KpiCards.vue`.
