@@ -111,6 +111,66 @@
         ],
         "type": "object"
       },
+      "CreateScheduleCardRequestBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateScheduleCardRequestBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "assignedTo": {
+            "description": "Person-ID strings for assigned helpers, may be empty",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "peopleNeeded": {
+            "description": "Number of people needed for the task (\u003e=1)",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "priority": {
+            "description": "One of: high, medium, low",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "roomArea": {
+            "description": "Room or area name",
+            "type": "string"
+          },
+          "scheduledDate": {
+            "description": "ISO 8601 date (YYYY-MM-DD) the card is scheduled for",
+            "type": "string"
+          },
+          "title": {
+            "description": "Task title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "priority",
+          "roomArea",
+          "peopleNeeded",
+          "scheduledDate",
+          "assignedTo"
+        ],
+        "type": "object"
+      },
       "CreateTaskRequestBody": {
         "additionalProperties": false,
         "properties": {
@@ -767,6 +827,15 @@
       "TaskCard": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/TaskCard.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "assignedCount": {
             "description": "Number of people currently assigned (derived from assignedPeople)",
             "format": "int64",
@@ -1711,6 +1780,137 @@
         "summary": "Update a room or area",
         "tags": [
           "Rooms"
+        ]
+      }
+    },
+    "/api/schedule/cards": {
+      "post": {
+        "description": "Creates a new schedule card with server-assigned sched-* ID. Returns 400 for invalid input or out-of-window date.",
+        "operationId": "create-schedule-card",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleCardRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCard"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a schedule card",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/api/schedule/cards/{id}": {
+      "delete": {
+        "description": "Deletes a schedule card and its assignments transactionally. Returns 404 if the card ID is unknown.",
+        "operationId": "delete-schedule-card",
+        "parameters": [
+          {
+            "description": "Schedule card identifier (e.g., sched-1)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Schedule card identifier (e.g., sched-1)",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a schedule card",
+        "tags": [
+          "Schedule"
+        ]
+      },
+      "put": {
+        "description": "Updates a schedule card and replaces assignments transactionally. Returns 400 for validation errors, 404 if the card ID is unknown.",
+        "operationId": "update-schedule-card",
+        "parameters": [
+          {
+            "description": "Schedule card identifier (e.g., sched-1)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Schedule card identifier (e.g., sched-1)",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleCardRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCard"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a schedule card",
+        "tags": [
+          "Schedule"
         ]
       }
     },

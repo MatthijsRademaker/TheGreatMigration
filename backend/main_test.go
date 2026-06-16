@@ -770,6 +770,18 @@ func (f *failingStore) DeleteTask(ctx context.Context, id string) error {
 	return errTestFailure
 }
 
+func (f *failingStore) CreateScheduleCard(ctx context.Context, input backendapi.CreateScheduleCardInput) (*backendapi.TaskCard, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) UpdateScheduleCard(ctx context.Context, id string, input backendapi.CreateScheduleCardInput) (*backendapi.TaskCard, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) DeleteScheduleCard(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -897,6 +909,18 @@ func (f *partialFailingStore) UpdateTask(ctx context.Context, id string, input b
 }
 
 func (f *partialFailingStore) DeleteTask(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) CreateScheduleCard(ctx context.Context, input backendapi.CreateScheduleCardInput) (*backendapi.TaskCard, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) UpdateScheduleCard(ctx context.Context, id string, input backendapi.CreateScheduleCardInput) (*backendapi.TaskCard, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) DeleteScheduleCard(ctx context.Context, id string) error {
 	return errTestFailure
 }
 
@@ -1796,10 +1820,317 @@ func TestOpenAPIIncludesMergedEndpoints(t *testing.T) {
 		"/api/people/{id}/availability/{date}",
 		"/api/rooms",
 		"/api/rooms/{id}",
+		"/api/schedule/cards",
+		"/api/schedule/cards/{id}",
 	}
 	for _, path := range expectedPaths {
 		if _, exists := paths[path]; !exists {
 			t.Fatalf("OpenAPI spec does not include %s", path)
 		}
+	}
+}
+
+// ---------- Schedule-card CRUD tests ----------
+
+func TestCreateScheduleCard(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	body := `{"title":"Kitchen painting","priority":"high","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Title != "Kitchen painting" {
+		t.Fatalf("expected title 'Kitchen painting', got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high', got %q", resp.Priority)
+	}
+	if resp.PeopleNeeded != 2 {
+		t.Fatalf("expected peopleNeeded 2, got %d", resp.PeopleNeeded)
+	}
+	if resp.RoomArea != "Kitchen" {
+		t.Fatalf("expected roomArea 'Kitchen', got %q", resp.RoomArea)
+	}
+	if len(resp.AssignedPeople) != 2 {
+		t.Fatalf("expected 2 assigned people, got %d", len(resp.AssignedPeople))
+	}
+	if resp.AssignedCount != 2 {
+		t.Fatalf("expected assignedCount 2, got %d", resp.AssignedCount)
+	}
+	if resp.StaffingStatus != "fullyStaffed" {
+		t.Fatalf("expected staffingStatus 'fullyStaffed', got %q", resp.StaffingStatus)
+	}
+	if resp.ID == "" || resp.ID[:6] != "sched-" {
+		t.Fatalf("expected id prefixed 'sched-', got %q", resp.ID)
+	}
+}
+
+func TestCreateScheduleCardValidation(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	tests := []struct {
+		name           string
+		body           string
+		expectedStatus int
+	}{
+		{
+			name:           "empty title",
+			body:           `{"title":"","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid priority",
+			body:           `{"title":"Task","priority":"urgent","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			expectedStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:           "peopleNeeded < 1",
+			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":0,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			expectedStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:           "empty roomArea",
+			body:           `{"title":"Task","priority":"medium","roomArea":"","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unknown assigned person",
+			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p99"]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "out-of-window date",
+			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2025-01-01","assignedTo":[]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "malformed date",
+			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"not-a-date","assignedTo":[]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != tt.expectedStatus {
+				t.Fatalf("expected status %d, got %d\nbody: %s", tt.expectedStatus, rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestUpdateScheduleCard(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		Title:         "Original task",
+		Priority:      "low",
+		RoomArea:      "Garage",
+		PeopleNeeded:  1,
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"title":"Updated task","priority":"high","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-06","assignedTo":["p2","p3"]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Title != "Updated task" {
+		t.Fatalf("expected title 'Updated task', got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high', got %q", resp.Priority)
+	}
+	if resp.PeopleNeeded != 2 {
+		t.Fatalf("expected peopleNeeded 2, got %d", resp.PeopleNeeded)
+	}
+	if len(resp.AssignedPeople) != 2 {
+		t.Fatalf("expected 2 assigned people, got %d", len(resp.AssignedPeople))
+	}
+
+	// Verify store reflects the update.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.Title != "Updated task" {
+		t.Fatalf("store card title not updated: got %q", stored.Title)
+	}
+}
+
+func TestUpdateScheduleCardNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	body := `{"title":"Nowhere","priority":"low","roomArea":"Garage","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/sched-999", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteScheduleCard(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		Title:         "To be deleted",
+		Priority:      "medium",
+		RoomArea:      "Storage",
+		PeopleNeeded:  1,
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/schedule/cards/"+card.ID, nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify card was removed.
+	if _, exists := store.scheduleCards[card.ID]; exists {
+		t.Fatal("schedule card should have been deleted")
+	}
+}
+
+func TestDeleteScheduleCardNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/schedule/cards/sched-999", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestScheduleCardWriteReflectsInDailySchedule(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card on 2026-07-05.
+	createBody := `{"title":"Reflected scheduled task","priority":"high","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create failed: status %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// GET the daily schedule and verify the new card appears.
+	getReq := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("daily schedule GET failed: status %d\nbody: %s", getRec.Code, getRec.Body.String())
+	}
+
+	var ds backendapi.DailyScheduleBody
+	if err := json.Unmarshal(getRec.Body.Bytes(), &ds); err != nil {
+		t.Fatalf("failed to unmarshal daily schedule: %v", err)
+	}
+
+	// The first day (2026-07-05) should contain the new card.
+	if len(ds.Days) == 0 {
+		t.Fatal("no days in daily schedule")
+	}
+	found := false
+	for _, task := range ds.Days[0].Tasks {
+		if task.Title == "Reflected scheduled task" {
+			found = true
+			if task.Priority != "high" {
+				t.Fatalf("reflected task has wrong priority: %q", task.Priority)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("created schedule card not found in daily schedule response")
+	}
+}
+
+func TestCreateScheduleCardStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	body := `{"title":"Test","priority":"medium","roomArea":"Kitchen","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateScheduleCardStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	body := `{"title":"Test","priority":"medium","roomArea":"Kitchen","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/sched-1", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteScheduleCardStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/schedule/cards/sched-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }

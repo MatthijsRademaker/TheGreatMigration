@@ -63,12 +63,12 @@ type ScheduleTaskAssignment struct {
 }
 
 type ScheduleTaskCard struct {
-	ID           int32
-	Title        string
-	Priority     string
-	RoomArea     string
-	PeopleNeeded int32
-	DayGroup     int32
-	SortOrder    int32
-	CreatedAt    pgtype.Timestamptz
+	ID            int32
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	SortOrder     int32
+	CreatedAt     pgtype.Timestamptz
+	ScheduledDate pgtype.Date
 }

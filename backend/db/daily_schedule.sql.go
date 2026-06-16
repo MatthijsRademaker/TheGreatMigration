@@ -11,6 +11,91 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createScheduleAssignment = `-- name: CreateScheduleAssignment :exec
+INSERT INTO schedule_task_assignments (task_card_id, person_id, sort_order)
+VALUES ($1, $2, $3)
+`
+
+type CreateScheduleAssignmentParams struct {
+	TaskCardID int32
+	PersonID   string
+	SortOrder  int32
+}
+
+func (q *Queries) CreateScheduleAssignment(ctx context.Context, arg CreateScheduleAssignmentParams) error {
+	_, err := q.db.Exec(ctx, createScheduleAssignment, arg.TaskCardID, arg.PersonID, arg.SortOrder)
+	return err
+}
+
+const createScheduleCard = `-- name: CreateScheduleCard :one
+INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at
+`
+
+type CreateScheduleCardParams struct {
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	ScheduledDate pgtype.Date
+	SortOrder     int32
+}
+
+type CreateScheduleCardRow struct {
+	ID            int32
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	ScheduledDate pgtype.Date
+	SortOrder     int32
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) CreateScheduleCard(ctx context.Context, arg CreateScheduleCardParams) (CreateScheduleCardRow, error) {
+	row := q.db.QueryRow(ctx, createScheduleCard,
+		arg.Title,
+		arg.Priority,
+		arg.RoomArea,
+		arg.PeopleNeeded,
+		arg.ScheduledDate,
+		arg.SortOrder,
+	)
+	var i CreateScheduleCardRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.RoomArea,
+		&i.PeopleNeeded,
+		&i.ScheduledDate,
+		&i.SortOrder,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteScheduleAssignments = `-- name: DeleteScheduleAssignments :exec
+DELETE FROM schedule_task_assignments
+WHERE task_card_id = $1
+`
+
+func (q *Queries) DeleteScheduleAssignments(ctx context.Context, taskCardID int32) error {
+	_, err := q.db.Exec(ctx, deleteScheduleAssignments, taskCardID)
+	return err
+}
+
+const deleteScheduleCard = `-- name: DeleteScheduleCard :exec
+DELETE FROM schedule_task_cards
+WHERE id = $1
+`
+
+func (q *Queries) DeleteScheduleCard(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteScheduleCard, id)
+	return err
+}
+
 const getAvailableCountByDate = `-- name: GetAvailableCountByDate :many
 SELECT a.date, COUNT(*)::int AS available_count
 FROM availability a
@@ -83,27 +168,45 @@ func (q *Queries) GetDailyScheduleAssignments(ctx context.Context) ([]GetDailySc
 }
 
 const getDailyScheduleTaskCards = `-- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, day_group, sort_order, created_at
+SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at
 FROM schedule_task_cards
-ORDER BY day_group, sort_order
+WHERE scheduled_date >= $1::date
+  AND scheduled_date < ($1::date + $2::int * interval '1 day')
+ORDER BY scheduled_date, sort_order
 `
 
-func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context) ([]ScheduleTaskCard, error) {
-	rows, err := q.db.Query(ctx, getDailyScheduleTaskCards)
+type GetDailyScheduleTaskCardsParams struct {
+	StartDate pgtype.Date
+	Days      int32
+}
+
+type GetDailyScheduleTaskCardsRow struct {
+	ID            int32
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	ScheduledDate pgtype.Date
+	SortOrder     int32
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context, arg GetDailyScheduleTaskCardsParams) ([]GetDailyScheduleTaskCardsRow, error) {
+	rows, err := q.db.Query(ctx, getDailyScheduleTaskCards, arg.StartDate, arg.Days)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ScheduleTaskCard
+	var items []GetDailyScheduleTaskCardsRow
 	for rows.Next() {
-		var i ScheduleTaskCard
+		var i GetDailyScheduleTaskCardsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
 			&i.Priority,
 			&i.RoomArea,
 			&i.PeopleNeeded,
-			&i.DayGroup,
+			&i.ScheduledDate,
 			&i.SortOrder,
 			&i.CreatedAt,
 		); err != nil {
@@ -115,4 +218,106 @@ func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context) ([]ScheduleTask
 		return nil, err
 	}
 	return items, nil
+}
+
+const getMaxScheduleSortOrder = `-- name: GetMaxScheduleSortOrder :one
+SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort_order
+FROM schedule_task_cards
+`
+
+func (q *Queries) GetMaxScheduleSortOrder(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, getMaxScheduleSortOrder)
+	var max_sort_order int32
+	err := row.Scan(&max_sort_order)
+	return max_sort_order, err
+}
+
+const getScheduleCardByID = `-- name: GetScheduleCardByID :one
+SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at
+FROM schedule_task_cards
+WHERE id = $1
+`
+
+type GetScheduleCardByIDRow struct {
+	ID            int32
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	ScheduledDate pgtype.Date
+	SortOrder     int32
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) GetScheduleCardByID(ctx context.Context, id int32) (GetScheduleCardByIDRow, error) {
+	row := q.db.QueryRow(ctx, getScheduleCardByID, id)
+	var i GetScheduleCardByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.RoomArea,
+		&i.PeopleNeeded,
+		&i.ScheduledDate,
+		&i.SortOrder,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateScheduleCard = `-- name: UpdateScheduleCard :one
+UPDATE schedule_task_cards
+SET title = $1,
+    priority = $2,
+    room_area = $3,
+    people_needed = $4,
+    scheduled_date = $5,
+    sort_order = $6
+WHERE id = $7
+RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at
+`
+
+type UpdateScheduleCardParams struct {
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	ScheduledDate pgtype.Date
+	SortOrder     int32
+	ID            int32
+}
+
+type UpdateScheduleCardRow struct {
+	ID            int32
+	Title         string
+	Priority      string
+	RoomArea      string
+	PeopleNeeded  int32
+	ScheduledDate pgtype.Date
+	SortOrder     int32
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateScheduleCard(ctx context.Context, arg UpdateScheduleCardParams) (UpdateScheduleCardRow, error) {
+	row := q.db.QueryRow(ctx, updateScheduleCard,
+		arg.Title,
+		arg.Priority,
+		arg.RoomArea,
+		arg.PeopleNeeded,
+		arg.ScheduledDate,
+		arg.SortOrder,
+		arg.ID,
+	)
+	var i UpdateScheduleCardRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.RoomArea,
+		&i.PeopleNeeded,
+		&i.ScheduledDate,
+		&i.SortOrder,
+		&i.CreatedAt,
+	)
+	return i, err
 }

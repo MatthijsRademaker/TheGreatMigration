@@ -5,8 +5,10 @@ import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
 import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
+import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 
 const { data: availabilityData } = usePeopleAvailability()
+const { data: scheduleData } = useDailySchedule()
 </script>
 
 <template>
@@ -20,7 +22,8 @@ const { data: availabilityData } = usePeopleAvailability()
     </div>
 
     <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-      <DailySchedule />
+      <!-- Daily Schedule: shows backend data on success, demo data otherwise (read-only) -->
+      <DailySchedule :days="scheduleData.days.length > 0 ? scheduleData.days : undefined" />
 
       <Card>
         <CardHeader>

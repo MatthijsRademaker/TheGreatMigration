@@ -16,6 +16,7 @@ func RegisterAll(api huma.API, store Store) {
 	registerTasksBacklog(api, store)
 	registerTasksEndpoints(api, store)
 	registerDailySchedule(api, store)
+	registerScheduleCardEndpoints(api, store)
 	registerPeopleEndpoints(api, store)
 	registerRoomsAreas(api, store)
 }
