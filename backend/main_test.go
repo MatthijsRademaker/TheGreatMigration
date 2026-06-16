@@ -2477,6 +2477,32 @@ func TestUpdateScheduleCardNotFound(t *testing.T) {
 	}
 }
 
+func TestUpdateScheduleCardWithInvalidTaskId(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Seed a schedule card referencing a valid task.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+
+	// Update the card to reference a non-existent task — should return 400.
+	body := `{"taskId":"task-999","scheduledDate":"2026-07-06","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestDeleteScheduleCard(t *testing.T) {
 	store := newMockStore()
 

@@ -483,19 +483,21 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 	peopleNeeded := input.PeopleNeeded
 
 	if input.TaskId != "" {
-		if refTask, ok := m.tasks[input.TaskId]; ok {
-			if title == "" {
-				title = refTask.Title
-			}
-			if priority == "" {
-				priority = refTask.Priority
-			}
-			if roomArea == "" {
-				roomArea = refTask.Room
-			}
-			if peopleNeeded < 1 {
-				peopleNeeded = refTask.PeopleNeeded
-			}
+		refTask, ok := m.tasks[input.TaskId]
+		if !ok {
+			return nil, fmt.Errorf("referenced task '%s' not found", input.TaskId)
+		}
+		if title == "" {
+			title = refTask.Title
+		}
+		if priority == "" {
+			priority = refTask.Priority
+		}
+		if roomArea == "" {
+			roomArea = refTask.Room
+		}
+		if peopleNeeded < 1 {
+			peopleNeeded = refTask.PeopleNeeded
 		}
 	}
 
@@ -552,19 +554,21 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	peopleNeeded := input.PeopleNeeded
 
 	if effectiveTaskID != "" {
-		if refTask, ok := m.tasks[effectiveTaskID]; ok {
-			if title == "" {
-				title = refTask.Title
-			}
-			if priority == "" {
-				priority = refTask.Priority
-			}
-			if roomArea == "" {
-				roomArea = refTask.Room
-			}
-			if peopleNeeded < 1 {
-				peopleNeeded = refTask.PeopleNeeded
-			}
+		refTask, ok := m.tasks[effectiveTaskID]
+		if !ok {
+			return nil, fmt.Errorf("referenced task '%s' not found", effectiveTaskID)
+		}
+		if title == "" {
+			title = refTask.Title
+		}
+		if priority == "" {
+			priority = refTask.Priority
+		}
+		if roomArea == "" {
+			roomArea = refTask.Room
+		}
+		if peopleNeeded < 1 {
+			peopleNeeded = refTask.PeopleNeeded
 		}
 	}
 
