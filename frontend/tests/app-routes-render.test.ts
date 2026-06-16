@@ -107,7 +107,6 @@ describe("application route rendering", () => {
 		expect(html).toContain("Rooms / Areas");
 		expect(html).toContain("Settings");
 		expect(html).toContain("Moving dashboard");
-		expect(html).toContain("Today’s plan");
 		expect(html).toContain("Add note");
 		expect(html).toContain("Help &amp; Support");
 	});
@@ -118,7 +117,7 @@ describe("application route rendering", () => {
 			title: "Moving dashboard",
 			description:
 				"Today’s priorities, staffing gaps, and move notes at a glance.",
-			content: "Today’s plan",
+			content: "Move notes",
 		},
 		{
 			path: "/tasks",
@@ -185,6 +184,11 @@ describe("application route rendering", () => {
 				expect(html).toContain("available");
 				expect(html).toContain("4");
 				expect(html).toContain("3");
+
+				expect(html).toContain("Task Management");
+				expect(html).toContain("People availability");
+				expect(html).toContain("Daily Schedule");
+				expect(html).toContain("Move notes");
 			}
 
 			if (path === "/tasks") {

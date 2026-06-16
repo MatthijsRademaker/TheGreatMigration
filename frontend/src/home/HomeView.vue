@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import KpiCards from './components/KpiCards.vue'
-
-const upcomingWork = [
-  'Pack kitchen essentials and label fragile boxes',
-  'Confirm van pickup window and parking access',
-  'Clear garden tools from the shed',
-]
+import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
+import PeopleAvailability from '@/people/PeopleAvailability.vue'
+import DailySchedule from '@/calendar/DailySchedule.vue'
 </script>
 
 <template>
@@ -15,25 +11,13 @@ const upcomingWork = [
 
     <KpiCards />
 
-    <div class="grid flex-1 gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-      <Card>
-        <CardHeader>
-          <div class="flex items-start justify-between gap-4">
-            <div class="flex flex-col gap-1">
-              <CardTitle>Today’s plan</CardTitle>
-              <CardDescription>A calm command center for the next practical steps.</CardDescription>
-            </div>
-            <Badge variant="secondary">Draft schedule</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div class="grid gap-3 md:grid-cols-3">
-            <div v-for="item in upcomingWork" :key="item" class="rounded-lg border bg-muted/40 p-4">
-              <p class="text-sm font-medium leading-6">{{ item }}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+      <TaskManagementPanel />
+      <PeopleAvailability />
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+      <DailySchedule />
 
       <Card>
         <CardHeader>
