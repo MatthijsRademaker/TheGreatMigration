@@ -199,7 +199,7 @@ const confirmDeletePersonId = ref<string | null>(null)
                   :open="confirmDeletePersonId === person.id"
                   @update:open="(open) => { if (!open) confirmDeletePersonId = null }"
                 >
-                  <DialogContent class="max-w-sm max-h-auto w-auto h-auto p-0">
+                  <DialogContent class="max-w-sm w-auto h-auto p-0">
                     <div class="p-6 pb-4 flex flex-col gap-1.5">
                       <DialogTitle>Delete {{ person.name }}?</DialogTitle>
                       <DialogDescription>
