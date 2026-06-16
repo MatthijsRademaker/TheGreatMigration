@@ -1,11 +1,8 @@
 # home-page-ascii-blueprint Specification
 
 ## Purpose
-
-Defines the requirements for a non-canonical ASCII homepage mockup artifact that translates the target desktop dashboard composition into a text-only blueprint. The artifact enables a text-only LLM to compose a future `HomeView` without inspecting PNG design files, while staying aligned with existing component names, OpenSpec data contracts, and the design system.
-
-## ADDED Requirements
-
+TBD - created by archiving change task-2bdd3fb5-c4ec-4153-9a49-d6b463894a8a. Update Purpose after archive.
+## Requirements
 ### Requirement: Artifact SHALL be a non-canonical Markdown file under the change directory
 
 The ASCII mockup SHALL be placed at `openspec/changes/task-2bdd3fb5-c4ec-4153-9a49-d6b463894a8a/home-page-ascii.md`. It SHALL NOT modify any file under `openspec/specs/`, `docs/`, `frontend/src/`, or `backend/`.
