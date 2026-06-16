@@ -5,6 +5,7 @@ import {
 	getDashboardPeopleAvailabilityQueryKey,
 } from "@/client/@pinia/colada.gen";
 import { formatPlanDayLabel } from "@/shared/lib/planWindow";
+import { usePlanningWindow } from "@/shared/composables/usePlanningWindow";
 import type { DashboardBody } from "@/client/types.gen";
 import type {
 	PeopleAvailabilityProps,
@@ -19,6 +20,11 @@ function isoDateToDayLabel(isoDate: string): string {
 	return formatPlanDayLabel(date);
 }
 
+interface AdaptedResult {
+	props: PeopleAvailabilityProps;
+	daysISO: string[];
+}
+
 /**
  * Adapt a generated DashboardBody into the component-local PeopleAvailabilityProps.
  *
@@ -26,17 +32,20 @@ function isoDateToDayLabel(isoDate: string): string {
  * 1. Nullable API arrays → empty arrays
  * 2. ISO date strings → human-readable day labels
  * 3. Loose `string` status → narrowed AvailabilityStatus union (canonical filtering)
+ *
+ * Also produces a `daysISO` array (parallel to `days`) of ISO 8601 date strings.
  */
-function adaptToComponentProps(
-	data: DashboardBody | undefined,
-): PeopleAvailabilityProps {
+function adaptToComponentProps(data: DashboardBody | undefined): AdaptedResult {
 	if (!data) {
 		return {
-			people: [],
-			days: [],
-			availableToday: 0,
-			totalPeople: 0,
-			legend: [],
+			props: {
+				people: [],
+				days: [],
+				availableToday: 0,
+				totalPeople: 0,
+				legend: [],
+			},
+			daysISO: [],
 		};
 	}
 
@@ -44,16 +53,19 @@ function adaptToComponentProps(
 	const legendRaw = data.statuses ?? [];
 
 	const days: string[] = [];
+	const daysISO: string[] = [];
 	const people: PersonAvailability[] = [];
 
-	// Build day labels from the range.
+	// Build day labels and ISO dates from the range.
 	if (data.range) {
 		const startDate = new Date(data.range.startDate);
 		const dayCount = data.range.days;
 		for (let i = 0; i < dayCount; i++) {
 			const cursor = new Date(startDate);
 			cursor.setDate(cursor.getDate() + i);
-			days.push(isoDateToDayLabel(cursor.toISOString().slice(0, 10)));
+			const isoDate = cursor.toISOString().slice(0, 10);
+			days.push(isoDateToDayLabel(isoDate));
+			daysISO.push(isoDate);
 		}
 	}
 
@@ -87,24 +99,60 @@ function adaptToComponentProps(
 		}));
 
 	return {
-		title: "People availability",
-		description: "Track who is available and where each person can help.",
-		days,
-		people,
-		legend,
-		availableToday: data.summary?.availableToday ?? 0,
-		totalPeople: data.summary?.totalPeople ?? 0,
+		props: {
+			title: "People availability",
+			description: "Track who is available and where each person can help.",
+			days,
+			people,
+			legend,
+			availableToday: data.summary?.availableToday ?? 0,
+			totalPeople: data.summary?.totalPeople ?? 0,
+		},
+		daysISO,
 	};
 }
 
-export function usePeopleAvailability() {
-	const query = useQuery(getDashboardPeopleAvailabilityQuery());
+interface UsePeopleAvailabilityOptions {
+	/** Explicit start date (YYYY-MM-DD). When omitted, the planning window start date is used. */
+	start?: string;
+}
 
-	const adapted = computed<PeopleAvailabilityProps>(() =>
+export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
+	// Resolve the start date: explicit or from the planning window.
+	const planningWindow = options?.start ? null : usePlanningWindow();
+
+	const startParam = computed<string | undefined>(() => {
+		if (options?.start) return options.start;
+		if (planningWindow?.planWindowDays.value.length) {
+			return planningWindow.planWindowDays.value[0].dateString;
+		}
+		return undefined;
+	});
+
+	// Defer the dashboard query until the planning window resolves (if needed).
+	const queryEnabled = computed<boolean>(() => {
+		if (options?.start) return true;
+		return !planningWindow?.isLoading.value && startParam.value != null;
+	});
+
+	const query = useQuery(() => ({
+		...getDashboardPeopleAvailabilityQuery(
+			startParam.value ? { query: { start: startParam.value } } : undefined,
+		),
+		enabled: queryEnabled.value,
+	}));
+
+	const adapted = computed<AdaptedResult>(() =>
 		adaptToComponentProps(query.data.value),
 	);
 
-	/** Raw DashboardBody for write operations that need ISO dates. */
+	/** The adapted PeopleAvailabilityProps for the component. */
+	const data = computed<PeopleAvailabilityProps>(() => adapted.value.props);
+
+	/** ISO date strings parallel to `data.value.days`. */
+	const daysISO = computed<string[]>(() => adapted.value.daysISO);
+
+	/** Raw DashboardBody for write operations that need ISO dates (legacy, prefer daysISO). */
 	const rawData = computed<DashboardBody | undefined>(() => query.data.value);
 
 	const isLoading = computed<boolean>(() => query.isPending.value);
@@ -112,11 +160,12 @@ export function usePeopleAvailability() {
 	const isError = computed<boolean>(() => query.error.value != null);
 
 	const isEmpty = computed<boolean>(
-		() => !isLoading.value && !isError.value && adapted.value.totalPeople === 0,
+		() => !isLoading.value && !isError.value && data.value.totalPeople === 0,
 	);
 
 	return {
-		data: adapted,
+		data,
+		daysISO,
 		rawData,
 		isLoading,
 		isError,

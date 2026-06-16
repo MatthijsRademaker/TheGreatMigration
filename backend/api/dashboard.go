@@ -12,7 +12,7 @@ import (
 
 // DashboardInput holds query parameters for GET /api/dashboard/people-availability.
 type DashboardInput struct {
-	Start string `query:"start" doc:"Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the server-local current date."`
+	Start string `query:"start" doc:"Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date."`
 	Days  int    `query:"days" default:"4" minimum:"1" doc:"Number of days inclusive of start date."`
 }
 
@@ -83,7 +83,7 @@ func registerDashboardPeopleAvailability(api huma.API, store Store) {
 		Path:        "/api/dashboard/people-availability",
 		Summary:     "People availability for the dashboard",
 		Description: "Returns a combined payload with date-range metadata, summary counts, per-person daily availability, and a status legend. " +
-			"The start parameter defaults to the server-local current date; clients should pass start explicitly for timezone-correct results. " +
+			"The start parameter defaults to the planning-window start date; clients should pass start explicitly for timezone-correct results. " +
 			"availableToday counts only people whose status on selectedDate equals 'available'.",
 		Tags: []string{"Dashboard"},
 	}, func(ctx context.Context, input *DashboardInput) (*DashboardOutput, error) {
@@ -96,8 +96,14 @@ func registerDashboardPeopleAvailability(api huma.API, store Store) {
 				return nil, huma.Error400BadRequest("start must be a valid ISO 8601 date (YYYY-MM-DD)")
 			}
 		} else {
-			now := time.Now()
-			startDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			pw, err := store.GetPlanningWindow(ctx)
+			if err != nil {
+				return nil, huma.Error500InternalServerError("failed to retrieve planning window for default start", err)
+			}
+			if pw == nil {
+				return nil, huma.Error400BadRequest("planning window is not configured; provide an explicit start date or configure a planning window")
+			}
+			startDate, _ = time.Parse("2006-01-02", pw.StartDate)
 		}
 
 		days := input.Days

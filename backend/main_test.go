@@ -80,6 +80,10 @@ func TestDashboardPeopleAvailability(t *testing.T) {
 	if body.Range.StartDate == "" {
 		t.Fatal("range.startDate is empty")
 	}
+	// Default start should be the planning window start date, not time.Now().
+	if body.Range.StartDate != "2026-07-05" {
+		t.Fatalf("expected range.startDate=2026-07-05 (planning window start), got %q", body.Range.StartDate)
+	}
 	if body.Range.EndDate == "" {
 		t.Fatal("range.endDate is empty")
 	}
@@ -152,6 +156,148 @@ func TestDashboardPeopleAvailability(t *testing.T) {
 	// Verify at least 8 people.
 	if len(body.People) < 8 {
 		t.Fatalf("expected at least 8 people, got %d", len(body.People))
+	}
+}
+
+func TestDashboardPeopleAvailabilityExplicitStart(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability?start=2024-07-02&days=3", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var body backendapi.DashboardBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if body.Range.StartDate != "2024-07-02" {
+		t.Fatalf("expected range.startDate=2024-07-02, got %q", body.Range.StartDate)
+	}
+	if body.Range.EndDate != "2024-07-04" {
+		t.Fatalf("expected range.endDate=2024-07-04, got %q", body.Range.EndDate)
+	}
+	if body.Range.Days != 3 {
+		t.Fatalf("expected range.days=3, got %d", body.Range.Days)
+	}
+}
+
+// nilPlanningWindowStore returns nil for GetPlanningWindow (no window configured).
+type nilPlanningWindowStore struct{}
+
+func (n *nilPlanningWindowStore) GetPlanningWindow(ctx context.Context) (*backendapi.PlanningWindowBody, error) {
+	return nil, nil
+}
+
+func (n *nilPlanningWindowStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*backendapi.PlanningWindowBody, error) {
+	return nil, nil
+}
+
+func (n *nilPlanningWindowStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) GetTaskBacklog(ctx context.Context) (*backendapi.TaskBacklogBody, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*backendapi.DailyScheduleBody, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) DeletePerson(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) CreateTask(ctx context.Context, input backendapi.CreateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) UpdateTask(ctx context.Context, id string, input backendapi.UpdateTaskInput) (*backendapi.TaskRow, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) DeleteTask(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) CreateScheduleCard(ctx context.Context, input backendapi.CreateScheduleCardInput) (*backendapi.TaskCard, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) UpdateScheduleCard(ctx context.Context, id string, input backendapi.CreateScheduleCardInput) (*backendapi.TaskCard, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) DeleteScheduleCard(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) ListRooms(ctx context.Context) ([]backendapi.Room, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) CreateRoom(ctx context.Context, input backendapi.CreateRoomInput) (*backendapi.Room, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) UpdateRoom(ctx context.Context, id string, input backendapi.UpdateRoomInput) (*backendapi.Room, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) DeleteRoom(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func TestDashboardPeopleAvailabilityNoPlanningWindow(t *testing.T) {
+	router, _ := newTestAPI(&nilPlanningWindowStore{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDashboardPeopleAvailabilityStoreGetPlanningWindowFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
 
