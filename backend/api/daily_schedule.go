@@ -217,6 +217,11 @@ func validateScheduleCardInput(body CreateScheduleCardRequestBody, store Store, 
 		}
 	}
 
+	// Reject assignment counts greater than peopleNeeded.
+	if len(body.AssignedTo) > body.PeopleNeeded {
+		return huma.Error400BadRequest("assignedTo count must not exceed peopleNeeded")
+	}
+
 	return nil
 }
 

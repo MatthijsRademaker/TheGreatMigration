@@ -1914,6 +1914,11 @@ func TestCreateScheduleCardValidation(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
+			name:           "assignedTo exceeds peopleNeeded",
+			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
 			name:           "malformed date",
 			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"not-a-date","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,

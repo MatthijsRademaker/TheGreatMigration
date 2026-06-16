@@ -115,9 +115,6 @@ async function handleDelete(id: string) {
   }
 }
 
-void openEdit
-void handleDelete
-
 function handleCancel() {
   modalOpen.value = false
 }
@@ -168,6 +165,8 @@ function handleCancel() {
       <DailySchedule
         :days="scheduleData.days"
         @add-task="openCreate"
+        @edit-task="openEdit"
+        @delete-task="handleDelete"
       />
     </template>
 

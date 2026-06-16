@@ -50,6 +50,8 @@ const props = defineProps<DailyScheduleProps>()
 
 const emit = defineEmits<{
   "add-task": [date?: string]
+  "edit-task": [task: TaskCard]
+  "delete-task": [taskId: string]
 }>()
 
 const scheduleDays = computed(() => props.days ?? [])
@@ -120,6 +122,10 @@ const scheduleDays = computed(() => props.days ?? [])
                     class="text-destructive"
                   >&nbsp;— needs help</span>
                 </p>
+                <div class="flex items-center gap-1 mt-2">
+                  <Button variant="ghost" size="xs" @click.stop="emit('edit-task', task)">Edit</Button>
+                  <Button variant="ghost" size="xs" @click.stop="emit('delete-task', task.id)">Delete</Button>
+                </div>
               </div>
 
               <!-- Add task placeholder -->
