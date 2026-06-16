@@ -334,6 +334,13 @@ describe("application route rendering", () => {
 				expect(html).toContain("People availability");
 				expect(html).toContain("Daily Schedule");
 				expect(html).toContain("Move notes");
+
+				// Daily Schedule is read-only on home: no edit, delete, or create controls
+				expect(html).not.toContain(">Edit<");
+				expect(html).not.toContain(">Delete<");
+				expect(html).not.toContain("+ Add task");
+				// The "Add task" header button should also be absent
+				expect(html).not.toContain("Add task");
 			}
 
 			if (path === "/people") {

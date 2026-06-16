@@ -57,7 +57,7 @@ const { data: scheduleData, isLoading: scheduleLoading, isError: scheduleError, 
         </CardContent>
       </Card>
 
-      <DailySchedule v-else :days="scheduleData.days" />
+      <DailySchedule v-else :days="scheduleData.days" readonly />
 
       <Card>
         <CardHeader>
