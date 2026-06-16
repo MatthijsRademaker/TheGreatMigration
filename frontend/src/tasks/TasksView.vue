@@ -12,15 +12,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Checkbox } from '@/shared/ui/checkbox'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/shared/ui/sheet'
+import AddOperationModal from '@/shared/components/AddOperationModal.vue'
 import {
   createTaskMutation,
   updateTaskMutation,
@@ -31,7 +23,7 @@ import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailabilit
 import type { TaskRow } from '@/tasks/types'
 
 // ---- State ----
-const sheetOpen = ref(false)
+const modalOpen = ref(false)
 const editingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const mutationError = ref<string | null>(null)
@@ -70,8 +62,7 @@ function startNewTask() {
   formRoom.value = ''
   formStatus.value = 'backlog'
   formAssignedTo.value = []
-  // Do NOT set sheetOpen here — SheetTrigger handles the toggle. Setting it
-  // to false in the same event cycle races with SheetTrigger opening the sheet.
+  modalOpen.value = true
 }
 
 function startEdit(task: TaskRow) {
@@ -82,7 +73,7 @@ function startEdit(task: TaskRow) {
   formRoom.value = task.room
   formStatus.value = task.status as 'backlog' | 'ready' | 'assigned'
   formAssignedTo.value = task.assignedTo ? [...task.assignedTo] : []
-  sheetOpen.value = true
+  modalOpen.value = true
 }
 
 function cancelEdit() {
@@ -93,7 +84,7 @@ function cancelEdit() {
   formRoom.value = ''
   formStatus.value = 'backlog'
   formAssignedTo.value = []
-  sheetOpen.value = false
+  modalOpen.value = false
 }
 
 function toggleAssignment(personId: string) {
@@ -163,14 +154,6 @@ watch(() => data.value.tasks, (tasks) => {
 
 <template>
   <section class="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-    <!-- Mutation error -->
-    <p
-      v-if="mutationError"
-      class="rounded border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-    >
-      {{ mutationError }}
-    </p>
-
     <!-- Task panel with management controls -->
     <Card>
       <CardHeader>
@@ -181,95 +164,9 @@ watch(() => data.value.tasks, (tasks) => {
               Capture jobs, priorities, staffing needs, and planning status.
             </CardDescription>
           </div>
-          <Sheet v-model:open="sheetOpen">
-            <SheetTrigger as-child>
-              <Button @click="startNewTask">
-                + Add Task
-              </Button>
-            </SheetTrigger>
-            <SheetContent class="flex flex-col">
-              <SheetHeader>
-                <SheetTitle>{{ editingId ? 'Edit' : 'Add' }} Task</SheetTitle>
-                <SheetDescription>
-                  {{ editingId ? 'Update the task details.' : 'Add a new task to the backlog.' }}
-                </SheetDescription>
-              </SheetHeader>
-
-              <form
-                class="flex flex-1 flex-col gap-4 overflow-y-auto py-4"
-                @submit.prevent="handleSubmit"
-              >
-                <div class="grid gap-3">
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Title</label>
-                    <Input v-model="formTitle" placeholder="e.g. Pack kitchen boxes" />
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Room / Area</label>
-                    <Input v-model="formRoom" placeholder="e.g. Kitchen" />
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Priority</label>
-                    <Select v-model="formPriority">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
-                    <Select v-model="formStatus">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="backlog">Backlog</SelectItem>
-                        <SelectItem value="ready">Ready</SelectItem>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-muted-foreground">People Needed</label>
-                    <Input v-model.number="formPeopleNeeded" type="number" min="1" />
-                  </div>
-                </div>
-
-                <!-- Assignment -->
-                <fieldset v-if="peopleData.people?.length" class="rounded border border-border p-3">
-                  <legend class="px-1 text-xs font-medium text-muted-foreground">Assign People</legend>
-                  <div class="flex flex-wrap gap-3">
-                    <label
-                      v-for="person in peopleData.people"
-                      :key="person.id"
-                      class="flex items-center gap-1.5 text-sm"
-                    >
-                      <Checkbox
-                        :model-value="formAssignedTo.includes(person.id)"
-                        size="sm"
-                        @update:model-value="toggleAssignment(person.id)"
-                      />
-                      {{ person.name }}
-                    </label>
-                  </div>
-                </fieldset>
-
-                <SheetFooter class="mt-auto">
-                  <Button type="submit" :disabled="createMut.isLoading.value || updateMut.isLoading.value">
-                    {{ editingId ? 'Save' : 'Add' }}
-                  </Button>
-                  <Button variant="outline" type="button" @click="cancelEdit">
-                    Cancel
-                  </Button>
-                </SheetFooter>
-              </form>
-            </SheetContent>
-          </Sheet>
+          <Button @click="startNewTask">
+            + Add Task
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -326,4 +223,89 @@ watch(() => data.value.tasks, (tasks) => {
       </CardContent>
     </Card>
   </section>
+
+  <!-- Add/Edit Modal -->
+  <AddOperationModal
+    v-model:open="modalOpen"
+    :title="editingId ? 'Edit Task' : 'Add Task'"
+    :description="editingId ? 'Update the task details.' : 'Add a new task to the backlog.'"
+    :submit-label="editingId ? 'Save' : 'Add'"
+    :disabled="createMut.isLoading.value || updateMut.isLoading.value"
+    :submitting="createMut.isLoading.value || updateMut.isLoading.value"
+    @submit="handleSubmit"
+    @cancel="cancelEdit"
+  >
+    <form
+      class="flex flex-col gap-4"
+      @submit.prevent="handleSubmit"
+    >
+      <!-- Mutation error inside modal body -->
+      <p
+        v-if="mutationError"
+        class="rounded border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+      >
+        {{ mutationError }}
+      </p>
+
+      <div class="grid gap-3">
+        <div>
+          <label class="mb-1 block text-xs font-medium text-muted-foreground">Title</label>
+          <Input v-model="formTitle" placeholder="e.g. Pack kitchen boxes" />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-muted-foreground">Room / Area</label>
+          <Input v-model="formRoom" placeholder="e.g. Kitchen" />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-muted-foreground">Priority</label>
+          <Select v-model="formPriority">
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
+          <Select v-model="formStatus">
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="backlog">Backlog</SelectItem>
+              <SelectItem value="ready">Ready</SelectItem>
+              <SelectItem value="assigned">Assigned</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-muted-foreground">People Needed</label>
+          <Input v-model.number="formPeopleNeeded" type="number" min="1" />
+        </div>
+      </div>
+
+      <!-- Assignment -->
+      <fieldset v-if="peopleData.people?.length" class="rounded border border-border p-3">
+        <legend class="px-1 text-xs font-medium text-muted-foreground">Assign People</legend>
+        <div class="flex flex-wrap gap-3">
+          <label
+            v-for="person in peopleData.people"
+            :key="person.id"
+            class="flex items-center gap-1.5 text-sm"
+          >
+            <Checkbox
+              :model-value="formAssignedTo.includes(person.id)"
+              size="sm"
+              @update:model-value="toggleAssignment(person.id)"
+            />
+            {{ person.name }}
+          </label>
+        </div>
+      </fieldset>
+    </form>
+  </AddOperationModal>
 </template>
