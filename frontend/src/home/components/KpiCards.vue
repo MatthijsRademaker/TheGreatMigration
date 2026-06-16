@@ -15,8 +15,6 @@ const tasksBacklogQuery = useQuery(getTasksBacklogQuery())
 
 const rawAvailableToday = computed(() => availabilityQuery.data.value?.summary.availableToday ?? 0)
 const totalPeople = computed(() => availabilityQuery.data.value?.summary.totalPeople ?? 0)
-const availabilityLoading = computed(() => availabilityQuery.isPending.value)
-const availabilityError = computed(() => availabilityQuery.error.value != null)
 
 /**
  * Clamp availableToday so it never exceeds totalPeople (defensive guard against
@@ -24,10 +22,23 @@ const availabilityError = computed(() => availabilityQuery.error.value != null)
  */
 const displayAvailableToday = computed(() => Math.min(rawAvailableToday.value, totalPeople.value))
 
+/** Consolidated display status for the People available today card. */
+const availabilityStatus = computed(() => {
+  if (availabilityQuery.isPending.value) return 'loading'
+  if (availabilityQuery.error.value != null) return 'error'
+  if (totalPeople.value === 0) return 'empty'
+  return 'ready'
+})
+
 const highPriorityTasks = computed(() => tasksBacklogQuery.data.value?.summary.highPriorityTasks ?? 0)
 const unassignedTasks = computed(() => tasksBacklogQuery.data.value?.summary.unassignedTasks ?? 0)
-const backlogLoading = computed(() => tasksBacklogQuery.isPending.value)
-const backlogError = computed(() => tasksBacklogQuery.error.value != null)
+
+/** Consolidated display status for the two task-backlog KPI cards. */
+const backlogStatus = computed(() => {
+  if (tasksBacklogQuery.isPending.value) return 'loading'
+  if (tasksBacklogQuery.error.value != null) return 'error'
+  return 'ready'
+})
 
 /** Shared config for the two cards that consume getTasksBacklogQuery. */
 interface BacklogCardConfig {
@@ -36,7 +47,6 @@ interface BacklogCardConfig {
   description: string
   icon: typeof TriangleAlertIcon
   bgClass: string
-  textClass: string
 }
 
 const backlogCards = computed<BacklogCardConfig[]>(() => [
@@ -46,7 +56,6 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
     description: 'Tasks marked as high priority',
     icon: TriangleAlertIcon,
     bgClass: 'bg-destructive-soft text-destructive',
-    textClass: '',
   },
   {
     label: 'Unassigned jobs',
@@ -54,7 +63,6 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
     description: 'Tasks with no one assigned yet',
     icon: HammerIcon,
     bgClass: 'bg-warning-soft text-warning',
-    textClass: '',
   },
 ])
 </script>
@@ -67,9 +75,9 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
         <div class="flex flex-col gap-1">
           <CardDescription>People available today</CardDescription>
           <CardTitle class="text-3xl">
-            <span v-if="availabilityLoading" class="text-muted-foreground">Loading…</span>
-            <span v-else-if="availabilityError" class="text-destructive">Backend unavailable</span>
-            <span v-else-if="totalPeople === 0">—</span>
+            <span v-if="availabilityStatus === 'loading'" class="text-muted-foreground">Loading…</span>
+            <span v-else-if="availabilityStatus === 'error'" class="text-destructive">Backend unavailable</span>
+            <span v-else-if="availabilityStatus === 'empty'">—</span>
             <span v-else>{{ displayAvailableToday }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span></span>
           </CardTitle>
         </div>
@@ -88,8 +96,8 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
         <div class="flex flex-col gap-1">
           <CardDescription>{{ card.label }}</CardDescription>
           <CardTitle class="text-3xl">
-            <span v-if="backlogLoading" class="text-muted-foreground">Loading…</span>
-            <span v-else-if="backlogError" class="text-destructive">Backend unavailable</span>
+            <span v-if="backlogStatus === 'loading'" class="text-muted-foreground">Loading…</span>
+            <span v-else-if="backlogStatus === 'error'" class="text-destructive">Backend unavailable</span>
             <span v-else>{{ card.value }}</span>
           </CardTitle>
         </div>
