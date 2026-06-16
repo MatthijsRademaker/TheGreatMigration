@@ -42,7 +42,7 @@ describe("sidebar nav-item clickability", () => {
 		);
 	});
 
-	async function mountSidebarDesktop(initialPath = "/") {
+	async function mountSidebarDesktop(initialPath = "/", collapsed = false) {
 		const router = createRouter({
 			history: createMemoryHistory(),
 			routes: [
@@ -84,7 +84,7 @@ describe("sidebar nav-item clickability", () => {
 		const TestWrapper = defineComponent({
 			components: { SidebarProvider, AppSidebar },
 			template: `
-				<SidebarProvider>
+				<SidebarProvider${collapsed ? ' :open="false"' : ""}>
 					<AppSidebar />
 				</SidebarProvider>
 			`,
@@ -152,6 +152,20 @@ describe("sidebar nav-item clickability", () => {
 		await flushPromises();
 		await nextTick();
 		expect(router.currentRoute.value.path).toBe("/people");
+	});
+
+	it("has a title attribute on each nav <a> when sidebar is collapsed", async () => {
+		const { wrapper } = await mountSidebarDesktop("/", true);
+
+		for (const item of NAV_ITEMS) {
+			const selector = `a[data-sidebar="menu-button"]:not([aria-label])[href="${item.to}"]`;
+			const link = wrapper.find(selector);
+			expect(link.exists(), `Expected ${selector}`).toBe(true);
+			expect(
+				link.attributes("title"),
+				`${item.title}: title attribute on collapsed sidebar`,
+			).toBe(item.title);
+		}
 	});
 
 	it("does not contain duplicate branding in the footer", async () => {
