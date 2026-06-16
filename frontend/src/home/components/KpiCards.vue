@@ -34,7 +34,7 @@ const backlogError = computed(() => tasksBacklogQuery.error.value != null)
           <CardTitle class="text-3xl">
             <span v-if="availabilityLoading" class="text-muted-foreground">Loading…</span>
             <span v-else-if="availabilityError" class="text-destructive">Backend unavailable</span>
-            <span v-else>{{ availableToday }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span></span>
+            <span v-else>{{ availableToday }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span> available</span>
           </CardTitle>
         </div>
         <div class="flex size-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
