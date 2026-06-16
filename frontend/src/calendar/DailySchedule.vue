@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 interface AssignedPerson {
   id: string
   name: string
+  initials: string
 }
 
 interface TaskCard {
@@ -19,6 +20,7 @@ interface TaskCard {
   assignedPeople: AssignedPerson[]
   peopleNeeded: number
   assignedCount: number
+  staffingStatus: 'fullyStaffed' | 'underStaffed'
 }
 
 interface ScheduleDay {
@@ -42,29 +44,32 @@ const defaultDays: ScheduleDay[] = [
         priority: 'high',
         roomArea: 'Hallway',
         assignedPeople: [
-          { id: 'p1', name: 'Alex' },
-          { id: 'p2', name: 'Morgan' },
+          { id: 'p1', name: 'Alex', initials: 'A' },
+          { id: 'p2', name: 'Morgan', initials: 'M' },
         ],
         peopleNeeded: 2,
         assignedCount: 2,
+        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't2',
         title: 'Steam walls',
         priority: 'medium',
         roomArea: 'Bathroom',
-        assignedPeople: [{ id: 'p3', name: 'Sam' }],
+        assignedPeople: [{ id: 'p3', name: 'Sam', initials: 'S' }],
         peopleNeeded: 1,
         assignedCount: 1,
+        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't3',
         title: 'Clean up',
         priority: 'low',
         roomArea: 'Kitchen',
-        assignedPeople: [{ id: 'p4', name: 'Riley' }],
+        assignedPeople: [{ id: 'p4', name: 'Riley', initials: 'R' }],
         peopleNeeded: 2,
         assignedCount: 1,
+        staffingStatus: 'underStaffed',
       },
     ],
   },
@@ -79,20 +84,22 @@ const defaultDays: ScheduleDay[] = [
         priority: 'high',
         roomArea: 'Living Room',
         assignedPeople: [
-          { id: 'p1', name: 'Alex' },
-          { id: 'p5', name: 'Jordan' },
+          { id: 'p1', name: 'Alex', initials: 'A' },
+          { id: 'p5', name: 'Jordan', initials: 'J' },
         ],
         peopleNeeded: 3,
         assignedCount: 2,
+        staffingStatus: 'underStaffed',
       },
       {
         id: 't5',
         title: 'Bedroom painting',
         priority: 'medium',
         roomArea: 'Bedroom',
-        assignedPeople: [{ id: 'p3', name: 'Sam' }],
+        assignedPeople: [{ id: 'p3', name: 'Sam', initials: 'S' }],
         peopleNeeded: 1,
         assignedCount: 1,
+        staffingStatus: 'fullyStaffed',
       },
     ],
   },
@@ -106,9 +113,10 @@ const defaultDays: ScheduleDay[] = [
         title: 'Touch up woodwork',
         priority: 'low',
         roomArea: 'Dining Room',
-        assignedPeople: [{ id: 'p2', name: 'Morgan' }],
+        assignedPeople: [{ id: 'p2', name: 'Morgan', initials: 'M' }],
         peopleNeeded: 1,
         assignedCount: 1,
+        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't7',
@@ -116,11 +124,12 @@ const defaultDays: ScheduleDay[] = [
         priority: 'high',
         roomArea: 'Living Room',
         assignedPeople: [
-          { id: 'p4', name: 'Riley' },
-          { id: 'p1', name: 'Alex' },
+          { id: 'p4', name: 'Riley', initials: 'R' },
+          { id: 'p1', name: 'Alex', initials: 'A' },
         ],
         peopleNeeded: 2,
         assignedCount: 2,
+        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't8',
@@ -130,6 +139,7 @@ const defaultDays: ScheduleDay[] = [
         assignedPeople: [],
         peopleNeeded: 2,
         assignedCount: 0,
+        staffingStatus: 'underStaffed',
       },
     ],
   },
@@ -143,18 +153,20 @@ const defaultDays: ScheduleDay[] = [
         title: 'Kitchen painting',
         priority: 'medium',
         roomArea: 'Kitchen',
-        assignedPeople: [{ id: 'p3', name: 'Sam' }],
+        assignedPeople: [{ id: 'p3', name: 'Sam', initials: 'S' }],
         peopleNeeded: 1,
         assignedCount: 1,
+        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't10',
         title: 'Final clean',
         priority: 'low',
         roomArea: 'Whole House',
-        assignedPeople: [{ id: 'p5', name: 'Jordan' }],
+        assignedPeople: [{ id: 'p5', name: 'Jordan', initials: 'J' }],
         peopleNeeded: 2,
         assignedCount: 1,
+        staffingStatus: 'underStaffed',
       },
     ],
   },
