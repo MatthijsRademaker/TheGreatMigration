@@ -261,6 +261,14 @@ func (n *nilPlanningWindowStore) DeleteScheduleCard(ctx context.Context, id stri
 	return errTestFailure
 }
 
+func (n *nilPlanningWindowStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
 func (n *nilPlanningWindowStore) ListRooms(ctx context.Context) ([]backendapi.Room, error) {
 	return nil, errTestFailure
 }
