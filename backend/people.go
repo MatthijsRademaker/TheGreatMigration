@@ -148,7 +148,7 @@ func registerPeopleEndpoints(api huma.API, store Store) {
 			return nil, huma.Error500InternalServerError("failed to check person existence", err)
 		}
 		if exists {
-			return nil, huma.Error400BadRequest("a person with this id already exists")
+			return nil, huma.Error409Conflict("a person with this id already exists")
 		}
 
 		if err := store.CreatePerson(ctx, input.Body.ID, input.Body.Name, input.Body.Initials); err != nil {

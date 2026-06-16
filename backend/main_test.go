@@ -905,8 +905,8 @@ func TestCreatePersonDuplicate(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for duplicate, got %d\nbody: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409 for duplicate, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
 

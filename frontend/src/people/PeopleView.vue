@@ -173,8 +173,8 @@ async function handleClearAvailability() {
 
 // --- Derive ISO date from day index ---
 function getISODate(dayIndex: number): string {
-  // rawData is guaranteed defined when the matrix is visible (v-else guard).
-  const start = new Date(rawData.value!.range.startDate)
+  if (!rawData.value?.range) return ''
+  const start = new Date(rawData.value.range.startDate)
   start.setDate(start.getDate() + dayIndex)
   return start.toISOString().slice(0, 10)
 }
