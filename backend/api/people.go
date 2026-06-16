@@ -129,12 +129,13 @@ func isForeignKeyViolation(err error) bool {
 func registerPeopleEndpoints(api huma.API, store Store) {
 	// POST /api/people
 	huma.Register(api, huma.Operation{
-		OperationID: "create-person",
-		Method:      http.MethodPost,
-		Path:        "/api/people",
-		Summary:     "Create a person",
-		Description: "Creates a new person with a server-assigned sequential ID.",
-		Tags:        []string{"People"},
+		OperationID:   "create-person",
+		Method:        http.MethodPost,
+		Path:          "/api/people",
+		Summary:       "Create a person",
+		Description:   "Creates a new person with a server-assigned sequential ID.",
+		DefaultStatus: http.StatusCreated,
+		Tags:          []string{"People"},
 	}, func(ctx context.Context, input *CreatePersonInput) (*CreatePersonOutput, error) {
 		// Validate fields are non-empty (Huma's minLength handles this, but double-check).
 		if input.Body.Name == "" || input.Body.Initials == "" {

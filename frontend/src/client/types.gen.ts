@@ -31,18 +31,18 @@ export type AvailabilityEntry = {
 };
 
 export type CreatePersonInputBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    /**
-     * Initials
-     */
-    initials: string;
-    /**
-     * Full name
-     */
-    name: string;
+	/**
+	 * A URL to the JSON Schema for this object.
+	 */
+	readonly $schema?: string;
+	/**
+	 * Initials
+	 */
+	initials: string;
+	/**
+	 * Full name
+	 */
+	name: string;
 };
 
 export type CreateRoomRequestBody = {
@@ -608,14 +608,14 @@ export type UpsertAvailabilityOutputBody = {
 };
 
 export type CreatePersonInputBodyWritable = {
-    /**
-     * Initials
-     */
-    initials: string;
-    /**
-     * Full name
-     */
-    name: string;
+	/**
+	 * Initials
+	 */
+	initials: string;
+	/**
+	 * Full name
+	 */
+	name: string;
 };
 
 export type CreateRoomRequestBodyWritable = {
@@ -1009,19 +1009,19 @@ export type GetDashboardDailyScheduleResponse =
 	GetDashboardDailyScheduleResponses[keyof GetDashboardDailyScheduleResponses];
 
 export type GetDashboardPeopleAvailabilityData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date.
-         */
-        start?: string;
-        /**
-         * Number of days inclusive of start date.
-         */
-        days?: number;
-    };
-    url: '/api/dashboard/people-availability';
+	body?: never;
+	path?: never;
+	query?: {
+		/**
+		 * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date.
+		 */
+		start?: string;
+		/**
+		 * Number of days inclusive of start date.
+		 */
+		days?: number;
+	};
+	url: "/api/dashboard/people-availability";
 };
 
 export type GetDashboardPeopleAvailabilityErrors = {
