@@ -64,35 +64,6 @@ type StatusLegend struct {
 	ColorIntent string `json:"colorIntent" doc:"Design system color intent"`
 }
 
-// ---------- Seed data ----------
-
-var seedPeople = []struct {
-	Id       string
-	Name     string
-	Initials string
-	// Status returns the availability status for a given date offset from start.
-	Status func(dayOffset int) string
-}{
-	{Id: "p1", Name: "Sophia Chen", Initials: "SC", Status: always("available")},
-	{Id: "p2", Name: "Marcus Rivera", Initials: "MR", Status: always("available")},
-	{Id: "p3", Name: "Elena Kowalski", Initials: "EK", Status: always("available")},
-	{Id: "p4", Name: "James Okafor", Initials: "JO", Status: always("available")},
-	{Id: "p5", Name: "Priya Nair", Initials: "PN", Status: always("available")},
-	{Id: "p6", Name: "Thomas Berg", Initials: "TB", Status: always("available")},
-	{Id: "p7", Name: "Amara Diallo", Initials: "AD", Status: always("busy")},
-	{Id: "p8", Name: "Noah Larsson", Initials: "NL", Status: cycleStatuses},
-}
-
-func always(s string) func(int) string {
-	return func(_ int) string { return s }
-}
-
-var cycleOrder = []string{"off", "partial", "busy", "available"}
-
-func cycleStatuses(dayOffset int) string {
-	return cycleOrder[dayOffset%len(cycleOrder)]
-}
-
 // ---------- Status legend ----------
 
 var statusLegend = []StatusLegend{

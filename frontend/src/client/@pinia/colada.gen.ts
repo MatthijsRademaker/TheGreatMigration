@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions } from '@pinia/colada';
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { getDashboardPeopleAvailability, getHello, getPlanningWindow, type Options } from '../sdk.gen';
-import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse } from '../types.gen';
+import { getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, type Options } from '../sdk.gen';
+import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -91,6 +91,25 @@ export const getPlanningWindowQuery = defineQueryOptions<Options<GetPlanningWind
     key: getPlanningWindowQueryKey(options),
     query: async (context) => {
         const { data } = await getPlanningWindow({
+            ...options,
+            ...context,
+            throwOnError: true
+        });
+        return data;
+    }
+}));
+
+export const getTasksBacklogQueryKey = (options?: Options<GetTasksBacklogData>) => createQueryKey('getTasksBacklog', options);
+
+/**
+ * Task backlog data
+ *
+ * Returns a combined payload with derived summary counts, task backlog rows, a canonical priority legend, and a canonical task-status legend. The endpoint serves as the read-only source of truth for backlog task data used by the dashboard and /tasks route.
+ */
+export const getTasksBacklogQuery = defineQueryOptions<Options<GetTasksBacklogData>, GetTasksBacklogResponse, GetTasksBacklogError>((options?: Options<GetTasksBacklogData>) => ({
+    key: getTasksBacklogQueryKey(options),
+    query: async (context) => {
+        const { data } = await getTasksBacklog({
             ...options,
             ...context,
             throwOnError: true
