@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // ---------- Seed data (test-only, used by mockStore) ----------
@@ -271,4 +273,34 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 		},
 		Days: scheduleDays,
 	}, nil
+}
+
+// Person CRUD mocks (no-op for existing tests).
+
+func (m *mockStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+	return nil
+}
+
+func (m *mockStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
+	return nil
+}
+
+func (m *mockStore) DeletePerson(ctx context.Context, id string) error {
+	return nil
+}
+
+func (m *mockStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockStore) UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error {
+	return nil
+}
+
+func (m *mockStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return nil
 }

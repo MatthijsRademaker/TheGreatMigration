@@ -6,12 +6,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func newTestAPI(store Store) (chi.Router, huma.API) {
@@ -33,6 +35,7 @@ func newTestAPI(store Store) (chi.Router, huma.API) {
 	registerPlanningWindow(api, store)
 	registerTasksBacklog(api, store)
 	registerDailySchedule(api, store)
+	registerPeopleEndpoints(api, store)
 
 	return router, api
 }
@@ -608,6 +611,34 @@ func (f *failingStore) GetDailySchedule(ctx context.Context, startDate time.Time
 	return nil, errTestFailure
 }
 
+func (f *failingStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+	return errTestFailure
+}
+
+func (f *failingStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
+	return errTestFailure
+}
+
+func (f *failingStore) DeletePerson(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *failingStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *failingStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *failingStore) UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error {
+	return errTestFailure
+}
+
+func (f *failingStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -671,4 +702,489 @@ func (f *partialFailingStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogB
 
 func (f *partialFailingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
 	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) DeletePerson(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *partialFailingStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *partialFailingStore) UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return errTestFailure
+}
+
+// ---------- People CRUD test store ----------
+
+// peopleTestStore wraps a mockStore with in-memory CRUD support for testing the write surface.
+type peopleTestStore struct {
+	*mockStore
+	people       map[string]testPerson
+	availability map[string]map[string]string // personID -> date -> status
+}
+
+type testPerson struct {
+	Name     string
+	Initials string
+}
+
+func newPeopleTestStore() *peopleTestStore {
+	return &peopleTestStore{
+		mockStore:    newMockStore(),
+		people:       make(map[string]testPerson),
+		availability: make(map[string]map[string]string),
+	}
+}
+
+func (s *peopleTestStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+	if _, exists := s.people[id]; exists {
+		return errors.New("duplicate key")
+	}
+	s.people[id] = testPerson{Name: name, Initials: initials}
+	return nil
+}
+
+func (s *peopleTestStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
+	if _, exists := s.people[id]; !exists {
+		return errors.New("not found")
+	}
+	s.people[id] = testPerson{Name: name, Initials: initials}
+	return nil
+}
+
+func (s *peopleTestStore) DeletePerson(ctx context.Context, id string) error {
+	delete(s.people, id)
+	return nil
+}
+
+func (s *peopleTestStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	_, exists := s.people[id]
+	return exists, nil
+}
+
+func (s *peopleTestStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
+	// Simulate: p1, p2, p3 are referenced by backlog/schedule assignments.
+	return id == "p1" || id == "p2" || id == "p3", nil
+}
+
+func (s *peopleTestStore) UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error {
+	if s.availability[personID] == nil {
+		s.availability[personID] = make(map[string]string)
+	}
+	dateStr := date.Time.Format("2006-01-02")
+	s.availability[personID][dateStr] = status
+	return nil
+}
+
+func (s *peopleTestStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	if m, ok := s.availability[personID]; ok {
+		delete(m, date.Time.Format("2006-01-02"))
+	}
+	return nil
+}
+
+// Override GetPeopleAvailability to use the CRUD-backed data.
+func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+	// Build from in-memory people + availability.
+	people := make([]Person, 0, len(s.people))
+	endDate := startDate.AddDate(0, 0, days-1)
+	selectedDate := startDate.Format("2006-01-02")
+
+	availableToday := 0
+	for id, tp := range s.people {
+		avail := make([]AvailabilityEntry, days)
+		for d := 0; d < days; d++ {
+			date := startDate.AddDate(0, 0, d)
+			dateStr := date.Format("2006-01-02")
+			status := "off" // default
+			if m, ok := s.availability[id]; ok {
+				if st, ok := m[dateStr]; ok {
+					status = st
+				}
+			}
+			avail[d] = AvailabilityEntry{
+				Date:   dateStr,
+				Status: status,
+			}
+			if dateStr == selectedDate && status == "available" {
+				availableToday++
+			}
+		}
+		// count availableToday once per person
+		if availableToday > 0 {
+			// We counted per-entry above; we need to count per person.
+			// Fix: only count if the person has "available" on selectedDate.
+		}
+		people = append(people, Person{
+			ID:           id,
+			Name:         tp.Name,
+			Initials:     tp.Initials,
+			Availability: avail,
+		})
+	}
+
+	// Recompute availableToday correctly.
+	availableToday = 0
+	for _, p := range people {
+		for _, e := range p.Availability {
+			if e.Date == selectedDate && e.Status == "available" {
+				availableToday++
+				break
+			}
+		}
+	}
+
+	return &DashboardBody{
+		Range: Range{
+			StartDate:    startDate.Format("2006-01-02"),
+			EndDate:      endDate.Format("2006-01-02"),
+			Days:         days,
+			SelectedDate: selectedDate,
+		},
+		Summary: Summary{
+			AvailableToday: availableToday,
+			TotalPeople:    len(people),
+		},
+		People:   people,
+		Statuses: statusLegend,
+	}, nil
+}
+
+// ---------- People CRUD tests ----------
+
+func TestCreatePerson(t *testing.T) {
+	store := newPeopleTestStore()
+	router, _ := newTestAPI(store)
+
+	body := `{"id":"p9","name":"Test User","initials":"TU"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp Person
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.ID != "p9" {
+		t.Fatalf("expected id p9, got %q", resp.ID)
+	}
+	if resp.Name != "Test User" {
+		t.Fatalf("expected name 'Test User', got %q", resp.Name)
+	}
+}
+
+func TestCreatePersonDuplicate(t *testing.T) {
+	store := newPeopleTestStore()
+	// Seed a person.
+	store.CreatePerson(context.Background(), "p9", "Existing", "EX")
+
+	router, _ := newTestAPI(store)
+
+	body := `{"id":"p9","name":"Test User","initials":"TU"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for duplicate, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreatePersonMissingFields(t *testing.T) {
+	store := newPeopleTestStore()
+	router, _ := newTestAPI(store)
+
+	body := `{"id":"","name":"","initials":""}`
+	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status 422 for empty fields, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdatePerson(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p9", "Original", "OR")
+
+	router, _ := newTestAPI(store)
+
+	body := `{"name":"Updated Name","initials":"UN"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp Person
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Name != "Updated Name" {
+		t.Fatalf("expected name 'Updated Name', got %q", resp.Name)
+	}
+}
+
+func TestUpdatePersonNotFound(t *testing.T) {
+	store := newPeopleTestStore()
+	router, _ := newTestAPI(store)
+
+	body := `{"name":"Nobody","initials":"NB"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/nonexistent", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePerson(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p99", "To Delete", "TD")
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p99", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	exists, _ := store.PersonExists(context.Background(), "p99")
+	if exists {
+		t.Fatal("person should have been deleted")
+	}
+}
+
+func TestDeletePersonNotFound(t *testing.T) {
+	store := newPeopleTestStore()
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/nonexistent", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePersonConflict(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p1", "Sophia Chen", "SC")
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailability(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityInvalidStatus(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"unknown"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for invalid status, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityPersonNotFound(t *testing.T) {
+	store := newPeopleTestStore()
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/nonexistent/availability/2026-07-10", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityOutOfWindow(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
+
+	router, _ := newTestAPI(store)
+
+	// Planning window is 2026-07-05 to 2026-08-13. Use a date outside.
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2025-01-01", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for out-of-window date, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityMalformedDate(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/not-a-date", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for malformed date, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteAvailability(t *testing.T) {
+	store := newPeopleTestStore()
+	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
+	date := pgtype.Date{Time: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC), Valid: true}
+	store.UpsertAvailability(context.Background(), "p9", date, "available")
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9/availability/2026-07-10", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteAvailabilityPersonNotFound(t *testing.T) {
+	store := newPeopleTestStore()
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/nonexistent/availability/2026-07-10", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOpenAPIIncludesPeopleEndpoints(t *testing.T) {
+	_, api := newTestAPI(newMockStore())
+
+	openAPIBytes, err := json.Marshal(api.OpenAPI())
+	if err != nil {
+		t.Fatalf("failed to marshal OpenAPI: %v", err)
+	}
+
+	var spec map[string]interface{}
+	if err := json.Unmarshal(openAPIBytes, &spec); err != nil {
+		t.Fatalf("failed to unmarshal OpenAPI spec: %v", err)
+	}
+
+	paths, ok := spec["paths"].(map[string]interface{})
+	if !ok {
+		t.Fatal("OpenAPI spec missing 'paths' key")
+	}
+
+	expectedPaths := []string{
+		"/api/people",
+		"/api/people/{id}",
+		"/api/people/{id}/availability/{date}",
+	}
+	for _, p := range expectedPaths {
+		if _, exists := paths[p]; !exists {
+			t.Fatalf("OpenAPI spec does not include %s", p)
+		}
+	}
+}
+
+func TestExistingDashboardPeopleAvailabilityUnchanged(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	var body DashboardBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Verify the existing contract.
+	if body.Range.StartDate == "" {
+		t.Fatal("range.startDate is empty")
+	}
+	if len(body.People) < 8 {
+		t.Fatalf("expected at least 8 people, got %d", len(body.People))
+	}
+	if len(body.Statuses) != 4 {
+		t.Fatalf("expected 4 statuses, got %d", len(body.Statuses))
+	}
 }

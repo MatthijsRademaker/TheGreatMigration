@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses } from './types.gen';
+import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -45,3 +45,59 @@ export const getPlanningWindow = <ThrowOnError extends boolean = false>(options?
  * Returns a combined payload with derived summary counts, task backlog rows, a canonical priority legend, and a canonical task-status legend. The endpoint serves as the read-only source of truth for backlog task data used by the dashboard and /tasks route.
  */
 export const getTasksBacklog = <ThrowOnError extends boolean = false>(options?: Options<GetTasksBacklogData, ThrowOnError>): RequestResult<GetTasksBacklogResponses, GetTasksBacklogErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksBacklogResponses, GetTasksBacklogErrors, ThrowOnError>({ url: '/api/tasks/backlog', ...options });
+
+/**
+ * Create a person
+ *
+ * Creates a new person with a client-supplied stable ID suitable for name-derived slugs.
+ */
+export const createPerson = <ThrowOnError extends boolean = false>(options: Options<CreatePersonData, ThrowOnError>): RequestResult<CreatePersonResponses, CreatePersonErrors, ThrowOnError> => (options.client ?? client).post<CreatePersonResponses, CreatePersonErrors, ThrowOnError>({
+    url: '/api/people',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a person
+ *
+ * Deletes a person. Returns 409 Conflict if the person is referenced by backlog or schedule assignments.
+ */
+export const deletePerson = <ThrowOnError extends boolean = false>(options: Options<DeletePersonData, ThrowOnError>): RequestResult<DeletePersonResponses, DeletePersonErrors, ThrowOnError> => (options.client ?? client).delete<DeletePersonResponses, DeletePersonErrors, ThrowOnError>({ url: '/api/people/{id}', ...options });
+
+/**
+ * Update a person
+ *
+ * Updates the name and initials of an existing person.
+ */
+export const updatePerson = <ThrowOnError extends boolean = false>(options: Options<UpdatePersonData, ThrowOnError>): RequestResult<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError> => (options.client ?? client).put<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError>({
+    url: '/api/people/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete person availability for a date
+ *
+ * Deletes a single availability entry for a person on a specific date. Subsequent dashboard reads will fall back to the default-missing-availability behavior.
+ */
+export const deletePersonAvailability = <ThrowOnError extends boolean = false>(options: Options<DeletePersonAvailabilityData, ThrowOnError>): RequestResult<DeletePersonAvailabilityResponses, DeletePersonAvailabilityErrors, ThrowOnError> => (options.client ?? client).delete<DeletePersonAvailabilityResponses, DeletePersonAvailabilityErrors, ThrowOnError>({ url: '/api/people/{id}/availability/{date}', ...options });
+
+/**
+ * Upsert person availability for a date
+ *
+ * Creates or updates a single availability entry for a person on a specific date. The status must be one of: available, busy, partial, off. The date must be within the planning window.
+ */
+export const upsertPersonAvailability = <ThrowOnError extends boolean = false>(options: Options<UpsertPersonAvailabilityData, ThrowOnError>): RequestResult<UpsertPersonAvailabilityResponses, UpsertPersonAvailabilityErrors, ThrowOnError> => (options.client ?? client).put<UpsertPersonAvailabilityResponses, UpsertPersonAvailabilityErrors, ThrowOnError>({
+    url: '/api/people/{id}/availability/{date}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
