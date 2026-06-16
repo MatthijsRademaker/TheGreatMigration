@@ -1152,6 +1152,98 @@ func TestDeleteTaskWithScheduleCards(t *testing.T) {
 	}
 }
 
+func TestCreateScheduleCardWithValidTaskId(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-1 ("Disconnect kitchen appliances", high, Kitchen, 3 people).
+	// Omit title/priority/roomArea/peopleNeeded to verify inheritance.
+	body := `{"taskId":"task-1","scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected inherited priority 'high', got %q", resp.Priority)
+	}
+	if resp.RoomArea != "Kitchen" {
+		t.Fatalf("expected inherited roomArea 'Kitchen', got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 3 {
+		t.Fatalf("expected inherited peopleNeeded 3, got %d", resp.PeopleNeeded)
+	}
+	if resp.TaskId == nil || *resp.TaskId != "task-1" {
+		t.Fatalf("expected taskId 'task-1', got %v", resp.TaskId)
+	}
+}
+
+func TestCreateScheduleCardWithInvalidTaskId(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing a non-existent task.
+	body := `{"taskId":"task-999","scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateScheduleCardWithTaskIdAndOverrides(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-2 ("Wrap living room furniture", high, Living Room, 2 people)
+	// but explicitly override title and peopleNeeded.
+	body := `{"title":"Custom override","priority":"low","taskId":"task-2","scheduledDate":"2026-07-05","assignedTo":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	// Explicit overrides should win.
+	if resp.Title != "Custom override" {
+		t.Fatalf("expected override title 'Custom override', got %q", resp.Title)
+	}
+	if resp.Priority != "low" {
+		t.Fatalf("expected override priority 'low', got %q", resp.Priority)
+	}
+	// Inherited fields for values not explicitly set.
+	if resp.RoomArea != "Living Room" {
+		t.Fatalf("expected inherited roomArea 'Living Room', got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 2 {
+		t.Fatalf("expected inherited peopleNeeded 2, got %d", resp.PeopleNeeded)
+	}
+	if resp.TaskId == nil || *resp.TaskId != "task-2" {
+		t.Fatalf("expected taskId 'task-2', got %v", resp.TaskId)
+	}
+}
+
 func TestTaskWriteReflectsInBacklog(t *testing.T) {
 	store := newMockStore()
 	router, _ := newTestAPI(store)
@@ -2040,6 +2132,68 @@ func TestUpdateScheduleCard(t *testing.T) {
 	}
 }
 
+func TestUpdateScheduleCardWithTaskIdPreservesInheritedFields(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card referencing task-1 ("Disconnect kitchen appliances", high, Kitchen, 3 people).
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+	if card.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", card.Title)
+	}
+
+	router, _ := newTestAPI(store)
+
+	// Simulate frontend behavior: update ONLY scheduledDate and assignedTo,
+	// omitting title/priority/roomArea/peopleNeeded for a taskId-linked card.
+	body := `{"taskId":"task-1","scheduledDate":"2026-07-06","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Assert inherited fields from task-1 are preserved.
+	if resp.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected title 'Disconnect kitchen appliances' (inherited), got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high' (inherited), got %q", resp.Priority)
+	}
+	if resp.RoomArea != "Kitchen" {
+		t.Fatalf("expected roomArea 'Kitchen' (inherited), got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 3 {
+		t.Fatalf("expected peopleNeeded 3 (inherited from task-1), got %d", resp.PeopleNeeded)
+	}
+	if resp.TaskId == nil || *resp.TaskId != "task-1" {
+		t.Fatalf("expected taskId 'task-1', got %v", resp.TaskId)
+	}
+
+	// Verify store reflects the update correctly.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("store card title not preserved: got %q", stored.Title)
+	}
+}
+
 func TestUpdateScheduleCardNotFound(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
@@ -2138,11 +2292,62 @@ func TestScheduleCardWriteReflectsInDailySchedule(t *testing.T) {
 			if task.Priority != "high" {
 				t.Fatalf("reflected task has wrong priority: %q", task.Priority)
 			}
+			// Card was created without taskId, so it should be null.
+			if task.TaskId != nil {
+				t.Fatalf("expected taskId nil for card without reference, got %v", *task.TaskId)
+			}
 			break
 		}
 	}
 	if !found {
 		t.Fatal("created schedule card not found in daily schedule response")
+	}
+}
+
+func TestTaskIdReflectsInDailySchedule(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	// Create a schedule card referencing task-1 on 2026-07-05.
+	createBody := `{"taskId":"task-1","scheduledDate":"2026-07-05","assignedTo":["p1"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create failed: status %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// GET the daily schedule and verify the new card appears with taskId.
+	getReq := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule?start=2026-07-05&days=4", nil)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("daily schedule GET failed: status %d\nbody: %s", getRec.Code, getRec.Body.String())
+	}
+
+	var ds backendapi.DailyScheduleBody
+	if err := json.Unmarshal(getRec.Body.Bytes(), &ds); err != nil {
+		t.Fatalf("failed to unmarshal daily schedule: %v", err)
+	}
+
+	if len(ds.Days) == 0 {
+		t.Fatal("no days in daily schedule")
+	}
+	found := false
+	for _, task := range ds.Days[0].Tasks {
+		if task.TaskId != nil && *task.TaskId == "task-1" {
+			found = true
+			if task.Title != "Disconnect kitchen appliances" {
+				t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", task.Title)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("taskId-linked schedule card not found in daily schedule response")
 	}
 }
 

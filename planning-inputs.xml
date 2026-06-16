@@ -1,0 +1,170 @@
+<planning_inputs>
+  <summary>
+    <goal>Fix the data-corruption bug in UpdateScheduleCard where taskId-linked card updates erase inherited field values, and add missing backend test coverage for taskId-based schedule card creation.</goal>
+    <diff_summary>Branch feature/2a5f914b-171f-4ccc-a5c0-11f959f3900a (HEAD 8f38248) modifies 7 files: backend/api/daily_schedule.go (formatting), backend/api/tasks.go (ErrTaskHasScheduleCards sentinel, 400 response), backend/main_test.go (TestDeleteTaskWithScheduleCards), backend/store.go (indentation fix, wrap error), backend/store_mock_test.go (scheduleTaskRefs, TaskHasScheduleCards in mock), frontend/src/calendar/CalendarView.vue (restored free-form fields, correct handleSubmit for both paths), frontend/src/calendar/__tests__/CalendarView.spec.ts (daily schedule mock, mutation spies, taskId create test, edit modal tests).</diff_summary>
+    <durable_task_comment_status>present</durable_task_comment_status>
+  </summary>
+
+  <review_feedback>
+    <!-- Repeated/unresolved across rounds -->
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-lead-dev</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>6d65a97b-4d40-4253-9a87-f5fc3df2d079</agent_run_id>
+        <created_at>2026-06-16T20:19:27Z</created_at>
+      </source_metadata>
+      <request>Fix the data corruption bug in UpdateScheduleCard: when frontend omits title/priority/roomArea/peopleNeeded for taskId-linked card edits, backend unconditionally writes empty/zero values to SQL. Add inheritance logic similar to CreateScheduleCard (resolve from GetTaskByIDForRef for empty input fields).</request>
+      <impacted_code>backend/store.go:718-763 — UpdateScheduleCard function body: passes input.Title/Priority/RoomArea/PeopleNeeded directly to tx.UpdateScheduleCard without resolving from referenced task.</impacted_code>
+      <notes>REPEATED from all 3 review rounds (lead-dev, reviewer 3, reviewer 4). This is the most critical remaining bug. CreateScheduleCard at ~line 654 has the correct pattern: it resolves refTask via GetTaskByIDForRef when taskId is set, and inherits title/priority/roomArea/peopleNeeded when input fields are empty/zero. UpdateScheduleCard needs the same logic before calling tx.UpdateScheduleCard.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>1edb858a-f61b-4607-a8e9-a82b5a211772</agent_run_id>
+        <created_at>2026-06-16T20:19:07Z</created_at>
+      </source_metadata>
+      <request>Add backend tests for creating schedule cards with taskId: (1) valid taskId should inherit task fields, (2) invalid taskId should return 400, (3) taskId + explicit field overrides.</request>
+      <impacted_code>backend/main_test.go — no tests exist for taskId-based schedule card creation. Existing tests (TestCreateScheduleCard, TestCreateScheduleCardValidation) do not include taskId.</impacted_code>
+      <notes>Unresolved. No backend test exercises the taskId inheritance logic in CreateScheduleCard. The mock store already supports TaskID via scheduleTaskRefs and scheduleCards map (it stores cardRow.TaskID if non-empty). Test setup possible with CreateScheduleCardInput{TaskId: "task-1", ...}.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>1edb858a-f61b-4607-a8e9-a82b5a211772</agent_run_id>
+        <created_at>2026-06-16T20:19:07Z</created_at>
+      </source_metadata>
+      <request>TestScheduleCardWriteReflectsInDailySchedule should verify taskId field appears in daily-schedule response after creating a taskId-linked card. Add a separate test for cards without taskId returning null.</request>
+      <impacted_code>backend/main_test.go:2101 — TestScheduleCardWriteReflectsInDailySchedule does not assert taskId in the response.</impacted_code>
+      <notes>Unresolved. The test creates a card without taskId and checks Title/Priority in the daily-schedule response but never checks taskId. Should add assertions that taskId is null for this case, plus a separate variant with taskId set.</notes>
+    </item>
+
+    <!-- Resolved in current branch -->
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>8966c534-3676-461f-9b9b-7559b3c1ed2a</agent_run_id>
+        <created_at>2026-06-16T20:01:10Z</created_at>
+      </source_metadata>
+      <request>Restore free-form form fields for edit mode when selectedTask is null (unreferenced cards). Populate from existing card values, use form values in handleSubmit instead of hardcoded defaults.</request>
+      <impacted_code>frontend/src/calendar/CalendarView.vue — previously critical bug where edit path for unreferenced cards showed task selector and sent empty/dummy data.</impacted_code>
+      <notes>ALREADY FIXED. Current HEAD adds formTitle/formPriority/formPeopleNeeded/formRoomArea refs, openEdit populates them for unreferenced cards, handleSubmit uses form values in the else branch.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>8966c534-3676-461f-9b9b-7559b3c1ed2a</agent_run_id>
+        <created_at>2026-06-16T20:01:10Z</created_at>
+      </source_metadata>
+      <request>Define sentinel error ErrTaskHasScheduleCards and use errors.Is check in DeleteTask handler to return 400 instead of 500.</request>
+      <impacted_code>backend/api/tasks.go:284 — DeleteTask handler; backend/store.go:597 — DeleteTask error message.</impacted_code>
+      <notes>ALREADY FIXED. ErrTaskHasScheduleCards defined in api/tasks.go at line 28. Handler at line 293 checks errors.Is(err, ErrTaskHasScheduleCards) and returns huma.Error400BadRequest. Store wraps the error correctly with %w.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>8966c534-3676-461f-9b9b-7559b3c1ed2a</agent_run_id>
+        <created_at>2026-06-16T20:01:10Z</created_at>
+      </source_metadata>
+      <request>Fix inconsistent indentation in store.go (var taskIDPtr *string).</request>
+      <impacted_code>backend/store.go:300 — indentation of var taskIDPtr *string.</impacted_code>
+      <notes>ALREADY FIXED. Indentation corrected in current HEAD.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>8966c534-3676-461f-9b9b-7559b3c1ed2a</agent_run_id>
+        <created_at>2026-06-16T20:01:10Z</created_at>
+      </source_metadata>
+      <request>Frontend tests: verify create mutations include taskId in request body, add edit modal tests for referenced and unreferenced cards.</request>
+      <impacted_code>frontend/src/calendar/__tests__/CalendarView.spec.ts — previously no capturing mock assertions or edit modal tests.</impacted_code>
+      <notes>ALREADY FIXED. Current HEAD has createMutateAsync/updateMutateAsync capturing spies, test "sends taskId in create mutation body", and "Edit Modal" describe block with referenced and unreferenced card tests.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>1edb858a-f61b-4607-a8e9-a82b5a211772</agent_run_id>
+        <created_at>2026-06-16T20:19:07Z</created_at>
+      </source_metadata>
+      <request>Add backend test for TestDeleteTaskWithScheduleCards (task delete protection).</request>
+      <impacted_code>backend/main_test.go — no test existed for deleting a task that has referencing schedule cards.</impacted_code>
+      <notes>ALREADY FIXED. TestDeleteTaskWithScheduleCards added at line 1122. Also mock store DeleteTask checks TaskHasScheduleCards before deleting.</notes>
+    </item>
+  </review_feedback>
+
+  <relevant_code_areas>
+    <code_area>
+      <path>/home/devuser/workspace/project-source/backend/store.go</path>
+      <reason>Primary fix target: UpdateScheduleCard (~line 718) needs inheritance logic identical to CreateScheduleCard (~line 654). Must resolve from GetTaskByIDForRef when TaskId is non-empty and input fields are empty/zero before calling tx.UpdateScheduleCard.</reason>
+    </code_area>
+    <code_area>
+      <path>/home/devuser/workspace/project-source/backend/api/daily_schedule.go</path>
+      <reason>Defines CreateScheduleCardInput struct (line 16-24) and TaskCard response struct (line 66+) with TaskId field. Input type already has TaskId string. Response already returns TaskId. No schema changes needed.</reason>
+    </code_area>
+    <code_area>
+      <path>/home/devuser/workspace/project-source/backend/main_test.go</path>
+      <reason>Missing tests: TestCreateScheduleCardWithValidTaskId, TestCreateScheduleCardWithInvalidTaskId, TestCreateScheduleCardWithTaskIdAndOverrides. Also need to extend TestScheduleCardWriteReflectsInDailySchedule to verify taskId in response.</reason>
+    </code_area>
+    <code_area>
+      <path>/home/devuser/workspace/project-source/backend/store_mock_test.go</path>
+      <reason>Mock store already supports TaskID in CreateScheduleCard (stores cardRow.TaskID in scheduleTaskRefs). No changes needed for mock. However, mockUpdateScheduleCard may also need the same inheritance fix if it's called in tests.</reason>
+    </code_area>
+    <code_area>
+      <path>/home/devuser/workspace/project-source/frontend/src/calendar/CalendarView.vue</path>
+      <reason>Already fixed in current HEAD. Verify no further changes needed. The free-form fields, openEdit path, and handleSubmit are correct.</reason>
+    </code_area>
+    <code_area>
+      <path>/home/devuser/workspace/project-source/frontend/src/calendar/__tests__/CalendarView.spec.ts</path>
+      <reason>Already has taskId create mutation test and edit modal tests. Verify assertions are sufficient.</reason>
+    </code_area>
+  </relevant_code_areas>
+
+  <planner_constraints>
+    <constraint>The backend uses a mock store (mockStore) for unit tests. The UpdateScheduleCard inheritance fix must also be applied to mockUpdateScheduleCard if it exists, otherwise mock tests will diverge from real behavior.</constraint>
+    <constraint>The CreateScheduleCardInput struct is shared between create and update paths. Both use the same api.CreateScheduleCardInput type. This is fine — the inheritance logic in UpdateScheduleCard should use the same GetTaskByIDForRef query.</constraint>
+    <constraint>Frontend handleSubmit for taskId-linked card updates sends only taskId, scheduledDate, and assignedTo in the PUT body — intentionally omitting title/priority/roomArea/peopleNeeded. The backend fix must NOT require frontend changes.</constraint>
+    <constraint>All backend tests use httptest (integration-style) against mockStore, not PostgreSQL. Tests for taskId-based creation must work with existing mock infrastructure that already supports TaskID.</constraint>
+    <constraint>The precommit verification script (scripts/precommit-run) must pass after changes.</constraint>
+  </planner_constraints>
+
+  <assumptions>
+    <assumption>The UpdateScheduleCard fix is the only remaining blocking issue. All other feedback items from previous review rounds have been addressed in the current HEAD.</assumption>
+    <assumption>The mock store's CreateScheduleCard already handles TaskId correctly (stores it in scheduleTaskRefs). The mock UpdateScheduleCard may need updating to match PgStore behavior after the fix.</assumption>
+    <assumption>Frontend tests that assert on HTML content (e.g., "From backlog") are sufficient for verifying the edit modal display modes.</assumption>
+    <assumption>Backend tests will use the mock store (newMockStore) which has pre-seeded tasks (task-1, task-2) and schedule cards available for test setup.</assumption>
+  </assumptions>
+
+  <open_questions>
+    <question>Does mockStore.UpdateScheduleCard currently handle TaskID? If not, does it need to be updated to match PgStore behavior (storing the taskId in scheduleTaskRefs) to support taskId-linked update tests?</question>
+    <question>Should UpdateScheduleCard always query the referenced task (like CreateScheduleCard does), or should it also fall back to the existing DB values when input fields are empty/zero? The reviewer suggests task inheritance, but existing DB values could also be a valid fallback for fields the user doesn't want to change.</question>
+    <question>Does TestUpdateScheduleCard need a varaint that tests taskId-linked card update to prevent regression?</question>
+  </open_questions>
+
+  <recommended_validation>
+    <step>After adding inheritance logic to UpdateScheduleCard: (1) PgStore: write a test that creates a card with taskId, then updates it with only scheduledDate and assignedTo (omitting title/priority/roomArea/peopleNeeded), then asserts the inherited fields are preserved. (2) Mock store: mirror the same behavior. (3) Run go test ./backend/... to verify no regressions. (4) Run frontend vitest for CalendarView.spec.ts. (5) Run scripts/precommit-run for full verification.</step>
+    <step>After adding backend taskId-based creation tests: Run specific tests for valid taskId, invalid taskId, taskId+overrides, and daily-schedule reflection with taskId.</step>
+  </recommended_validation>
+</planning_inputs>

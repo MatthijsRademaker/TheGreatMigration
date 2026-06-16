@@ -728,6 +728,36 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		return nil, fmt.Errorf("parse scheduledDate: %w", err)
 	}
 
+	// Resolve inherited fields from referenced backlog task.
+	title := input.Title
+	priority := input.Priority
+	roomArea := input.RoomArea
+	peopleNeeded := input.PeopleNeeded
+
+	if input.TaskId != "" {
+		refTask, err := s.queries.GetTaskByIDForRef(ctx, input.TaskId)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, fmt.Errorf("referenced task '%s' not found", input.TaskId)
+			}
+			return nil, fmt.Errorf("get referenced task: %w", err)
+		}
+
+		// Inherit only when the caller did not provide an explicit value.
+		if title == "" {
+			title = refTask.Title
+		}
+		if priority == "" {
+			priority = refTask.Priority
+		}
+		if roomArea == "" {
+			roomArea = refTask.Room
+		}
+		if peopleNeeded < 1 {
+			peopleNeeded = int(refTask.PeopleNeeded)
+		}
+	}
+
 	pgxTx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -762,10 +792,10 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 
 	cardRow, err := tx.UpdateScheduleCard(ctx, db.UpdateScheduleCardParams{
 		ID:            id,
-		Title:         input.Title,
-		Priority:      input.Priority,
-		RoomArea:      input.RoomArea,
-		PeopleNeeded:  int32(input.PeopleNeeded),
+		Title:         title,
+		Priority:      priority,
+		RoomArea:      roomArea,
+		PeopleNeeded:  int32(peopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
 		SortOrder:     existing.SortOrder, // Preserve existing sort order.
 		TaskID:        pgtype.Text{String: input.TaskId, Valid: input.TaskId != ""},

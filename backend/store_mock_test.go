@@ -539,6 +539,29 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 		return nil, api.ErrScheduleCardNotFound
 	}
 
+	// Resolve inherited fields from referenced backlog task.
+	title := input.Title
+	priority := input.Priority
+	roomArea := input.RoomArea
+	peopleNeeded := input.PeopleNeeded
+
+	if input.TaskId != "" {
+		if refTask, ok := m.tasks[input.TaskId]; ok {
+			if title == "" {
+				title = refTask.Title
+			}
+			if priority == "" {
+				priority = refTask.Priority
+			}
+			if roomArea == "" {
+				roomArea = refTask.Room
+			}
+			if peopleNeeded < 1 {
+				peopleNeeded = refTask.PeopleNeeded
+			}
+		}
+	}
+
 	var taskIDPtr *string
 	if input.TaskId != "" {
 		taskIDPtr = &input.TaskId
@@ -552,17 +575,17 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	}
 	assignedCount := len(assignees)
 	staffingStatus := "underStaffed"
-	if assignedCount == input.PeopleNeeded {
+	if assignedCount == peopleNeeded {
 		staffingStatus = "fullyStaffed"
 	}
 
 	card := api.TaskCard{
 		ID:             idStr,
-		Title:          input.Title,
-		Priority:       input.Priority,
-		RoomArea:       input.RoomArea,
+		Title:          title,
+		Priority:       priority,
+		RoomArea:       roomArea,
 		AssignedPeople: assignees,
-		PeopleNeeded:   input.PeopleNeeded,
+		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,
 		StaffingStatus: staffingStatus,
 		TaskId:         taskIDPtr,
