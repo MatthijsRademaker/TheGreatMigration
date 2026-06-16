@@ -243,6 +243,7 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
                   >
                     <Avatar
                       :name="person.name"
+                      :initials="person.initials"
                       class="size-5 text-xs"
                     />
                     <span class="text-xs text-muted-foreground">
@@ -253,7 +254,7 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
                 <p class="text-xs text-muted-foreground">
                   {{ task.assignedCount }} / {{ task.peopleNeeded }}
                   <span
-                    v-if="task.assignedCount < task.peopleNeeded"
+                    v-if="task.staffingStatus === 'underStaffed'"
                     class="text-destructive"
                   >&nbsp;— needs help</span>
                 </p>
