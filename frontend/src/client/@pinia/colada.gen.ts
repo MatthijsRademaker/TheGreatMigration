@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions, type UseMutationOptions } from '@p
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { createPerson, deletePerson, deletePersonAvailability, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, type Options, updatePerson, upsertPersonAvailability } from '../sdk.gen';
-import type { CreatePersonData, CreatePersonError, CreatePersonResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
+import { getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, type Options, putPlanningWindow } from '../sdk.gen';
+import type { GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -41,6 +41,25 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
     }
     return [params];
 };
+
+export const getDashboardDailyScheduleQueryKey = (options?: Options<GetDashboardDailyScheduleData>) => createQueryKey('getDashboardDailySchedule', options);
+
+/**
+ * Daily schedule for the dashboard
+ *
+ * Returns a dashboard-ready daily schedule read model with date columns, available-helper counts, and ordered schedule task cards. The start parameter defaults to the planning-window start date (2026-07-05); clients should pass start explicitly for a different window.
+ */
+export const getDashboardDailyScheduleQuery = defineQueryOptions<Options<GetDashboardDailyScheduleData>, GetDashboardDailyScheduleResponse, GetDashboardDailyScheduleError>((options?: Options<GetDashboardDailyScheduleData>) => ({
+    key: getDashboardDailyScheduleQueryKey(options),
+    query: async (context) => {
+        const { data } = await getDashboardDailySchedule({
+            ...options,
+            ...context,
+            throwOnError: true
+        });
+        return data;
+    }
+}));
 
 export const getDashboardPeopleAvailabilityQueryKey = (options?: Options<GetDashboardPeopleAvailabilityData>) => createQueryKey('getDashboardPeopleAvailability', options);
 
@@ -99,6 +118,22 @@ export const getPlanningWindowQuery = defineQueryOptions<Options<GetPlanningWind
     }
 }));
 
+/**
+ * Update planning window
+ *
+ * Updates the planning window start and end dates. Both dates are required and endDate must be >= startDate. Returns the updated planning window with recalculated inclusive day count.
+ */
+export const putPlanningWindowMutation = (options?: Partial<Options<PutPlanningWindowData>>): UseMutationOptions<PutPlanningWindowResponse, Options<PutPlanningWindowData>, PutPlanningWindowError> => ({
+    mutation: async (vars) => {
+        const { data } = await putPlanningWindow({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
 export const getTasksBacklogQueryKey = (options?: Options<GetTasksBacklogData>) => createQueryKey('getTasksBacklog', options);
 
 /**
@@ -117,83 +152,3 @@ export const getTasksBacklogQuery = defineQueryOptions<Options<GetTasksBacklogDa
         return data;
     }
 }));
-
-/**
- * Create a person
- *
- * Creates a new person with a client-supplied stable ID suitable for name-derived slugs.
- */
-export const createPersonMutation = (options?: Partial<Options<CreatePersonData>>): UseMutationOptions<CreatePersonResponse, Options<CreatePersonData>, CreatePersonError> => ({
-    mutation: async (vars) => {
-        const { data } = await createPerson({
-            ...options,
-            ...vars,
-            throwOnError: true
-        });
-        return data;
-    }
-});
-
-/**
- * Delete a person
- *
- * Deletes a person. Returns 409 Conflict if the person is referenced by backlog or schedule assignments.
- */
-export const deletePersonMutation = (options?: Partial<Options<DeletePersonData>>): UseMutationOptions<DeletePersonResponse, Options<DeletePersonData>, DeletePersonError> => ({
-    mutation: async (vars) => {
-        const { data } = await deletePerson({
-            ...options,
-            ...vars,
-            throwOnError: true
-        });
-        return data;
-    }
-});
-
-/**
- * Update a person
- *
- * Updates the name and initials of an existing person.
- */
-export const updatePersonMutation = (options?: Partial<Options<UpdatePersonData>>): UseMutationOptions<UpdatePersonResponse, Options<UpdatePersonData>, UpdatePersonError> => ({
-    mutation: async (vars) => {
-        const { data } = await updatePerson({
-            ...options,
-            ...vars,
-            throwOnError: true
-        });
-        return data;
-    }
-});
-
-/**
- * Delete person availability for a date
- *
- * Deletes a single availability entry for a person on a specific date. Subsequent dashboard reads will fall back to the default-missing-availability behavior.
- */
-export const deletePersonAvailabilityMutation = (options?: Partial<Options<DeletePersonAvailabilityData>>): UseMutationOptions<DeletePersonAvailabilityResponse, Options<DeletePersonAvailabilityData>, DeletePersonAvailabilityError> => ({
-    mutation: async (vars) => {
-        const { data } = await deletePersonAvailability({
-            ...options,
-            ...vars,
-            throwOnError: true
-        });
-        return data;
-    }
-});
-
-/**
- * Upsert person availability for a date
- *
- * Creates or updates a single availability entry for a person on a specific date. The status must be one of: available, busy, partial, off. The date must be within the planning window.
- */
-export const upsertPersonAvailabilityMutation = (options?: Partial<Options<UpsertPersonAvailabilityData>>): UseMutationOptions<UpsertPersonAvailabilityResponse, Options<UpsertPersonAvailabilityData>, UpsertPersonAvailabilityError> => ({
-    mutation: async (vars) => {
-        const { data } = await upsertPersonAvailability({
-            ...options,
-            ...vars,
-            throwOnError: true
-        });
-        return data;
-    }
-});

@@ -13,6 +13,7 @@ import (
 // Store is the data access interface for the backend.
 type Store interface {
 	GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error)
+	UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error)
 	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)
 	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
 	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
@@ -55,6 +56,27 @@ func (s *PgStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, e
 	return &PlanningWindowBody{
 		StartDate: startDate.Format("2006-01-02"),
 		EndDate:   endDate.Format("2006-01-02"),
+		Days:      days,
+	}, nil
+}
+
+// UpdatePlanningWindow persists the singleton planning-window row via UPSERT and returns the updated body.
+func (s *PgStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+	row, err := s.queries.UpsertPlanningWindow(ctx, db.UpsertPlanningWindowParams{
+		StartDate: pgtype.Date{Time: startDate, Valid: true},
+		EndDate:   pgtype.Date{Time: endDate, Valid: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	start := pgDateToTime(row.StartDate)
+	end := pgDateToTime(row.EndDate)
+	days := int(end.Sub(start).Hours()/24) + 1
+
+	return &PlanningWindowBody{
+		StartDate: start.Format("2006-01-02"),
+		EndDate:   end.Format("2006-01-02"),
 		Days:      days,
 	}, nil
 }

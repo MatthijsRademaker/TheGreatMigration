@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -76,6 +77,58 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 		if body.Days != 40 {
 			t.Fatalf("expected days=40, got %d", body.Days)
+		}
+	})
+
+	// Test planning window update round-trip.
+	t.Run("PlanningWindowUpdate", func(t *testing.T) {
+		bodyJSON := `{"startDate": "2026-07-15", "endDate": "2026-07-25"}`
+		req := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+		}
+
+		var body PlanningWindowBody
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+
+		if body.StartDate != "2026-07-15" {
+			t.Fatalf("expected startDate '2026-07-15', got %q", body.StartDate)
+		}
+		if body.EndDate != "2026-07-25" {
+			t.Fatalf("expected endDate '2026-07-25', got %q", body.EndDate)
+		}
+		if body.Days != 11 {
+			t.Fatalf("expected days=11, got %d", body.Days)
+		}
+
+		// Verify persistence: GET should return updated values.
+		req = httptest.NewRequest(http.MethodGet, "/api/planning-window", nil)
+		rec = httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+		}
+
+		var getBody PlanningWindowBody
+		if err := json.Unmarshal(rec.Body.Bytes(), &getBody); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+
+		if getBody.StartDate != "2026-07-15" {
+			t.Fatalf("expected startDate '2026-07-15', got %q", getBody.StartDate)
+		}
+		if getBody.EndDate != "2026-07-25" {
+			t.Fatalf("expected endDate '2026-07-25', got %q", getBody.EndDate)
+		}
+		if getBody.Days != 11 {
+			t.Fatalf("expected days=11, got %d", getBody.Days)
 		}
 	})
 

@@ -204,6 +204,116 @@ func TestPlanningWindowEndpoint(t *testing.T) {
 	}
 }
 
+func TestUpdatePlanningWindowSuccess(t *testing.T) {
+	store := newMockStore()
+	router, _ := newTestAPI(store)
+
+	bodyJSON := `{"startDate": "2026-07-10", "endDate": "2026-07-20"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", contentType)
+	}
+
+	var body PlanningWindowBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if body.StartDate != "2026-07-10" {
+		t.Fatalf("expected startDate '2026-07-10', got %q", body.StartDate)
+	}
+	if body.EndDate != "2026-07-20" {
+		t.Fatalf("expected endDate '2026-07-20', got %q", body.EndDate)
+	}
+	if body.Days != 11 {
+		t.Fatalf("expected days=11, got %d", body.Days)
+	}
+
+	// Verify store was updated.
+	pw, err := store.GetPlanningWindow(context.Background())
+	if err != nil {
+		t.Fatalf("failed to get planning window: %v", err)
+	}
+	if pw.StartDate != "2026-07-10" || pw.EndDate != "2026-07-20" || pw.Days != 11 {
+		t.Fatalf("store was not updated: startDate=%q, endDate=%q, days=%d", pw.StartDate, pw.EndDate, pw.Days)
+	}
+}
+
+func TestUpdatePlanningWindowValidationFailure(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// endDate < startDate.
+	bodyJSON := `{"startDate": "2026-08-01", "endDate": "2026-07-01"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 422 {
+		t.Fatalf("expected status 422, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Malformed dates.
+	bodyJSON = `{"startDate": "not-a-date", "endDate": "2026-07-01"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 422 {
+		t.Fatalf("expected status 422, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdatePlanningWindowMaxRange(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// Range exactly at the max (365 days) should succeed.
+	bodyJSON := `{"startDate": "2026-01-01", "endDate": "2026-12-31"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for exactly 365 days, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// Range exceeding max (366 days) should be rejected.
+	bodyJSON = `{"startDate": "2026-01-01", "endDate": "2027-01-01"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 422 {
+		t.Fatalf("expected status 422 for range exceeding max, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdatePlanningWindowStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	bodyJSON := `{"startDate": "2026-07-10", "endDate": "2026-07-20"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestTaskBacklog(t *testing.T) {
 	router, api := newTestAPI(newMockStore())
 
@@ -600,6 +710,10 @@ func (f *failingStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBo
 	return nil, errTestFailure
 }
 
+func (f *failingStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+	return nil, errTestFailure
+}
+
 func (f *failingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
 	return nil, errTestFailure
 }
@@ -690,6 +804,15 @@ func (f *partialFailingStore) GetPlanningWindow(ctx context.Context) (*PlanningW
 		StartDate: "2026-07-05",
 		EndDate:   "2026-08-13",
 		Days:      40,
+	}, nil
+}
+
+func (f *partialFailingStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+	days := int(endDate.Sub(startDate).Hours()/24) + 1
+	return &PlanningWindowBody{
+		StartDate: startDate.Format("2006-01-02"),
+		EndDate:   endDate.Format("2006-01-02"),
+		Days:      days,
 	}, nil
 }
 

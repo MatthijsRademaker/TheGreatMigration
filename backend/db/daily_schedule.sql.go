@@ -11,8 +11,79 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getAvailableCountByDate = `-- name: GetAvailableCountByDate :many
+SELECT a.date, COUNT(*)::int AS available_count
+FROM availability a
+WHERE a.status = 'available'
+  AND a.date >= $1::date
+  AND a.date < ($1::date + $2::int * interval '1 day')
+GROUP BY a.date
+ORDER BY a.date
+`
+
+type GetAvailableCountByDateParams struct {
+	StartDate pgtype.Date
+	Days      int32
+}
+
+type GetAvailableCountByDateRow struct {
+	Date           pgtype.Date
+	AvailableCount int32
+}
+
+func (q *Queries) GetAvailableCountByDate(ctx context.Context, arg GetAvailableCountByDateParams) ([]GetAvailableCountByDateRow, error) {
+	rows, err := q.db.Query(ctx, getAvailableCountByDate, arg.StartDate, arg.Days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAvailableCountByDateRow
+	for rows.Next() {
+		var i GetAvailableCountByDateRow
+		if err := rows.Scan(&i.Date, &i.AvailableCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDailyScheduleAssignments = `-- name: GetDailyScheduleAssignments :many
+SELECT task_card_id, person_id
+FROM schedule_task_assignments
+ORDER BY task_card_id, sort_order
+`
+
+type GetDailyScheduleAssignmentsRow struct {
+	TaskCardID int32
+	PersonID   string
+}
+
+func (q *Queries) GetDailyScheduleAssignments(ctx context.Context) ([]GetDailyScheduleAssignmentsRow, error) {
+	rows, err := q.db.Query(ctx, getDailyScheduleAssignments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDailyScheduleAssignmentsRow
+	for rows.Next() {
+		var i GetDailyScheduleAssignmentsRow
+		if err := rows.Scan(&i.TaskCardID, &i.PersonID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getDailyScheduleTaskCards = `-- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, day_group, sort_order
+SELECT id, title, priority, room_area, people_needed, day_group, sort_order, created_at
 FROM schedule_task_cards
 ORDER BY day_group, sort_order
 `
@@ -34,78 +105,7 @@ func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context) ([]ScheduleTask
 			&i.PeopleNeeded,
 			&i.DayGroup,
 			&i.SortOrder,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getDailyScheduleAssignments = `-- name: GetDailyScheduleAssignments :many
-SELECT task_card_id, person_id
-FROM schedule_task_assignments
-ORDER BY task_card_id, sort_order
-`
-
-func (q *Queries) GetDailyScheduleAssignments(ctx context.Context) ([]ScheduleTaskAssignment, error) {
-	rows, err := q.db.Query(ctx, getDailyScheduleAssignments)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ScheduleTaskAssignment
-	for rows.Next() {
-		var i ScheduleTaskAssignment
-		if err := rows.Scan(
-			&i.TaskCardID,
-			&i.PersonID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAvailableCountByDate = `-- name: GetAvailableCountByDate :many
-SELECT a.date, COUNT(*)::int AS available_count
-FROM availability a
-WHERE a.status = 'available'
-  AND a.date >= $1::date
-  AND a.date < ($1::date + $2::int * interval '1 day')
-GROUP BY a.date
-ORDER BY a.date
-`
-
-type GetAvailableCountByDateParams struct {
-	StartDate pgtype.Date
-	Days      int32
-}
-
-type AvailableCountRow struct {
-	Date           pgtype.Date
-	AvailableCount int32
-}
-
-func (q *Queries) GetAvailableCountByDate(ctx context.Context, arg GetAvailableCountByDateParams) ([]AvailableCountRow, error) {
-	rows, err := q.db.Query(ctx, getAvailableCountByDate, arg.StartDate, arg.Days)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []AvailableCountRow
-	for rows.Next() {
-		var i AvailableCountRow
-		if err := rows.Scan(
-			&i.Date,
-			&i.AvailableCount,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

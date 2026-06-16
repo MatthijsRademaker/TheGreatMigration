@@ -203,7 +203,7 @@ describe("application route rendering", () => {
 			title: "Settings",
 			description:
 				"Configure your move preferences, notification defaults, and account details.",
-			content: "Feature coming soon",
+			content: "Planning window",
 		},
 	] as const;
 
