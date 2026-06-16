@@ -1,11 +1,17 @@
-<script lang="ts">
-export interface AssignedPerson {
+<script setup lang="ts">
+import { computed } from 'vue'
+import { Avatar } from '@/shared/ui/avatar'
+import { Badge } from '@/shared/ui/badge'
+import type { BadgeVariants } from '@/shared/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+
+interface AssignedPerson {
   id: string
   name: string
   initials: string
 }
 
-export interface TaskCard {
+interface TaskCard {
   id: string
   title: string
   priority: 'high' | 'medium' | 'low'
@@ -16,13 +22,15 @@ export interface TaskCard {
   staffingStatus: 'fullyStaffed' | 'underStaffed'
 }
 
-export interface ScheduleDay {
+interface ScheduleDay {
   date: string
   label: string
   availablePeopleCount: number
   tasks: TaskCard[]
 }
 
+// TODO: Replace demo data with a Pinia Colada query or parent-provided prop
+// driven by GET /api/dashboard/daily-schedule when backend wiring is in scope.
 const defaultDays: ScheduleDay[] = [
   {
     date: '2026-07-02',
@@ -168,20 +176,20 @@ const priorityAccentMap: Record<TaskCard['priority'], string> = {
   medium: 'border-l-warning',
   low: 'border-l-success',
 }
-</script>
 
-<script setup lang="ts">
-import { Avatar } from '@/shared/ui/avatar'
-import { Badge } from '@/shared/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+const priorityVariantMap: Record<TaskCard['priority'], BadgeVariants['variant']> = {
+  high: 'priorityHigh',
+  medium: 'priorityMedium',
+  low: 'priorityLow',
+}
 
-export interface DailyScheduleProps {
+interface DailyScheduleProps {
   days?: ScheduleDay[]
 }
 
-withDefaults(defineProps<DailyScheduleProps>(), {
-  days: () => defaultDays,
-})
+const props = defineProps<DailyScheduleProps>()
+
+const scheduleDays = computed(() => props.days ?? defaultDays)
 </script>
 
 <template>
@@ -200,7 +208,7 @@ withDefaults(defineProps<DailyScheduleProps>(), {
       <div class="overflow-x-auto">
         <div class="flex gap-4">
           <div
-            v-for="day in days"
+            v-for="day in scheduleDays"
             :key="day.date"
             class="min-w-[280px] shrink-0"
           >
@@ -222,9 +230,7 @@ withDefaults(defineProps<DailyScheduleProps>(), {
               >
                 <div class="flex items-start justify-between gap-2 mb-2">
                   <span class="text-sm font-medium">{{ task.title }}</span>
-                  <Badge
-                    :variant="`priority${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}` as any"
-                  >
+                  <Badge :variant="priorityVariantMap[task.priority]">
                     {{ task.priority }}
                   </Badge>
                 </div>
@@ -245,6 +251,10 @@ withDefaults(defineProps<DailyScheduleProps>(), {
                 </div>
                 <p class="text-xs text-muted-foreground">
                   {{ task.assignedCount }} / {{ task.peopleNeeded }}
+                  <span
+                    v-if="task.staffingStatus === 'underStaffed'"
+                    class="text-destructive"
+                  >&nbsp;— needs help</span>
                 </p>
               </div>
 
