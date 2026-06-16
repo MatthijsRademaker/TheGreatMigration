@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/user/the-great-migration/backend/api"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -41,7 +43,7 @@ func cycleStatuses(dayOffset int) string {
 }
 
 // seedTasks is the canonical set of tasks for test mocks.
-var seedTasks = []TaskRow{
+var seedTasks = []api.TaskRow{
 	{ID: "task-1", Title: "Disconnect kitchen appliances", Priority: "high", PeopleNeeded: 3, Room: "Kitchen", Status: "backlog", AssignedTo: []string{}},
 	{ID: "task-2", Title: "Wrap living room furniture", Priority: "high", PeopleNeeded: 2, Room: "Living Room", Status: "ready", AssignedTo: []string{}},
 	{ID: "task-3", Title: "Pack kitchen fragile items", Priority: "high", PeopleNeeded: 2, Room: "Kitchen", Status: "assigned", AssignedTo: []string{"p1"}},
@@ -87,13 +89,13 @@ func seedTasksForDay(dayOffset int) []seedTaskTemplate {
 	return dayGroups[dayOffset%len(dayGroups)]
 }
 
-func findPersonByID(id string) (AssignedPerson, bool) {
+func findPersonByID(id string) (api.AssignedPerson, bool) {
 	for _, sp := range seedPeople {
 		if sp.Id == id {
-			return AssignedPerson{ID: sp.Id, Name: sp.Name, Initials: sp.Initials}, true
+			return api.AssignedPerson{ID: sp.Id, Name: sp.Name, Initials: sp.Initials}, true
 		}
 	}
-	return AssignedPerson{}, false
+	return api.AssignedPerson{}, false
 }
 
 func countAvailableForDay(dayOffset int) int {
@@ -109,18 +111,18 @@ func countAvailableForDay(dayOffset int) int {
 func buildMockPeople(startDate time.Time, days int, mp []struct {
 	Id, Name, Initials string
 	Status             func(int) string
-}) []Person {
-	people := make([]Person, len(mp))
+}) []api.Person {
+	people := make([]api.Person, len(mp))
 	for i, sp := range mp {
-		avail := make([]AvailabilityEntry, days)
+		avail := make([]api.AvailabilityEntry, days)
 		for d := 0; d < days; d++ {
 			date := startDate.AddDate(0, 0, d)
-			avail[d] = AvailabilityEntry{
+			avail[d] = api.AvailabilityEntry{
 				Date:   date.Format("2006-01-02"),
 				Status: sp.Status(d),
 			}
 		}
-		people[i] = Person{
+		people[i] = api.Person{
 			ID:           sp.Id,
 			Name:         sp.Name,
 			Initials:     sp.Initials,
@@ -136,9 +138,9 @@ func buildMockPeople(startDate time.Time, days int, mp []struct {
 // Parameterless methods return pre-computed struct fields.
 // Parameterised methods compute from seed data on each call.
 type mockStore struct {
-	planningWindow *PlanningWindowBody
-	taskBacklog    *TaskBacklogBody
-	rooms          map[string]Room
+	planningWindow *api.PlanningWindowBody
+	taskBacklog    *api.TaskBacklogBody
+	rooms          map[string]api.Room
 	nextRoomID     int
 }
 
@@ -164,23 +166,23 @@ func newMockStore() *mockStore {
 	}
 
 	return &mockStore{
-		planningWindow: &PlanningWindowBody{
+		planningWindow: &api.PlanningWindowBody{
 			StartDate: "2026-07-05",
 			EndDate:   "2026-08-13",
 			Days:      days,
 		},
-		taskBacklog: &TaskBacklogBody{
-			Summary: TaskSummary{
+		taskBacklog: &api.TaskBacklogBody{
+			Summary: api.TaskSummary{
 				TotalTasks:        total,
 				HighPriorityTasks: highPriority,
 				UnassignedTasks:   unassigned,
 				UnderstaffedTasks: understaffed,
 			},
 			Tasks:      seedTasks,
-			Priorities: priorityLegend,
-			Statuses:   taskStatusLegend,
+			Priorities: api.PriorityLegendData,
+			Statuses:   api.TaskStatusLegendData,
 		},
-		rooms: map[string]Room{
+		rooms: map[string]api.Room{
 			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 			"room-2": {ID: "room-2", Name: "Living Room", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 		},
@@ -188,13 +190,13 @@ func newMockStore() *mockStore {
 	}
 }
 
-func (m *mockStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
+func (m *mockStore) GetPlanningWindow(ctx context.Context) (*api.PlanningWindowBody, error) {
 	return m.planningWindow, nil
 }
 
-func (m *mockStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+func (m *mockStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*api.PlanningWindowBody, error) {
 	days := int(endDate.Sub(startDate).Hours()/24) + 1
-	m.planningWindow = &PlanningWindowBody{
+	m.planningWindow = &api.PlanningWindowBody{
 		StartDate: startDate.Format("2006-01-02"),
 		EndDate:   endDate.Format("2006-01-02"),
 		Days:      days,
@@ -202,11 +204,11 @@ func (m *mockStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate
 	return m.planningWindow, nil
 }
 
-func (m *mockStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+func (m *mockStore) GetTaskBacklog(ctx context.Context) (*api.TaskBacklogBody, error) {
 	return m.taskBacklog, nil
 }
 
-func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*api.DashboardBody, error) {
 	endDate := startDate.AddDate(0, 0, days-1)
 	selectedDate := startDate.Format("2006-01-02")
 	people := buildMockPeople(startDate, days, seedPeople)
@@ -221,26 +223,26 @@ func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Ti
 		}
 	}
 
-	return &DashboardBody{
-		Range: Range{
+	return &api.DashboardBody{
+		Range: api.Range{
 			StartDate:    startDate.Format("2006-01-02"),
 			EndDate:      endDate.Format("2006-01-02"),
 			Days:         days,
 			SelectedDate: selectedDate,
 		},
-		Summary: Summary{
+		Summary: api.Summary{
 			AvailableToday: availableToday,
 			TotalPeople:    len(people),
 		},
 		People:   people,
-		Statuses: statusLegend,
+		Statuses: api.StatusLegendData,
 	}, nil
 }
 
-func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*api.DailyScheduleBody, error) {
 	endDate := startDate.AddDate(0, 0, days-1)
 
-	scheduleDays := make([]ScheduleDay, days)
+	scheduleDays := make([]api.ScheduleDay, days)
 	for d := 0; d < days; d++ {
 		date := startDate.AddDate(0, 0, d)
 		dateStr := date.Format("2006-01-02")
@@ -248,9 +250,9 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 		availableCount := countAvailableForDay(d)
 
 		templates := seedTasksForDay(d)
-		tasks := make([]TaskCard, len(templates))
+		tasks := make([]api.TaskCard, len(templates))
 		for ti, tmpl := range templates {
-			assignees := make([]AssignedPerson, 0, len(tmpl.assigneeIds))
+			assignees := make([]api.AssignedPerson, 0, len(tmpl.assigneeIds))
 			for _, pid := range tmpl.assigneeIds {
 				if p, ok := findPersonByID(pid); ok {
 					assignees = append(assignees, p)
@@ -263,7 +265,7 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 				staffingStatus = "fullyStaffed"
 			}
 
-			tasks[ti] = TaskCard{
+			tasks[ti] = api.TaskCard{
 				ID:             fmt.Sprintf("task-d%d-%d", d, ti),
 				Title:          tmpl.title,
 				Priority:       tmpl.priority,
@@ -275,16 +277,16 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 			}
 		}
 
-		scheduleDays[d] = ScheduleDay{
+		scheduleDays[d] = api.ScheduleDay{
 			Date:                 dateStr,
-			Label:                formatDayLabel(date),
+			Label:                api.FormatDayLabel(date),
 			AvailablePeopleCount: availableCount,
 			Tasks:                tasks,
 		}
 	}
 
-	return &DailyScheduleBody{
-		Range: ScheduleRange{
+	return &api.DailyScheduleBody{
+		Range: api.ScheduleRange{
 			StartDate: startDate.Format("2006-01-02"),
 			EndDate:   endDate.Format("2006-01-02"),
 			Days:      days,
@@ -325,8 +327,8 @@ func (m *mockStore) DeleteAvailability(ctx context.Context, personID string, dat
 
 // ---------- Room CRUD (mockStore) ----------
 
-func (m *mockStore) ListRooms(ctx context.Context) ([]Room, error) {
-	rooms := make([]Room, 0, len(m.rooms))
+func (m *mockStore) ListRooms(ctx context.Context) ([]api.Room, error) {
+	rooms := make([]api.Room, 0, len(m.rooms))
 	for _, r := range m.rooms {
 		rooms = append(rooms, r)
 	}
@@ -334,11 +336,11 @@ func (m *mockStore) ListRooms(ctx context.Context) ([]Room, error) {
 	return rooms, nil
 }
 
-func (m *mockStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+func (m *mockStore) CreateRoom(ctx context.Context, input api.CreateRoomInput) (*api.Room, error) {
 	id := fmt.Sprintf("room-%d", m.nextRoomID)
 	m.nextRoomID++
 	now := time.Now().UTC().Format(time.RFC3339)
-	r := Room{
+	r := api.Room{
 		ID:        id,
 		Name:      input.Name,
 		Type:      input.Type,
@@ -349,10 +351,10 @@ func (m *mockStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Roo
 	return &r, nil
 }
 
-func (m *mockStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+func (m *mockStore) UpdateRoom(ctx context.Context, id string, input api.UpdateRoomInput) (*api.Room, error) {
 	r, ok := m.rooms[id]
 	if !ok {
-		return nil, ErrRoomNotFound
+		return nil, api.ErrRoomNotFound
 	}
 	r.Name = input.Name
 	r.Type = input.Type
@@ -362,7 +364,7 @@ func (m *mockStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomI
 
 func (m *mockStore) DeleteRoom(ctx context.Context, id string) error {
 	if _, ok := m.rooms[id]; !ok {
-		return ErrRoomNotFound
+		return api.ErrRoomNotFound
 	}
 	delete(m.rooms, id)
 	return nil

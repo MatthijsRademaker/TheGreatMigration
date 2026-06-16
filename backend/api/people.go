@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -15,9 +15,9 @@ import (
 
 var canonicalStatuses = map[string]bool{
 	"available": true,
-	"busy":     true,
-	"partial":  true,
-	"off":      true,
+	"busy":      true,
+	"partial":   true,
+	"off":       true,
 }
 
 // ---------- Request / Response types ----------

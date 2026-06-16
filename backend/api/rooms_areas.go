@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -52,7 +52,7 @@ type CreateRoomRequestBody struct {
 	Type string `json:"type" required:"true" enum:"room,area" doc:"One of: room, area"`
 }
 
-// CreateRoomInput is the input for POST /api/rooms.
+// CreateRoomInputHuma is the input for POST /api/rooms.
 type CreateRoomInputHuma struct {
 	Body CreateRoomRequestBody
 }

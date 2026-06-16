@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses } from './types.gen';
+import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -40,6 +40,62 @@ export const getDashboardPeopleAvailability = <ThrowOnError extends boolean = fa
 export const getHello = <ThrowOnError extends boolean = false>(options?: Options<GetHelloData, ThrowOnError>): RequestResult<GetHelloResponses, GetHelloErrors, ThrowOnError> => (options?.client ?? client).get<GetHelloResponses, GetHelloErrors, ThrowOnError>({ url: '/api/hello', ...options });
 
 /**
+ * Create a person
+ *
+ * Creates a new person with a client-supplied stable ID suitable for name-derived slugs.
+ */
+export const createPerson = <ThrowOnError extends boolean = false>(options: Options<CreatePersonData, ThrowOnError>): RequestResult<CreatePersonResponses, CreatePersonErrors, ThrowOnError> => (options.client ?? client).post<CreatePersonResponses, CreatePersonErrors, ThrowOnError>({
+    url: '/api/people',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a person
+ *
+ * Deletes a person. Returns 409 Conflict if the person is referenced by backlog or schedule assignments.
+ */
+export const deletePerson = <ThrowOnError extends boolean = false>(options: Options<DeletePersonData, ThrowOnError>): RequestResult<DeletePersonResponses, DeletePersonErrors, ThrowOnError> => (options.client ?? client).delete<DeletePersonResponses, DeletePersonErrors, ThrowOnError>({ url: '/api/people/{id}', ...options });
+
+/**
+ * Update a person
+ *
+ * Updates the name and initials of an existing person.
+ */
+export const updatePerson = <ThrowOnError extends boolean = false>(options: Options<UpdatePersonData, ThrowOnError>): RequestResult<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError> => (options.client ?? client).put<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError>({
+    url: '/api/people/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete person availability for a date
+ *
+ * Deletes a single availability entry for a person on a specific date. Idempotent: deleting an already-absent entry succeeds without error. Subsequent dashboard reads will fall back to the default-missing-availability behavior.
+ */
+export const deletePersonAvailability = <ThrowOnError extends boolean = false>(options: Options<DeletePersonAvailabilityData, ThrowOnError>): RequestResult<DeletePersonAvailabilityResponses, DeletePersonAvailabilityErrors, ThrowOnError> => (options.client ?? client).delete<DeletePersonAvailabilityResponses, DeletePersonAvailabilityErrors, ThrowOnError>({ url: '/api/people/{id}/availability/{date}', ...options });
+
+/**
+ * Upsert person availability for a date
+ *
+ * Creates or updates a single availability entry for a person on a specific date. The status must be one of: available, busy, partial, off. The date must be within the planning window.
+ */
+export const upsertPersonAvailability = <ThrowOnError extends boolean = false>(options: Options<UpsertPersonAvailabilityData, ThrowOnError>): RequestResult<UpsertPersonAvailabilityResponses, UpsertPersonAvailabilityErrors, ThrowOnError> => (options.client ?? client).put<UpsertPersonAvailabilityResponses, UpsertPersonAvailabilityErrors, ThrowOnError>({
+    url: '/api/people/{id}/availability/{date}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Global planning window
  *
  * Returns the global move range with startDate, endDate, and inclusive day count. The planning window is the canonical source of truth for the move timeline. All date-dependent views derive their rendered content from this contract.
@@ -53,6 +109,48 @@ export const getPlanningWindow = <ThrowOnError extends boolean = false>(options?
  */
 export const putPlanningWindow = <ThrowOnError extends boolean = false>(options: Options<PutPlanningWindowData, ThrowOnError>): RequestResult<PutPlanningWindowResponses, PutPlanningWindowErrors, ThrowOnError> => (options.client ?? client).put<PutPlanningWindowResponses, PutPlanningWindowErrors, ThrowOnError>({
     url: '/api/planning-window',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List rooms and areas
+ *
+ * Returns all room and area records ordered by name.
+ */
+export const listRooms = <ThrowOnError extends boolean = false>(options?: Options<ListRoomsData, ThrowOnError>): RequestResult<ListRoomsResponses, ListRoomsErrors, ThrowOnError> => (options?.client ?? client).get<ListRoomsResponses, ListRoomsErrors, ThrowOnError>({ url: '/api/rooms', ...options });
+
+/**
+ * Create a room or area
+ *
+ * Creates a new room or area record and returns it.
+ */
+export const createRoom = <ThrowOnError extends boolean = false>(options: Options<CreateRoomData, ThrowOnError>): RequestResult<CreateRoomResponses, CreateRoomErrors, ThrowOnError> => (options.client ?? client).post<CreateRoomResponses, CreateRoomErrors, ThrowOnError>({
+    url: '/api/rooms',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a room or area
+ *
+ * Deletes a room or area record by ID. Returns 404 if the ID is not found.
+ */
+export const deleteRoom = <ThrowOnError extends boolean = false>(options: Options<DeleteRoomData, ThrowOnError>): RequestResult<DeleteRoomResponses, DeleteRoomErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRoomResponses, DeleteRoomErrors, ThrowOnError>({ url: '/api/rooms/{id}', ...options });
+
+/**
+ * Update a room or area
+ *
+ * Updates an existing room or area record by ID. Returns 404 if the ID is not found.
+ */
+export const updateRoom = <ThrowOnError extends boolean = false>(options: Options<UpdateRoomData, ThrowOnError>): RequestResult<UpdateRoomResponses, UpdateRoomErrors, ThrowOnError> => (options.client ?? client).put<UpdateRoomResponses, UpdateRoomErrors, ThrowOnError>({
+    url: '/api/rooms/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',

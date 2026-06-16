@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -66,7 +66,8 @@ type AssignedPerson struct {
 var dayLabels = []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 var monthLabels = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
-func formatDayLabel(t time.Time) string {
+// FormatDayLabel returns a human-readable day label (e.g., "Mon, Jan 5").
+func FormatDayLabel(t time.Time) string {
 	return dayLabels[t.Weekday()] + ", " + monthLabels[t.Month()-1] + " " + t.Format("2")
 }
 

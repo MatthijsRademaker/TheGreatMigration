@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -19,9 +19,9 @@ type TaskBacklogOutput struct {
 
 // TaskBacklogBody is the top-level response body.
 type TaskBacklogBody struct {
-	Summary    TaskSummary       `json:"summary" doc:"Derived summary counts"`
-	Tasks      []TaskRow         `json:"tasks" doc:"Backlog task rows"`
-	Priorities []PriorityLegend  `json:"priorities" doc:"Canonical priority legend"`
+	Summary    TaskSummary        `json:"summary" doc:"Derived summary counts"`
+	Tasks      []TaskRow          `json:"tasks" doc:"Backlog task rows"`
+	Priorities []PriorityLegend   `json:"priorities" doc:"Canonical priority legend"`
 	Statuses   []TaskStatusLegend `json:"statuses" doc:"Canonical task-status legend"`
 }
 
@@ -60,13 +60,15 @@ type TaskStatusLegend struct {
 
 // ---------- Legends ----------
 
-var priorityLegend = []PriorityLegend{
+// PriorityLegendData is the canonical priority legend used by task backlog responses.
+var PriorityLegendData = []PriorityLegend{
 	{ID: "high", Label: "High", ColorIntent: "destructive"},
 	{ID: "medium", Label: "Medium", ColorIntent: "warning"},
 	{ID: "low", Label: "Low", ColorIntent: "success"},
 }
 
-var taskStatusLegend = []TaskStatusLegend{
+// TaskStatusLegendData is the canonical task-status legend used by backlog responses.
+var TaskStatusLegendData = []TaskStatusLegend{
 	{ID: "backlog", Label: "Backlog", ColorIntent: "muted"},
 	{ID: "ready", Label: "Ready", ColorIntent: "info"},
 	{ID: "assigned", Label: "Assigned", ColorIntent: "success"},

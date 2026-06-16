@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions, type UseMutationOptions } from '@p
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, type Options, putPlanningWindow } from '../sdk.gen';
-import type { GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse } from '../types.gen';
+import { createPerson, createRoom, deletePerson, deletePersonAvailability, deleteRoom, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, listRooms, type Options, putPlanningWindow, updatePerson, updateRoom, upsertPersonAvailability } from '../sdk.gen';
+import type { CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -99,6 +99,86 @@ export const getHelloQuery = defineQueryOptions<Options<GetHelloData>, GetHelloR
     }
 }));
 
+/**
+ * Create a person
+ *
+ * Creates a new person with a client-supplied stable ID suitable for name-derived slugs.
+ */
+export const createPersonMutation = (options?: Partial<Options<CreatePersonData>>): UseMutationOptions<CreatePersonResponse, Options<CreatePersonData>, CreatePersonError> => ({
+    mutation: async (vars) => {
+        const { data } = await createPerson({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Delete a person
+ *
+ * Deletes a person. Returns 409 Conflict if the person is referenced by backlog or schedule assignments.
+ */
+export const deletePersonMutation = (options?: Partial<Options<DeletePersonData>>): UseMutationOptions<DeletePersonResponse, Options<DeletePersonData>, DeletePersonError> => ({
+    mutation: async (vars) => {
+        const { data } = await deletePerson({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Update a person
+ *
+ * Updates the name and initials of an existing person.
+ */
+export const updatePersonMutation = (options?: Partial<Options<UpdatePersonData>>): UseMutationOptions<UpdatePersonResponse, Options<UpdatePersonData>, UpdatePersonError> => ({
+    mutation: async (vars) => {
+        const { data } = await updatePerson({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Delete person availability for a date
+ *
+ * Deletes a single availability entry for a person on a specific date. Idempotent: deleting an already-absent entry succeeds without error. Subsequent dashboard reads will fall back to the default-missing-availability behavior.
+ */
+export const deletePersonAvailabilityMutation = (options?: Partial<Options<DeletePersonAvailabilityData>>): UseMutationOptions<DeletePersonAvailabilityResponse, Options<DeletePersonAvailabilityData>, DeletePersonAvailabilityError> => ({
+    mutation: async (vars) => {
+        const { data } = await deletePersonAvailability({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Upsert person availability for a date
+ *
+ * Creates or updates a single availability entry for a person on a specific date. The status must be one of: available, busy, partial, off. The date must be within the planning window.
+ */
+export const upsertPersonAvailabilityMutation = (options?: Partial<Options<UpsertPersonAvailabilityData>>): UseMutationOptions<UpsertPersonAvailabilityResponse, Options<UpsertPersonAvailabilityData>, UpsertPersonAvailabilityError> => ({
+    mutation: async (vars) => {
+        const { data } = await upsertPersonAvailability({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
 export const getPlanningWindowQueryKey = (options?: Options<GetPlanningWindowData>) => createQueryKey('getPlanningWindow', options);
 
 /**
@@ -126,6 +206,73 @@ export const getPlanningWindowQuery = defineQueryOptions<Options<GetPlanningWind
 export const putPlanningWindowMutation = (options?: Partial<Options<PutPlanningWindowData>>): UseMutationOptions<PutPlanningWindowResponse, Options<PutPlanningWindowData>, PutPlanningWindowError> => ({
     mutation: async (vars) => {
         const { data } = await putPlanningWindow({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+export const listRoomsQueryKey = (options?: Options<ListRoomsData>) => createQueryKey('listRooms', options);
+
+/**
+ * List rooms and areas
+ *
+ * Returns all room and area records ordered by name.
+ */
+export const listRoomsQuery = defineQueryOptions<Options<ListRoomsData>, ListRoomsResponse, ListRoomsError>((options?: Options<ListRoomsData>) => ({
+    key: listRoomsQueryKey(options),
+    query: async (context) => {
+        const { data } = await listRooms({
+            ...options,
+            ...context,
+            throwOnError: true
+        });
+        return data;
+    }
+}));
+
+/**
+ * Create a room or area
+ *
+ * Creates a new room or area record and returns it.
+ */
+export const createRoomMutation = (options?: Partial<Options<CreateRoomData>>): UseMutationOptions<CreateRoomResponse, Options<CreateRoomData>, CreateRoomError> => ({
+    mutation: async (vars) => {
+        const { data } = await createRoom({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Delete a room or area
+ *
+ * Deletes a room or area record by ID. Returns 404 if the ID is not found.
+ */
+export const deleteRoomMutation = (options?: Partial<Options<DeleteRoomData>>): UseMutationOptions<DeleteRoomResponse, Options<DeleteRoomData>, DeleteRoomError> => ({
+    mutation: async (vars) => {
+        const { data } = await deleteRoom({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Update a room or area
+ *
+ * Updates an existing room or area record by ID. Returns 404 if the ID is not found.
+ */
+export const updateRoomMutation = (options?: Partial<Options<UpdateRoomData>>): UseMutationOptions<UpdateRoomResponse, Options<UpdateRoomData>, UpdateRoomError> => ({
+    mutation: async (vars) => {
+        const { data } = await updateRoom({
             ...options,
             ...vars,
             throwOnError: true

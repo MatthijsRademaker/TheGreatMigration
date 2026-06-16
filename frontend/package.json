@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "check": "vue-tsc --noEmit",
     "test": "vitest run",
-    "refresh:openapi-snapshot": "node ./scripts/refresh-openapi-snapshot.mjs",
+    "refresh:openapi-snapshot": "bash ./scripts/refresh-openapi-snapshot.sh",
     "generate:api": "node ./scripts/generate-api.mjs",
     "regen:api": "npm run refresh:openapi-snapshot && npm run generate:api",
     "shadcn:info": "shadcn-vue info --json"

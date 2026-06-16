@@ -6,37 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/user/the-great-migration/backend/api"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/user/the-great-migration/backend/db"
 )
 
-// Store is the data access interface for the backend.
-type Store interface {
-	GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error)
-	UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error)
-	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)
-	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
-	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
-	// Person CRUD
-	CreatePerson(ctx context.Context, id, name, initials string) error
-	UpdatePerson(ctx context.Context, id, name, initials string) error
-	DeletePerson(ctx context.Context, id string) error
-	PersonExists(ctx context.Context, id string) (bool, error)
-	PersonHasReferences(ctx context.Context, id string) (bool, error)
-
-	// Availability write
-	UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error
-	DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error
-
-	ListRooms(ctx context.Context) ([]Room, error)
-	CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error)
-	UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error)
-	DeleteRoom(ctx context.Context, id string) error
-}
-
-// PgStore implements Store backed by a pgx connection pool and sqlc queries.
+// PgStore implements api.Store backed by a pgx connection pool and sqlc queries.
 type PgStore struct {
 	queries *db.Queries
 }
@@ -49,7 +27,7 @@ func NewPgStore(pool *pgxpool.Pool) *PgStore {
 }
 
 // GetPlanningWindow returns the singleton planning window row from the database.
-func (s *PgStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
+func (s *PgStore) GetPlanningWindow(ctx context.Context) (*api.PlanningWindowBody, error) {
 	row, err := s.queries.GetPlanningWindow(ctx)
 	if err != nil {
 		return nil, err
@@ -59,7 +37,7 @@ func (s *PgStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, e
 	endDate := pgDateToTime(row.EndDate)
 	days := int(endDate.Sub(startDate).Hours()/24) + 1
 
-	return &PlanningWindowBody{
+	return &api.PlanningWindowBody{
 		StartDate: startDate.Format("2006-01-02"),
 		EndDate:   endDate.Format("2006-01-02"),
 		Days:      days,
@@ -67,7 +45,7 @@ func (s *PgStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, e
 }
 
 // UpdatePlanningWindow persists the singleton planning-window row via UPSERT and returns the updated body.
-func (s *PgStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+func (s *PgStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*api.PlanningWindowBody, error) {
 	row, err := s.queries.UpsertPlanningWindow(ctx, db.UpsertPlanningWindowParams{
 		StartDate: pgtype.Date{Time: startDate, Valid: true},
 		EndDate:   pgtype.Date{Time: endDate, Valid: true},
@@ -80,7 +58,7 @@ func (s *PgStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate t
 	end := pgDateToTime(row.EndDate)
 	days := int(end.Sub(start).Hours()/24) + 1
 
-	return &PlanningWindowBody{
+	return &api.PlanningWindowBody{
 		StartDate: start.Format("2006-01-02"),
 		EndDate:   end.Format("2006-01-02"),
 		Days:      days,
@@ -88,7 +66,7 @@ func (s *PgStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate t
 }
 
 // GetPeopleAvailability returns people and availability data for the given date range.
-func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*api.DashboardBody, error) {
 	// Fetch all people.
 	peopleRows, err := s.queries.GetAllPeople(ctx)
 	if err != nil {
@@ -122,9 +100,9 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 	endDate := startDate.AddDate(0, 0, days-1)
 
 	// Build per-person availability.
-	people := make([]Person, 0, len(peopleRows))
+	people := make([]api.Person, 0, len(peopleRows))
 	for _, pr := range peopleRows {
-		avail := make([]AvailabilityEntry, days)
+		avail := make([]api.AvailabilityEntry, days)
 		for d := 0; d < days; d++ {
 			date := startDate.AddDate(0, 0, d)
 			dateStr := date.Format("2006-01-02")
@@ -134,12 +112,12 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 					status = s
 				}
 			}
-			avail[d] = AvailabilityEntry{
+			avail[d] = api.AvailabilityEntry{
 				Date:   dateStr,
 				Status: status,
 			}
 		}
-		people = append(people, Person{
+		people = append(people, api.Person{
 			ID:           pr.ID,
 			Name:         pr.Name,
 			Initials:     pr.Initials,
@@ -159,24 +137,24 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 		}
 	}
 
-	return &DashboardBody{
-		Range: Range{
+	return &api.DashboardBody{
+		Range: api.Range{
 			StartDate:    startDate.Format("2006-01-02"),
 			EndDate:      endDate.Format("2006-01-02"),
 			Days:         days,
 			SelectedDate: selectedDate,
 		},
-		Summary: Summary{
+		Summary: api.Summary{
 			AvailableToday: availableToday,
 			TotalPeople:    len(people),
 		},
 		People:   people,
-		Statuses: statusLegend,
+		Statuses: api.StatusLegendData,
 	}, nil
 }
 
 // GetTaskBacklog returns the full task backlog response from the database.
-func (s *PgStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+func (s *PgStore) GetTaskBacklog(ctx context.Context) (*api.TaskBacklogBody, error) {
 	taskRows, err := s.queries.GetTaskBacklog(ctx)
 	if err != nil {
 		return nil, err
@@ -192,13 +170,13 @@ func (s *PgStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) 
 		assignMap[a.TaskID] = append(assignMap[a.TaskID], a.PersonID)
 	}
 
-	tasks := make([]TaskRow, len(taskRows))
+	tasks := make([]api.TaskRow, len(taskRows))
 	for i, tr := range taskRows {
 		assigned := assignMap[tr.ID]
 		if assigned == nil {
 			assigned = []string{}
 		}
-		tasks[i] = TaskRow{
+		tasks[i] = api.TaskRow{
 			ID:           tr.ID,
 			Title:        tr.Title,
 			Priority:     tr.Priority,
@@ -224,21 +202,21 @@ func (s *PgStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) 
 		}
 	}
 
-	return &TaskBacklogBody{
-		Summary: TaskSummary{
+	return &api.TaskBacklogBody{
+		Summary: api.TaskSummary{
 			TotalTasks:        total,
 			HighPriorityTasks: highPriority,
 			UnassignedTasks:   unassigned,
 			UnderstaffedTasks: understaffed,
 		},
 		Tasks:      tasks,
-		Priorities: priorityLegend,
-		Statuses:   taskStatusLegend,
+		Priorities: api.PriorityLegendData,
+		Statuses:   api.TaskStatusLegendData,
 	}, nil
 }
 
 // GetDailySchedule returns the full daily schedule response from the database.
-func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*api.DailyScheduleBody, error) {
 	peopleRows, err := s.queries.GetAllPeople(ctx)
 	if err != nil {
 		return nil, err
@@ -286,7 +264,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 
 	endDate := startDate.AddDate(0, 0, days-1)
 
-	scheduleDays := make([]ScheduleDay, days)
+	scheduleDays := make([]api.ScheduleDay, days)
 	for d := 0; d < days; d++ {
 		date := startDate.AddDate(0, 0, d)
 		dateStr := date.Format("2006-01-02")
@@ -294,13 +272,13 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 		dayGroup := int32(d % len(groupCards))
 		cards := groupCards[dayGroup]
 
-		tasks := make([]TaskCard, 0, len(cards))
+		tasks := make([]api.TaskCard, 0, len(cards))
 		for _, cr := range cards {
 			assigneeIDs := assignMap[cr.ID]
-			assignedPeople := make([]AssignedPerson, 0, len(assigneeIDs))
+			assignedPeople := make([]api.AssignedPerson, 0, len(assigneeIDs))
 			for _, pid := range assigneeIDs {
 				if p, ok := peopleMap[pid]; ok {
-					assignedPeople = append(assignedPeople, AssignedPerson{
+					assignedPeople = append(assignedPeople, api.AssignedPerson{
 						ID:       p.ID,
 						Name:     p.Name,
 						Initials: p.Initials,
@@ -312,7 +290,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 			if assignedCount == int(cr.PeopleNeeded) {
 				staffingStatus = "fullyStaffed"
 			}
-			tasks = append(tasks, TaskCard{
+			tasks = append(tasks, api.TaskCard{
 				ID:             fmt.Sprintf("task-d%d-%d", d, cr.SortOrder),
 				Title:          cr.Title,
 				Priority:       cr.Priority,
@@ -326,16 +304,16 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 
 		availableCount := availCountMap[dateStr]
 
-		scheduleDays[d] = ScheduleDay{
+		scheduleDays[d] = api.ScheduleDay{
 			Date:                 dateStr,
-			Label:                formatDayLabel(date),
+			Label:                api.FormatDayLabel(date),
 			AvailablePeopleCount: availableCount,
 			Tasks:                tasks,
 		}
 	}
 
-	return &DailyScheduleBody{
-		Range: ScheduleRange{
+	return &api.DailyScheduleBody{
+		Range: api.ScheduleRange{
 			StartDate: startDate.Format("2006-01-02"),
 			EndDate:   endDate.Format("2006-01-02"),
 			Days:      days,
@@ -413,12 +391,12 @@ func pgDateToTime(d pgtype.Date) time.Time {
 // ---------- Room CRUD ----------
 
 // ListRooms returns all room/area records ordered by name.
-func (s *PgStore) ListRooms(ctx context.Context) ([]Room, error) {
+func (s *PgStore) ListRooms(ctx context.Context) ([]api.Room, error) {
 	rows, err := s.queries.ListRooms(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rooms := make([]Room, len(rows))
+	rooms := make([]api.Room, len(rows))
 	for i, r := range rows {
 		rooms[i] = dbRoomToAPI(r)
 	}
@@ -426,7 +404,7 @@ func (s *PgStore) ListRooms(ctx context.Context) ([]Room, error) {
 }
 
 // CreateRoom creates a new room/area record and returns it.
-func (s *PgStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+func (s *PgStore) CreateRoom(ctx context.Context, input api.CreateRoomInput) (*api.Room, error) {
 	r, err := s.queries.CreateRoom(ctx, db.CreateRoomParams{
 		Name: input.Name,
 		Type: input.Type,
@@ -439,7 +417,7 @@ func (s *PgStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room,
 }
 
 // UpdateRoom updates an existing room/area record by ID.
-func (s *PgStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+func (s *PgStore) UpdateRoom(ctx context.Context, id string, input api.UpdateRoomInput) (*api.Room, error) {
 	r, err := s.queries.UpdateRoom(ctx, db.UpdateRoomParams{
 		ID:   id,
 		Name: input.Name,
@@ -447,7 +425,7 @@ func (s *PgStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInp
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrRoomNotFound
+			return nil, api.ErrRoomNotFound
 		}
 		return nil, err
 	}
@@ -460,7 +438,7 @@ func (s *PgStore) DeleteRoom(ctx context.Context, id string) error {
 	_, err := s.queries.DeleteRoom(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrRoomNotFound
+			return api.ErrRoomNotFound
 		}
 		return err
 	}
@@ -468,7 +446,7 @@ func (s *PgStore) DeleteRoom(ctx context.Context, id string) error {
 }
 
 // dbRoomToAPI converts a db.RoomsArea to the API-facing Room.
-func dbRoomToAPI(r db.RoomsArea) Room {
+func dbRoomToAPI(r db.RoomsArea) api.Room {
 	createdAt := ""
 	if r.CreatedAt.Valid {
 		createdAt = r.CreatedAt.Time.Format(time.RFC3339)
@@ -477,7 +455,7 @@ func dbRoomToAPI(r db.RoomsArea) Room {
 	if r.UpdatedAt.Valid {
 		updatedAt = r.UpdatedAt.Time.Format(time.RFC3339)
 	}
-	return Room{
+	return api.Room{
 		ID:        r.ID,
 		Name:      r.Name,
 		Type:      r.Type,

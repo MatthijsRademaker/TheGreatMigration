@@ -12,8 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	backendapi "github.com/user/the-great-migration/backend/api"
+
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
@@ -64,7 +66,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var body PlanningWindowBody
+		var body backendapi.PlanningWindowBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -92,7 +94,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var body PlanningWindowBody
+		var body backendapi.PlanningWindowBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -116,7 +118,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var getBody PlanningWindowBody
+		var getBody backendapi.PlanningWindowBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &getBody); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -142,7 +144,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var body DashboardBody
+		var body backendapi.DashboardBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -197,7 +199,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var body TaskBacklogBody
+		var body backendapi.TaskBacklogBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -254,7 +256,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var body DailyScheduleBody
+		var body backendapi.DailyScheduleBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -337,7 +339,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 		}
 
-		var body DailyScheduleBody
+		var body backendapi.DailyScheduleBody
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -368,7 +370,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 
 		var listBody struct {
-			Rooms []Room `json:"rooms"`
+			Rooms []backendapi.Room `json:"rooms"`
 		}
 		if err := json.Unmarshal(listRec.Body.Bytes(), &listBody); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
@@ -396,7 +398,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 201, got %d\nbody: %s", createRec.Code, createRec.Body.String())
 		}
 
-		var created Room
+		var created backendapi.Room
 		if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -413,7 +415,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 		router.ServeHTTP(listRec2, listReq2)
 
 		var listBody2 struct {
-			Rooms []Room `json:"rooms"`
+			Rooms []backendapi.Room `json:"rooms"`
 		}
 		if err := json.Unmarshal(listRec2.Body.Bytes(), &listBody2); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
@@ -433,7 +435,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 			t.Fatalf("expected status 200, got %d\nbody: %s", updateRec.Code, updateRec.Body.String())
 		}
 
-		var updated Room
+		var updated backendapi.Room
 		if err := json.Unmarshal(updateRec.Body.Bytes(), &updated); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)
 		}
@@ -468,7 +470,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 		router.ServeHTTP(listRec3, listReq3)
 
 		var listBody3 struct {
-			Rooms []Room `json:"rooms"`
+			Rooms []backendapi.Room `json:"rooms"`
 		}
 		if err := json.Unmarshal(listRec3.Body.Bytes(), &listBody3); err != nil {
 			t.Fatalf("failed to unmarshal: %v", err)

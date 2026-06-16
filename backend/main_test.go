@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	backendapi "github.com/user/the-great-migration/backend/api"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -17,26 +19,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func newTestAPI(store Store) (chi.Router, huma.API) {
+func newTestAPI(store backendapi.Store) (chi.Router, huma.API) {
 	router := chi.NewMux()
 	config := huma.DefaultConfig("Test API", "1.0.0")
 	api := humachi.New(router, config)
 
-	huma.Register(api, huma.Operation{
-		OperationID: "get-hello",
-		Method:      http.MethodGet,
-		Path:        "/api/hello",
-	}, func(ctx context.Context, input *HelloInput) (*HelloOutput, error) {
-		resp := &HelloOutput{}
-		resp.Body.Message = "Hello from the backend!"
-		return resp, nil
-	})
-
-	registerDashboardPeopleAvailability(api, store)
-	registerPlanningWindow(api, store)
-	registerTasksBacklog(api, store)
-	registerDailySchedule(api, store)
-	registerPeopleEndpoints(api, store)	registerRoomsAreas(api, store)
+	backendapi.RegisterAll(api, store)
 
 	return router, api
 }
@@ -83,7 +71,7 @@ func TestDashboardPeopleAvailability(t *testing.T) {
 		t.Fatalf("expected Content-Type application/json, got %q", contentType)
 	}
 
-	var body DashboardBody
+	var body backendapi.DashboardBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
@@ -183,7 +171,7 @@ func TestPlanningWindowEndpoint(t *testing.T) {
 		t.Fatalf("expected Content-Type application/json, got %q", contentType)
 	}
 
-	var body PlanningWindowBody
+	var body backendapi.PlanningWindowBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
@@ -223,7 +211,7 @@ func TestUpdatePlanningWindowSuccess(t *testing.T) {
 		t.Fatalf("expected Content-Type application/json, got %q", contentType)
 	}
 
-	var body PlanningWindowBody
+	var body backendapi.PlanningWindowBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
@@ -330,7 +318,7 @@ func TestTaskBacklog(t *testing.T) {
 		t.Fatalf("expected Content-Type application/json, got %q", contentType)
 	}
 
-	var body TaskBacklogBody
+	var body backendapi.TaskBacklogBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
@@ -459,7 +447,7 @@ func TestDailyScheduleHappyPath(t *testing.T) {
 		t.Fatalf("expected Content-Type application/json, got %q", contentType)
 	}
 
-	var body DailyScheduleBody
+	var body backendapi.DailyScheduleBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
@@ -630,7 +618,7 @@ func TestDailyScheduleExplicitParams(t *testing.T) {
 		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 
-	var body DailyScheduleBody
+	var body backendapi.DailyScheduleBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
@@ -706,23 +694,23 @@ func TestDailyScheduleDeterministic(t *testing.T) {
 // failingStore always returns an error for every Store method.
 type failingStore struct{}
 
-func (f *failingStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
+func (f *failingStore) GetPlanningWindow(ctx context.Context) (*backendapi.PlanningWindowBody, error) {
 	return nil, errTestFailure
 }
 
-func (f *failingStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+func (f *failingStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*backendapi.PlanningWindowBody, error) {
 	return nil, errTestFailure
 }
 
-func (f *failingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+func (f *failingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
 	return nil, errTestFailure
 }
 
-func (f *failingStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+func (f *failingStore) GetTaskBacklog(ctx context.Context) (*backendapi.TaskBacklogBody, error) {
 	return nil, errTestFailure
 }
 
-func (f *failingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+func (f *failingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*backendapi.DailyScheduleBody, error) {
 	return nil, errTestFailure
 }
 
@@ -750,15 +738,19 @@ func (f *failingStore) UpsertAvailability(ctx context.Context, personID string, 
 	return errTestFailure
 }
 
-func (f *failingStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {func (f *failingStore) ListRooms(ctx context.Context) ([]Room, error) {
+func (f *failingStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return errTestFailure
+}
+
+func (f *failingStore) ListRooms(ctx context.Context) ([]backendapi.Room, error) {
 	return nil, errTestFailure
 }
 
-func (f *failingStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+func (f *failingStore) CreateRoom(ctx context.Context, input backendapi.CreateRoomInput) (*backendapi.Room, error) {
 	return nil, errTestFailure
 }
 
-func (f *failingStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+func (f *failingStore) UpdateRoom(ctx context.Context, id string, input backendapi.UpdateRoomInput) (*backendapi.Room, error) {
 	return nil, errTestFailure
 }
 
@@ -811,32 +803,32 @@ func TestDailyScheduleStoreGetDailyScheduleFailure(t *testing.T) {
 // partialFailingStore succeeds on GetPlanningWindow but fails on GetDailySchedule.
 type partialFailingStore struct{}
 
-func (f *partialFailingStore) GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error) {
-	return &PlanningWindowBody{
+func (f *partialFailingStore) GetPlanningWindow(ctx context.Context) (*backendapi.PlanningWindowBody, error) {
+	return &backendapi.PlanningWindowBody{
 		StartDate: "2026-07-05",
 		EndDate:   "2026-08-13",
 		Days:      40,
 	}, nil
 }
 
-func (f *partialFailingStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error) {
+func (f *partialFailingStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*backendapi.PlanningWindowBody, error) {
 	days := int(endDate.Sub(startDate).Hours()/24) + 1
-	return &PlanningWindowBody{
+	return &backendapi.PlanningWindowBody{
 		StartDate: startDate.Format("2006-01-02"),
 		EndDate:   endDate.Format("2006-01-02"),
 		Days:      days,
 	}, nil
 }
 
-func (f *partialFailingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+func (f *partialFailingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
 	return nil, errTestFailure
 }
 
-func (f *partialFailingStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error) {
+func (f *partialFailingStore) GetTaskBacklog(ctx context.Context) (*backendapi.TaskBacklogBody, error) {
 	return nil, errTestFailure
 }
 
-func (f *partialFailingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
+func (f *partialFailingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*backendapi.DailyScheduleBody, error) {
 	return nil, errTestFailure
 }
 
@@ -865,6 +857,22 @@ func (f *partialFailingStore) UpsertAvailability(ctx context.Context, personID s
 }
 
 func (f *partialFailingStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) ListRooms(ctx context.Context) ([]backendapi.Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) CreateRoom(ctx context.Context, input backendapi.CreateRoomInput) (*backendapi.Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) UpdateRoom(ctx context.Context, id string, input backendapi.UpdateRoomInput) (*backendapi.Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) DeleteRoom(ctx context.Context, id string) error {
 	return errTestFailure
 }
 
@@ -942,14 +950,14 @@ func (s *peopleTestStore) DeleteAvailability(ctx context.Context, personID strin
 }
 
 // Override GetPeopleAvailability to use the CRUD-backed data.
-func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error) {
+func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
 	// Build from in-memory people + availability.
-	people := make([]Person, 0, len(s.people))
+	people := make([]backendapi.Person, 0, len(s.people))
 	endDate := startDate.AddDate(0, 0, days-1)
 	selectedDate := startDate.Format("2006-01-02")
 
 	for id, tp := range s.people {
-		avail := make([]AvailabilityEntry, days)
+		avail := make([]backendapi.AvailabilityEntry, days)
 		for d := 0; d < days; d++ {
 			date := startDate.AddDate(0, 0, d)
 			dateStr := date.Format("2006-01-02")
@@ -959,12 +967,12 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 					status = st
 				}
 			}
-			avail[d] = AvailabilityEntry{
+			avail[d] = backendapi.AvailabilityEntry{
 				Date:   dateStr,
 				Status: status,
 			}
 		}
-		people = append(people, Person{
+		people = append(people, backendapi.Person{
 			ID:           id,
 			Name:         tp.Name,
 			Initials:     tp.Initials,
@@ -983,19 +991,19 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 		}
 	}
 
-	return &DashboardBody{
-		Range: Range{
+	return &backendapi.DashboardBody{
+		Range: backendapi.Range{
 			StartDate:    startDate.Format("2006-01-02"),
 			EndDate:      endDate.Format("2006-01-02"),
 			Days:         days,
 			SelectedDate: selectedDate,
 		},
-		Summary: Summary{
+		Summary: backendapi.Summary{
 			AvailableToday: availableToday,
 			TotalPeople:    len(people),
 		},
 		People:   people,
-		Statuses: statusLegend,
+		Statuses: backendapi.StatusLegendData,
 	}, nil
 }
 
@@ -1007,20 +1015,304 @@ func TestCreatePerson(t *testing.T) {
 
 	body := `{"id":"p9","name":"Test User","initials":"TU"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")func (f *partialFailingStore) ListRooms(ctx context.Context) ([]Room, error) {
-	return nil, errTestFailure
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.Person
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.ID != "p9" {
+		t.Fatalf("expected id p9, got %q", resp.ID)
+	}
+	if resp.Name != "Test User" {
+		t.Fatalf("expected name 'Test User', got %q", resp.Name)
+	}
+	if resp.Initials != "TU" {
+		t.Fatalf("expected initials 'TU', got %q", resp.Initials)
+	}
 }
 
-func (f *partialFailingStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
-	return nil, errTestFailure
+func TestCreatePersonDuplicate(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Existing", "EX"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"id":"p9","name":"Test User","initials":"TU"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409 for duplicate, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
 }
 
-func (f *partialFailingStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
-	return nil, errTestFailure
+func TestCreatePersonMissingFields(t *testing.T) {
+	router, _ := newTestAPI(newPeopleTestStore())
+
+	body := `{"id":"","name":"","initials":""}`
+	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status 422 for empty fields, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
 }
 
-func (f *partialFailingStore) DeleteRoom(ctx context.Context, id string) error {
-	return errTestFailure
+func TestUpdatePerson(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Original", "OR"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"name":"Updated Name","initials":"UN"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.Person
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if resp.Name != "Updated Name" {
+		t.Fatalf("expected name 'Updated Name', got %q", resp.Name)
+	}
+	if resp.Initials != "UN" {
+		t.Fatalf("expected initials 'UN', got %q", resp.Initials)
+	}
+}
+
+func TestUpdatePersonNotFound(t *testing.T) {
+	router, _ := newTestAPI(newPeopleTestStore())
+
+	body := `{"name":"Nobody","initials":"NB"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/nonexistent", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePerson(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p99", "To Delete", "TD"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p99", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	exists, _ := store.PersonExists(context.Background(), "p99")
+	if exists {
+		t.Fatal("person should have been deleted")
+	}
+}
+
+func TestDeletePersonNotFound(t *testing.T) {
+	router, _ := newTestAPI(newPeopleTestStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/nonexistent", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404 for nonexistent person, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePersonConflict(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p1", "Sophia Chen", "SC"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePersonForeignKeyViolation(t *testing.T) {
+	store := newPeopleTestStore()
+	// p9 has no references (PersonHasReferences returns false), but a concurrent
+	// request could insert a reference between the check and delete.
+	if err := store.CreatePerson(context.Background(), "p9", "Raced Person", "RP"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+	store.deleteShouldFailWithFK = true
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409 for FK violation, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailability(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+	if got := store.availability["p9"]["2026-07-10"]; got != "available" {
+		t.Fatalf("expected persisted availability 'available', got %q", got)
+	}
+}
+
+func TestUpsertAvailabilityInvalidStatus(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"unknown"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for invalid status, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityPersonNotFound(t *testing.T) {
+	router, _ := newTestAPI(newPeopleTestStore())
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/nonexistent/availability/2026-07-10", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityOutOfWindow(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2025-01-01", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for out-of-window date, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpsertAvailabilityMalformedDate(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	body := `{"status":"available"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/not-a-date", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for malformed date, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteAvailability(t *testing.T) {
+	store := newPeopleTestStore()
+	if err := store.CreatePerson(context.Background(), "p9", "Test User", "TU"); err != nil {
+		t.Fatalf("failed to seed person: %v", err)
+	}
+	date := pgtype.Date{Time: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC), Valid: true}
+	if err := store.UpsertAvailability(context.Background(), "p9", date, "available"); err != nil {
+		t.Fatalf("failed to seed availability: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9/availability/2026-07-10", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+	if _, ok := store.availability["p9"]["2026-07-10"]; ok {
+		t.Fatal("availability should have been deleted")
+	}
+}
+
+func TestDeleteAvailabilityPersonNotFound(t *testing.T) {
+	router, _ := newTestAPI(newPeopleTestStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/nonexistent/availability/2026-07-10", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
 }
 
 // ---------- Room CRUD tests ----------
@@ -1036,42 +1328,15 @@ func TestListRooms(t *testing.T) {
 		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 
-	var resp Person
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-	if resp.ID != "p9" {
-		t.Fatalf("expected id p9, got %q", resp.ID)
-	}
-	if resp.Name != "Test User" {
-		t.Fatalf("expected name 'Test User', got %q", resp.Name)
-	}
-}
-
-func TestCreatePersonDuplicate(t *testing.T) {
-	store := newPeopleTestStore()
-	// Seed a person.
-	store.CreatePerson(context.Background(), "p9", "Existing", "EX")
-
-	router, _ := newTestAPI(store)
-
-	body := `{"id":"p9","name":"Test User","initials":"TU"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))	contentType := rec.Header().Get("Content-Type")
-	if contentType != "application/json" {
-		t.Fatalf("expected Content-Type application/json, got %q", contentType)
-	}
-
 	var body struct {
-		Rooms []Room `json:"rooms"`
+		Rooms []backendapi.Room `json:"rooms"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
-
 	if len(body.Rooms) != 2 {
 		t.Fatalf("expected 2 rooms, got %d", len(body.Rooms))
 	}
-
 	for _, room := range body.Rooms {
 		if room.ID == "" {
 			t.Fatal("room has empty id")
@@ -1094,25 +1359,14 @@ func TestCreateRoom(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected status 409 for duplicate, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestCreatePersonMissingFields(t *testing.T) {
-	store := newPeopleTestStore()
-	router, _ := newTestAPI(store)
-
-	body := `{"id":"","name":"","initials":""}`
-	req := httptest.NewRequest(http.MethodPost, "/api/people", strings.NewReader(body))	if rec.Code != http.StatusCreated {
+	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected status 201, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 
-	var room Room
+	var room backendapi.Room
 	if err := json.Unmarshal(rec.Body.Bytes(), &room); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
-
 	if room.Name != "Basement" {
 		t.Fatalf("expected name 'Basement', got %q", room.Name)
 	}
@@ -1134,18 +1388,7 @@ func TestCreateRoomInvalidType(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("expected status 422 for empty fields, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestUpdatePerson(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p9", "Original", "OR")
-
-	router, _ := newTestAPI(store)
-
-	body := `{"name":"Updated Name","initials":"UN"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9", strings.NewReader(body))		t.Fatalf("expected status 422, got %d\nbody: %s", rec.Code, rec.Body.String())
+		t.Fatalf("expected status 422, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -1162,25 +1405,10 @@ func TestUpdateRoom(t *testing.T) {
 		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 
-	var resp Person
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-	if resp.Name != "Updated Name" {
-		t.Fatalf("expected name 'Updated Name', got %q", resp.Name)
-	}
-}
-
-func TestUpdatePersonNotFound(t *testing.T) {
-	store := newPeopleTestStore()
-	router, _ := newTestAPI(store)
-
-	body := `{"name":"Nobody","initials":"NB"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/nonexistent", strings.NewReader(body))	var room Room
+	var room backendapi.Room
 	if err := json.Unmarshal(rec.Body.Bytes(), &room); err != nil {
 		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
 	}
-
 	if room.ID != "room-1" {
 		t.Fatalf("expected id 'room-1', got %q", room.ID)
 	}
@@ -1203,31 +1431,7 @@ func TestUpdateRoomNotFound(t *testing.T) {
 	}
 }
 
-func TestDeletePerson(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p99", "To Delete", "TD")
-
-	router, _ := newTestAPI(store)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p99", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-
-	exists, _ := store.PersonExists(context.Background(), "p99")
-	if exists {
-		t.Fatal("person should have been deleted")
-	}
-}
-
-func TestDeletePersonNotFound(t *testing.T) {
-	store := newPeopleTestStore()
-	router, _ := newTestAPI(store)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/nonexistent", nil)func TestDeleteRoom(t *testing.T) {
+func TestDeleteRoom(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/rooms/room-1", nil)
@@ -1251,48 +1455,7 @@ func TestDeleteRoomNotFound(t *testing.T) {
 	}
 }
 
-func TestDeletePersonConflict(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p1", "Sophia Chen", "SC")
-
-	router, _ := newTestAPI(store)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p1", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected status 409, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestDeletePersonForeignKeyViolation(t *testing.T) {
-	store := newPeopleTestStore()
-	// p9 has no references (PersonHasReferences returns false), but
-	// a concurrent request could insert a reference between the check
-	// and the delete, causing a foreign-key violation at the DB level.
-	store.CreatePerson(context.Background(), "p9", "Raced Person", "RP")
-	store.deleteShouldFailWithFK = true
-
-	router, _ := newTestAPI(store)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected status 409 for FK violation, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestUpsertAvailability(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
-
-	router, _ := newTestAPI(store)
-
-	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))func TestListRoomsStoreFailure(t *testing.T) {
+func TestListRoomsStoreFailure(t *testing.T) {
 	router, _ := newTestAPI(&failingStore{})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/rooms", nil)
@@ -1313,19 +1476,7 @@ func TestCreateRoomStoreFailure(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestUpsertAvailabilityInvalidStatus(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
-
-	router, _ := newTestAPI(store)
-
-	body := `{"status":"unknown"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2026-07-10", strings.NewReader(body))	if rec.Code != http.StatusInternalServerError {
+	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
@@ -1339,92 +1490,7 @@ func TestUpdateRoomStoreFailure(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for invalid status, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestUpsertAvailabilityPersonNotFound(t *testing.T) {
-	store := newPeopleTestStore()
-	router, _ := newTestAPI(store)
-
-	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/nonexistent/availability/2026-07-10", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestUpsertAvailabilityOutOfWindow(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
-
-	router, _ := newTestAPI(store)
-
-	// Planning window is 2026-07-05 to 2026-08-13. Use a date outside.
-	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/2025-01-01", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for out-of-window date, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestUpsertAvailabilityMalformedDate(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
-
-	router, _ := newTestAPI(store)
-
-	body := `{"status":"available"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/people/p9/availability/not-a-date", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for malformed date, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestDeleteAvailability(t *testing.T) {
-	store := newPeopleTestStore()
-	store.CreatePerson(context.Background(), "p9", "Test User", "TU")
-	date := pgtype.Date{Time: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC), Valid: true}
-	store.UpsertAvailability(context.Background(), "p9", date, "available")
-
-	router, _ := newTestAPI(store)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/p9/availability/2026-07-10", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestDeleteAvailabilityPersonNotFound(t *testing.T) {
-	store := newPeopleTestStore()
-	router, _ := newTestAPI(store)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/people/nonexistent/availability/2026-07-10", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestOpenAPIIncludesPeopleEndpoints(t *testing.T) {	if rec.Code != http.StatusInternalServerError {
+	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
 	}
 }
@@ -1441,7 +1507,7 @@ func TestDeleteRoomStoreFailure(t *testing.T) {
 	}
 }
 
-func TestRoomsOpenAPIInclusion(t *testing.T) {
+func TestOpenAPIIncludesMergedEndpoints(t *testing.T) {
 	_, api := newTestAPI(newMockStore())
 
 	openAPIBytes, err := json.Marshal(api.OpenAPI())
@@ -1460,45 +1526,20 @@ func TestRoomsOpenAPIInclusion(t *testing.T) {
 	}
 
 	expectedPaths := []string{
+		"/api/hello",
+		"/api/dashboard/people-availability",
+		"/api/dashboard/daily-schedule",
+		"/api/planning-window",
+		"/api/tasks/backlog",
 		"/api/people",
 		"/api/people/{id}",
 		"/api/people/{id}/availability/{date}",
+		"/api/rooms",
+		"/api/rooms/{id}",
 	}
-	for _, p := range expectedPaths {
-		if _, exists := paths[p]; !exists {
-			t.Fatalf("OpenAPI spec does not include %s", p)
+	for _, path := range expectedPaths {
+		if _, exists := paths[path]; !exists {
+			t.Fatalf("OpenAPI spec does not include %s", path)
 		}
-	}
-}
-
-func TestExistingDashboardPeopleAvailabilityUnchanged(t *testing.T) {
-	router, _ := newTestAPI(newMockStore())
-
-	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", rec.Code)
-	}
-
-	var body DashboardBody
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-
-	// Verify the existing contract.
-	if body.Range.StartDate == "" {
-		t.Fatal("range.startDate is empty")
-	}
-	if len(body.People) < 8 {
-		t.Fatalf("expected at least 8 people, got %d", len(body.People))
-	}
-	if len(body.Statuses) != 4 {
-		t.Fatalf("expected 4 statuses, got %d", len(body.Statuses))	if _, exists := paths["/api/rooms"]; !exists {
-		t.Fatal("OpenAPI spec does not include /api/rooms")
-	}
-	if _, exists := paths["/api/rooms/{id}"]; !exists {
-		t.Fatal("OpenAPI spec does not include /api/rooms/{id}")
 	}
 }

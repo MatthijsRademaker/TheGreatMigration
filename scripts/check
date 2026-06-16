@@ -31,10 +31,13 @@ echo "[scripts/check] Running backend checks..."
 verification_reset
 verification_workdir "$WORKSPACE"
 verification_add_arg -v "$WORKSPACE:$WORKSPACE"
+verification_add_env GOCACHE=/workspace/.cache/go-cache
+verification_add_env GOPATH=/workspace/.cache/go
 
 if ! verification_run_container "$GO_IMAGE" \
-  sh -c 'export GOCACHE="/workspace/.cache/go-cache" && export GOPATH="/workspace/.cache/go" && cd backend && go mod tidy && go vet ./... && go build ./...'; then
+	sh -c 'cd backend && go mod tidy && go vet ./... && go build ./... && echo "[scripts/check] Checking OpenAPI snapshot consistency..." && go run ./cmd/openapi-gen | diff - ../frontend/openapi-snapshot.json'; then
   echo "[scripts/check] Backend check FAILED" >&2
+  echo "[scripts/check] If the OpenAPI snapshot is stale, run: cd frontend && npm run regen:api" >&2
   exit 1
 fi
 echo "[scripts/check] Backend check passed."

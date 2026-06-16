@@ -30,6 +30,40 @@ export type AvailabilityEntry = {
     status: string;
 };
 
+export type CreatePersonInputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Client-supplied stable person key (slug)
+     */
+    id: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
+export type CreateRoomRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
 export type DailyScheduleBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -66,6 +100,22 @@ export type DashboardBody = {
      * Summary counts
      */
     summary: Summary;
+};
+
+export type DeleteAvailabilityOutputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    message: string;
+};
+
+export type DeletePersonOutputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    message: string;
 };
 
 export type ErrorDetail = {
@@ -122,7 +172,22 @@ export type HelloOutputBody = {
     message: string;
 };
 
+export type ListRoomsOutputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * All room/area records
+     */
+    rooms: Array<Room> | null;
+};
+
 export type Person = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
     /**
      * One entry per date in the range
      */
@@ -192,6 +257,33 @@ export type Range = {
      * Start date of the window (ISO 8601)
      */
     startDate: string;
+};
+
+export type Room = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * ISO 8601 timestamp of creation
+     */
+    createdAt: string;
+    /**
+     * Stable room identifier, prefixed 'room-'
+     */
+    id: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+    /**
+     * ISO 8601 timestamp of last update
+     */
+    updatedAt: string;
 };
 
 export type ScheduleDay = {
@@ -377,6 +469,21 @@ export type TaskSummary = {
     understaffedTasks: number;
 };
 
+export type UpdatePersonInputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
 export type UpdatePlanningWindowInputBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -390,6 +497,66 @@ export type UpdatePlanningWindowInputBody = {
      * Start date (ISO 8601, YYYY-MM-DD)
      */
     startDate: string;
+};
+
+export type UpdateRoomRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Updated human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
+export type UpsertAvailabilityInputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * One of: available, busy, partial, off
+     */
+    status: string;
+};
+
+export type UpsertAvailabilityOutputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    message: string;
+};
+
+export type CreatePersonInputBodyWritable = {
+    /**
+     * Client-supplied stable person key (slug)
+     */
+    id: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
+export type CreateRoomRequestBodyWritable = {
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
 };
 
 export type DailyScheduleBodyWritable = {
@@ -407,7 +574,7 @@ export type DashboardBodyWritable = {
     /**
      * People with daily availability
      */
-    people: Array<Person> | null;
+    people: Array<PersonWritable> | null;
     /**
      * Date range metadata
      */
@@ -420,6 +587,14 @@ export type DashboardBodyWritable = {
      * Summary counts
      */
     summary: Summary;
+};
+
+export type DeleteAvailabilityOutputBodyWritable = {
+    message: string;
+};
+
+export type DeletePersonOutputBodyWritable = {
+    message: string;
 };
 
 export type ErrorModelWritable = {
@@ -453,6 +628,32 @@ export type HelloOutputBodyWritable = {
     message: string;
 };
 
+export type ListRoomsOutputBodyWritable = {
+    /**
+     * All room/area records
+     */
+    rooms: Array<RoomWritable> | null;
+};
+
+export type PersonWritable = {
+    /**
+     * One entry per date in the range
+     */
+    availability: Array<AvailabilityEntry> | null;
+    /**
+     * Stable person key
+     */
+    id: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
 export type PlanningWindowBodyWritable = {
     /**
      * Inclusive day count between startDate and endDate
@@ -466,6 +667,29 @@ export type PlanningWindowBodyWritable = {
      * Start date of the planning window (ISO 8601)
      */
     startDate: string;
+};
+
+export type RoomWritable = {
+    /**
+     * ISO 8601 timestamp of creation
+     */
+    createdAt: string;
+    /**
+     * Stable room identifier, prefixed 'room-'
+     */
+    id: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+    /**
+     * ISO 8601 timestamp of last update
+     */
+    updatedAt: string;
 };
 
 export type TaskBacklogBodyWritable = {
@@ -487,6 +711,17 @@ export type TaskBacklogBodyWritable = {
     tasks: Array<TaskRow> | null;
 };
 
+export type UpdatePersonInputBodyWritable = {
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
 export type UpdatePlanningWindowInputBodyWritable = {
     /**
      * End date (ISO 8601, YYYY-MM-DD)
@@ -496,6 +731,28 @@ export type UpdatePlanningWindowInputBodyWritable = {
      * Start date (ISO 8601, YYYY-MM-DD)
      */
     startDate: string;
+};
+
+export type UpdateRoomRequestBodyWritable = {
+    /**
+     * Updated human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
+export type UpsertAvailabilityInputBodyWritable = {
+    /**
+     * One of: available, busy, partial, off
+     */
+    status: string;
+};
+
+export type UpsertAvailabilityOutputBodyWritable = {
+    message: string;
 };
 
 export type GetDashboardDailyScheduleData = {
@@ -591,6 +848,159 @@ export type GetHelloResponses = {
 
 export type GetHelloResponse = GetHelloResponses[keyof GetHelloResponses];
 
+export type CreatePersonData = {
+    body: CreatePersonInputBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/people';
+};
+
+export type CreatePersonErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreatePersonError = CreatePersonErrors[keyof CreatePersonErrors];
+
+export type CreatePersonResponses = {
+    /**
+     * OK
+     */
+    200: Person;
+};
+
+export type CreatePersonResponse = CreatePersonResponses[keyof CreatePersonResponses];
+
+export type DeletePersonData = {
+    body?: never;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/people/{id}';
+};
+
+export type DeletePersonErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeletePersonError = DeletePersonErrors[keyof DeletePersonErrors];
+
+export type DeletePersonResponses = {
+    /**
+     * OK
+     */
+    200: DeletePersonOutputBody;
+};
+
+export type DeletePersonResponse = DeletePersonResponses[keyof DeletePersonResponses];
+
+export type UpdatePersonData = {
+    body: UpdatePersonInputBodyWritable;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/people/{id}';
+};
+
+export type UpdatePersonErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdatePersonError = UpdatePersonErrors[keyof UpdatePersonErrors];
+
+export type UpdatePersonResponses = {
+    /**
+     * OK
+     */
+    200: Person;
+};
+
+export type UpdatePersonResponse = UpdatePersonResponses[keyof UpdatePersonResponses];
+
+export type DeletePersonAvailabilityData = {
+    body?: never;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+        /**
+         * Date in ISO 8601 format (YYYY-MM-DD)
+         */
+        date: string;
+    };
+    query?: never;
+    url: '/api/people/{id}/availability/{date}';
+};
+
+export type DeletePersonAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeletePersonAvailabilityError = DeletePersonAvailabilityErrors[keyof DeletePersonAvailabilityErrors];
+
+export type DeletePersonAvailabilityResponses = {
+    /**
+     * OK
+     */
+    200: DeleteAvailabilityOutputBody;
+};
+
+export type DeletePersonAvailabilityResponse = DeletePersonAvailabilityResponses[keyof DeletePersonAvailabilityResponses];
+
+export type UpsertPersonAvailabilityData = {
+    body: UpsertAvailabilityInputBodyWritable;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+        /**
+         * Date in ISO 8601 format (YYYY-MM-DD)
+         */
+        date: string;
+    };
+    query?: never;
+    url: '/api/people/{id}/availability/{date}';
+};
+
+export type UpsertPersonAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpsertPersonAvailabilityError = UpsertPersonAvailabilityErrors[keyof UpsertPersonAvailabilityErrors];
+
+export type UpsertPersonAvailabilityResponses = {
+    /**
+     * OK
+     */
+    200: UpsertAvailabilityOutputBody;
+};
+
+export type UpsertPersonAvailabilityResponse = UpsertPersonAvailabilityResponses[keyof UpsertPersonAvailabilityResponses];
+
 export type GetPlanningWindowData = {
     body?: never;
     path?: never;
@@ -644,6 +1054,116 @@ export type PutPlanningWindowResponses = {
 };
 
 export type PutPlanningWindowResponse = PutPlanningWindowResponses[keyof PutPlanningWindowResponses];
+
+export type ListRoomsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/rooms';
+};
+
+export type ListRoomsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListRoomsError = ListRoomsErrors[keyof ListRoomsErrors];
+
+export type ListRoomsResponses = {
+    /**
+     * OK
+     */
+    200: ListRoomsOutputBody;
+};
+
+export type ListRoomsResponse = ListRoomsResponses[keyof ListRoomsResponses];
+
+export type CreateRoomData = {
+    body: CreateRoomRequestBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/rooms';
+};
+
+export type CreateRoomErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateRoomError = CreateRoomErrors[keyof CreateRoomErrors];
+
+export type CreateRoomResponses = {
+    /**
+     * Created
+     */
+    201: Room;
+};
+
+export type CreateRoomResponse = CreateRoomResponses[keyof CreateRoomResponses];
+
+export type DeleteRoomData = {
+    body?: never;
+    path: {
+        /**
+         * Room identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/rooms/{id}';
+};
+
+export type DeleteRoomErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteRoomError = DeleteRoomErrors[keyof DeleteRoomErrors];
+
+export type DeleteRoomResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteRoomResponse = DeleteRoomResponses[keyof DeleteRoomResponses];
+
+export type UpdateRoomData = {
+    body: UpdateRoomRequestBodyWritable;
+    path: {
+        /**
+         * Room identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/rooms/{id}';
+};
+
+export type UpdateRoomErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateRoomError = UpdateRoomErrors[keyof UpdateRoomErrors];
+
+export type UpdateRoomResponses = {
+    /**
+     * OK
+     */
+    200: Room;
+};
+
+export type UpdateRoomResponse = UpdateRoomResponses[keyof UpdateRoomResponses];
 
 export type GetTasksBacklogData = {
     body?: never;

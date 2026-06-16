@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -23,10 +23,10 @@ type DashboardOutput struct {
 
 // DashboardBody is the top-level response body.
 type DashboardBody struct {
-	Range    Range           `json:"range" doc:"Date range metadata"`
-	Summary  Summary         `json:"summary" doc:"Summary counts"`
-	People   []Person        `json:"people" doc:"People with daily availability"`
-	Statuses []StatusLegend  `json:"statuses" doc:"Canonical status legend"`
+	Range    Range          `json:"range" doc:"Date range metadata"`
+	Summary  Summary        `json:"summary" doc:"Summary counts"`
+	People   []Person       `json:"people" doc:"People with daily availability"`
+	Statuses []StatusLegend `json:"statuses" doc:"Canonical status legend"`
 }
 
 // Range holds date-range metadata.
@@ -45,9 +45,9 @@ type Summary struct {
 
 // Person represents one person with their daily availability over the requested window.
 type Person struct {
-	ID           string             `json:"id" doc:"Stable person key"`
-	Name         string             `json:"name" doc:"Full name"`
-	Initials     string             `json:"initials" doc:"Initials"`
+	ID           string              `json:"id" doc:"Stable person key"`
+	Name         string              `json:"name" doc:"Full name"`
+	Initials     string              `json:"initials" doc:"Initials"`
 	Availability []AvailabilityEntry `json:"availability" doc:"One entry per date in the range"`
 }
 
@@ -66,7 +66,8 @@ type StatusLegend struct {
 
 // ---------- Status legend ----------
 
-var statusLegend = []StatusLegend{
+// StatusLegendData is the canonical status legend used by dashboard responses.
+var StatusLegendData = []StatusLegend{
 	{ID: "available", Label: "Available", ColorIntent: "success"},
 	{ID: "busy", Label: "Busy", ColorIntent: "destructive"},
 	{ID: "partial", Label: "Partial", ColorIntent: "warning"},
@@ -110,5 +111,4 @@ func registerDashboardPeopleAvailability(api huma.API, store Store) {
 			Body: *body,
 		}, nil
 	})
-
 }

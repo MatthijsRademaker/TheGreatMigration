@@ -11,27 +11,19 @@ import (
 	"strings"
 	"time"
 
+	backendapi "github.com/user/the-great-migration/backend/api"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
-
-// HelloInput is the input for the hello endpoint.
-type HelloInput struct{}
-
-// HelloOutput is the response for the hello endpoint.
-type HelloOutput struct {
-	Body struct {
-		Message string `json:"message" example:"Hello from the backend!"`
-	}
-}
 
 func main() {
 	// Initialize database connection pool.
@@ -92,34 +84,8 @@ func main() {
 		w.Write(b)
 	})
 
-	// Register GET /api/hello.
-	huma.Register(api, huma.Operation{
-		OperationID: "get-hello",
-		Method:      http.MethodGet,
-		Path:        "/api/hello",
-		Summary:     "Hello world",
-		Description: "Returns a hello-world message confirming the backend is reachable.",
-	}, func(ctx context.Context, input *HelloInput) (*HelloOutput, error) {
-		resp := &HelloOutput{}
-		resp.Body.Message = "Hello from the backend!"
-		return resp, nil
-	})
-
-	// Register GET /api/dashboard/people-availability.
-	registerDashboardPeopleAvailability(api, store)
-
-	// Register GET /api/planning-window.
-	registerPlanningWindow(api, store)
-
-	// Register GET /api/tasks/backlog.
-	registerTasksBacklog(api, store)
-
-	// Register GET /api/dashboard/daily-schedule.
-	registerDailySchedule(api, store)
-
-	// Register people management write endpoints.
-	registerPeopleEndpoints(api, store)
-	registerRoomsAreas(api, store)
+	// Register all API endpoints (from backend/api package).
+	backendapi.RegisterAll(api, store)
 
 	fmt.Println("Backend listening on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {

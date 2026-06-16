@@ -31,9 +31,11 @@ echo "[scripts/test] Running backend tests..."
 verification_reset
 verification_workdir "$WORKSPACE"
 verification_add_arg -v "$WORKSPACE:$WORKSPACE"
+verification_add_env GOCACHE=/workspace/.cache/go-cache
+verification_add_env GOPATH=/workspace/.cache/go
 
 if ! verification_run_container "$GO_IMAGE" \
-  sh -c 'export GOCACHE="/workspace/.cache/go-cache" && export GOPATH="/workspace/.cache/go" && cd backend && go mod tidy && go test ./...'; then
+	sh -c 'cd backend && go mod tidy && go test ./...'; then
   echo "[scripts/test] Backend tests FAILED" >&2
   exit 1
 fi
