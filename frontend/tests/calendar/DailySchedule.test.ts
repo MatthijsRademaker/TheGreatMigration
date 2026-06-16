@@ -19,6 +19,7 @@ interface TaskCard {
 	peopleNeeded: number;
 	assignedCount: number;
 	staffingStatus: "fullyStaffed" | "underStaffed";
+	scheduledDate: string;
 }
 
 interface ScheduleDay {
@@ -43,6 +44,7 @@ const sampleDays: ScheduleDay[] = [
 				peopleNeeded: 1,
 				assignedCount: 1,
 				staffingStatus: "fullyStaffed",
+				scheduledDate: "2026-08-01",
 			},
 			{
 				id: "c2",
@@ -56,6 +58,7 @@ const sampleDays: ScheduleDay[] = [
 				peopleNeeded: 3,
 				assignedCount: 2,
 				staffingStatus: "underStaffed",
+				scheduledDate: "2026-08-01",
 			},
 		],
 	},
@@ -73,6 +76,7 @@ const sampleDays: ScheduleDay[] = [
 				peopleNeeded: 1,
 				assignedCount: 1,
 				staffingStatus: "fullyStaffed",
+				scheduledDate: "2026-08-02",
 			},
 		],
 	},

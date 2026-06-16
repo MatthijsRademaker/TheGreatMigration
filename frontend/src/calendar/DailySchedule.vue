@@ -21,6 +21,7 @@ interface TaskCard {
   peopleNeeded: number
   assignedCount: number
   staffingStatus: 'fullyStaffed' | 'underStaffed'
+  scheduledDate: string
 }
 
 interface ScheduleDay {

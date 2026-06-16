@@ -492,11 +492,6 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 	return &card, nil
 }
 
-// scheduleCardDateMap returns a mapping of date -> cards built from the scheduleCards store.
-func (m *mockStore) scheduleCardDateMap(input api.CreateScheduleCardInput) string {
-	return input.ScheduledDate
-}
-
 func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
 	_, ok := m.scheduleCards[idStr]
 	if !ok {

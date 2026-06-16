@@ -68,13 +68,14 @@ function openCreate(date?: string) {
   modalOpen.value = true
 }
 
-function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number }) {
+function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string }) {
   resetForm()
   editingId.value = card.id
   formTitle.value = card.title
   formPriority.value = card.priority as 'high' | 'medium' | 'low'
   formPeopleNeeded.value = card.peopleNeeded
   formRoomArea.value = card.roomArea
+  formScheduledDate.value = card.scheduledDate
   modalOpen.value = true
 }
 

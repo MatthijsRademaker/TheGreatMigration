@@ -22,6 +22,7 @@ export interface ScheduleTaskCard {
 	peopleNeeded: number;
 	assignedCount: number;
 	staffingStatus: "fullyStaffed" | "underStaffed";
+	scheduledDate: string;
 }
 
 export interface ScheduleDay {
@@ -41,7 +42,10 @@ function isCanonicalTask(card: ApiTaskCard): boolean {
 	);
 }
 
-function adaptTaskCard(card: ApiTaskCard): ScheduleTaskCard {
+function adaptTaskCard(
+	card: ApiTaskCard,
+	scheduledDate: string,
+): ScheduleTaskCard {
 	return {
 		id: card.id,
 		title: card.title,
@@ -51,6 +55,7 @@ function adaptTaskCard(card: ApiTaskCard): ScheduleTaskCard {
 		peopleNeeded: card.peopleNeeded,
 		assignedCount: card.assignedCount,
 		staffingStatus: card.staffingStatus as ScheduleTaskCard["staffingStatus"],
+		scheduledDate,
 	};
 }
 
@@ -59,7 +64,7 @@ function adaptDay(day: ApiScheduleDay): ScheduleDay {
 	const tasks: ScheduleTaskCard[] = [];
 	for (const card of rawTasks) {
 		if (isCanonicalTask(card)) {
-			tasks.push(adaptTaskCard(card));
+			tasks.push(adaptTaskCard(card, day.date));
 		}
 	}
 	return {
