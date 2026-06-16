@@ -66,8 +66,12 @@ describe("application route rendering", () => {
 		expect(html).toContain("Tasks");
 		expect(html).toContain("Schedule");
 		expect(html).toContain("People");
+		expect(html).toContain("Rooms / Areas");
+		expect(html).toContain("Settings");
 		expect(html).toContain("Moving dashboard");
 		expect(html).toContain("Today’s plan");
+		expect(html).toContain("Add note");
+		expect(html).toContain("Help &amp; Support");
 	});
 
 	const routeCases = [
@@ -83,7 +87,7 @@ describe("application route rendering", () => {
 			title: "Task backlog",
 			description:
 				"Capture jobs, priorities, staffing needs, and planning status.",
-			content: "Task foundation",
+			content: "Task Management",
 		},
 		{
 			path: "/calendar",
@@ -96,6 +100,20 @@ describe("application route rendering", () => {
 			title: "People availability",
 			description: "Track who is available and where each person can help.",
 			content: "2 of 4 available today",
+		},
+		{
+			path: "/rooms",
+			title: "Rooms / Areas",
+			description:
+				"Organize and label rooms, floors, and zones for a clear move-day plan.",
+			content: "Feature coming soon",
+		},
+		{
+			path: "/settings",
+			title: "Settings",
+			description:
+				"Configure your move preferences, notification defaults, and account details.",
+			content: "Feature coming soon",
 		},
 	] as const;
 
@@ -112,6 +130,15 @@ describe("application route rendering", () => {
 				// Count occurrences to verify we render the mocked planning-window day count.
 				const columnMatches = html.match(/data-testid="plan-day-column"/g);
 				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
+			}
+
+			if (path === "/tasks") {
+				expect(html).toContain("Painting hall");
+				expect(html).toContain("People Needed");
+				expect(html).toContain("Room / Area");
+				expect(html).toContain("Unassigned");
+				expect(html).toContain("Filter");
+				expect(html).toContain("Add Task");
 			}
 		});
 	}

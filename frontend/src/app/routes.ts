@@ -37,4 +37,24 @@ export const routes = [
 			description: "Track who is available and where each person can help.",
 		},
 	},
+	{
+		path: "/rooms",
+		name: "rooms",
+		component: () => import("@/rooms/RoomsView.vue"),
+		meta: {
+			title: "Rooms / Areas",
+			description:
+				"Organize and label rooms, floors, and zones for a clear move-day plan.",
+		},
+	},
+	{
+		path: "/settings",
+		name: "settings",
+		component: () => import("@/settings/SettingsView.vue"),
+		meta: {
+			title: "Settings",
+			description:
+				"Configure your move preferences, notification defaults, and account details.",
+		},
+	},
 ];
