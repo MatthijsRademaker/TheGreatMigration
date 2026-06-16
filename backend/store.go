@@ -636,20 +636,29 @@ func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
 // CreateScheduleCard creates a new schedule card with assignments in a single transaction.
 // If input.TaskId is set, title/priority/roomArea/peopleNeeded inherit from the referenced
 // backlog task unless explicit (non-empty/non-zero) values are supplied.
+// Inheritance resolution runs inside the transaction to avoid TOCTOU races.
 func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
 	scheduledDate, err := time.Parse("2006-01-02", input.ScheduledDate)
 	if err != nil {
 		return nil, fmt.Errorf("parse scheduledDate: %w", err)
 	}
 
-	// Resolve inherited fields from referenced backlog task.
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	// Resolve inherited fields from referenced backlog task (inside the transaction).
 	title := input.Title
 	priority := input.Priority
 	roomArea := input.RoomArea
 	peopleNeeded := input.PeopleNeeded
 
 	if input.TaskId != "" {
-		refTask, err := s.queries.GetTaskByIDForRef(ctx, input.TaskId)
+		refTask, err := tx.GetTaskByIDForRef(ctx, input.TaskId)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil, fmt.Errorf("referenced task '%s' not found", input.TaskId)
@@ -671,14 +680,6 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 			peopleNeeded = int(refTask.PeopleNeeded)
 		}
 	}
-
-	pgxTx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer pgxTx.Rollback(ctx) //nolint:errcheck
-
-	tx := s.queries.WithTx(pgxTx)
 
 	maxSort, err := tx.GetMaxScheduleSortOrder(ctx)
 	if err != nil {
@@ -716,6 +717,8 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 }
 
 // UpdateScheduleCard updates a schedule card and replaces assignments transactionally.
+// The referenced backlog task's fields are resolved inside the transaction to avoid TOCTOU races.
+// When input.TaskId is empty, the existing card's taskId is preserved to prevent silent reference clearing.
 func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
 	// Parse the sched-{id} identifier.
 	var id int32
@@ -728,17 +731,40 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		return nil, fmt.Errorf("parse scheduledDate: %w", err)
 	}
 
-	// Resolve inherited fields from referenced backlog task.
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	// Check card exists and preserve its sort order and existing taskId.
+	existing, err := tx.GetScheduleCardByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrScheduleCardNotFound
+		}
+		return nil, fmt.Errorf("get schedule card by id: %w", err)
+	}
+
+	// Determine effective taskId: use input if provided, otherwise preserve the existing reference.
+	effectiveTaskID := input.TaskId
+	if effectiveTaskID == "" && existing.TaskID.Valid {
+		effectiveTaskID = existing.TaskID.String
+	}
+
+	// Resolve inherited fields from referenced backlog task (inside the transaction).
 	title := input.Title
 	priority := input.Priority
 	roomArea := input.RoomArea
 	peopleNeeded := input.PeopleNeeded
 
-	if input.TaskId != "" {
-		refTask, err := s.queries.GetTaskByIDForRef(ctx, input.TaskId)
+	if effectiveTaskID != "" {
+		refTask, err := tx.GetTaskByIDForRef(ctx, effectiveTaskID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, fmt.Errorf("referenced task '%s' not found", input.TaskId)
+				return nil, fmt.Errorf("referenced task '%s' not found", effectiveTaskID)
 			}
 			return nil, fmt.Errorf("get referenced task: %w", err)
 		}
@@ -756,23 +782,6 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		if peopleNeeded < 1 {
 			peopleNeeded = int(refTask.PeopleNeeded)
 		}
-	}
-
-	pgxTx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer pgxTx.Rollback(ctx) //nolint:errcheck
-
-	tx := s.queries.WithTx(pgxTx)
-
-	// Check card exists and preserve its sort order.
-	existing, err := tx.GetScheduleCardByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, api.ErrScheduleCardNotFound
-		}
-		return nil, fmt.Errorf("get schedule card by id: %w", err)
 	}
 
 	// Replace assignment rows.
@@ -798,7 +807,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		PeopleNeeded:  int32(peopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
 		SortOrder:     existing.SortOrder, // Preserve existing sort order.
-		TaskID:        pgtype.Text{String: input.TaskId, Valid: input.TaskId != ""},
+		TaskID:        pgtype.Text{String: effectiveTaskID, Valid: effectiveTaskID != ""},
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

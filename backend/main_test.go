@@ -2194,6 +2194,121 @@ func TestUpdateScheduleCardWithTaskIdPreservesInheritedFields(t *testing.T) {
 	}
 }
 
+func TestUpdateScheduleCardPreservesTaskIdWhenOmitted(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card referencing task-1.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+	if card.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected inherited title 'Disconnect kitchen appliances', got %q", card.Title)
+	}
+
+	// Call UpdateScheduleCard directly (bypass API validation) without sending taskId.
+	// This simulates a caller that omits taskId from the update body.
+	updated, err := store.UpdateScheduleCard(context.Background(), card.ID, backendapi.CreateScheduleCardInput{
+		ScheduledDate: "2026-07-06",
+		AssignedTo:    []string{"p1", "p2"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateScheduleCard failed: %v", err)
+	}
+
+	// Assert taskId is preserved even though it was not in the input.
+	if updated.TaskId == nil || *updated.TaskId != "task-1" {
+		t.Fatalf("expected taskId 'task-1' preserved, got %v", updated.TaskId)
+	}
+
+	// Assert inherited fields are preserved.
+	if updated.Title != "Disconnect kitchen appliances" {
+		t.Fatalf("expected title 'Disconnect kitchen appliances', got %q", updated.Title)
+	}
+	if updated.Priority != "high" {
+		t.Fatalf("expected priority 'high', got %q", updated.Priority)
+	}
+	if updated.RoomArea != "Kitchen" {
+		t.Fatalf("expected roomArea 'Kitchen', got %q", updated.RoomArea)
+	}
+	if updated.PeopleNeeded != 3 {
+		t.Fatalf("expected peopleNeeded 3, got %d", updated.PeopleNeeded)
+	}
+
+	// Verify store reflects the update correctly.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.TaskId == nil || *stored.TaskId != "task-1" {
+		t.Fatalf("store card taskId not preserved: got %v", stored.TaskId)
+	}
+}
+
+func TestUpdateScheduleCardChangesTaskId(t *testing.T) {
+	store := newMockStore()
+
+	// Seed a schedule card referencing task-1.
+	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
+		TaskId:        "task-1",
+		ScheduledDate: "2026-07-05",
+		AssignedTo:    []string{"p1"},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed schedule card: %v", err)
+	}
+
+	router, _ := newTestAPI(store)
+
+	// Update with a different taskId (task-2: "Wrap living room furniture", high, Living Room, 2 people).
+	body := `{"taskId":"task-2","scheduledDate":"2026-07-06","assignedTo":["p1","p2"]}`
+	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp backendapi.TaskCard
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Assert taskId has changed to task-2.
+	if resp.TaskId == nil || *resp.TaskId != "task-2" {
+		t.Fatalf("expected taskId 'task-2', got %v", resp.TaskId)
+	}
+
+	// Assert inherited fields from task-2.
+	if resp.Title != "Wrap living room furniture" {
+		t.Fatalf("expected title 'Wrap living room furniture' (inherited from task-2), got %q", resp.Title)
+	}
+	if resp.Priority != "high" {
+		t.Fatalf("expected priority 'high' (inherited from task-2), got %q", resp.Priority)
+	}
+	if resp.RoomArea != "Living Room" {
+		t.Fatalf("expected roomArea 'Living Room' (inherited from task-2), got %q", resp.RoomArea)
+	}
+	if resp.PeopleNeeded != 2 {
+		t.Fatalf("expected peopleNeeded 2 (inherited from task-2), got %d", resp.PeopleNeeded)
+	}
+
+	// Verify store reflects the update.
+	stored, ok := store.scheduleCards[card.ID]
+	if !ok {
+		t.Fatal("schedule card should still exist")
+	}
+	if stored.TaskId == nil || *stored.TaskId != "task-2" {
+		t.Fatalf("store card taskId not changed: got %v", stored.TaskId)
+	}
+}
+
 func TestUpdateScheduleCardNotFound(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 

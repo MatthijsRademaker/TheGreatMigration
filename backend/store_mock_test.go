@@ -534,9 +534,15 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 }
 
 func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
-	_, ok := m.scheduleCards[idStr]
+	existing, ok := m.scheduleCards[idStr]
 	if !ok {
 		return nil, api.ErrScheduleCardNotFound
+	}
+
+	// Determine effective taskId: use input if provided, otherwise preserve the existing reference.
+	effectiveTaskID := input.TaskId
+	if effectiveTaskID == "" && existing.TaskId != nil {
+		effectiveTaskID = *existing.TaskId
 	}
 
 	// Resolve inherited fields from referenced backlog task.
@@ -545,8 +551,8 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	roomArea := input.RoomArea
 	peopleNeeded := input.PeopleNeeded
 
-	if input.TaskId != "" {
-		if refTask, ok := m.tasks[input.TaskId]; ok {
+	if effectiveTaskID != "" {
+		if refTask, ok := m.tasks[effectiveTaskID]; ok {
 			if title == "" {
 				title = refTask.Title
 			}
@@ -563,8 +569,8 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	}
 
 	var taskIDPtr *string
-	if input.TaskId != "" {
-		taskIDPtr = &input.TaskId
+	if effectiveTaskID != "" {
+		taskIDPtr = &effectiveTaskID
 	}
 
 	assignees := make([]api.AssignedPerson, 0, len(input.AssignedTo))
@@ -592,7 +598,7 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	}
 	m.scheduleCards[idStr] = card
 	m.scheduleDates[idStr] = input.ScheduledDate
-	m.scheduleTaskRefs[idStr] = input.TaskId
+	m.scheduleTaskRefs[idStr] = effectiveTaskID
 	return &card, nil
 }
 
