@@ -450,14 +450,23 @@ func (s *PgStore) DeleteRoom(ctx context.Context, id string) error {
 // ---------- Task CRUD ----------
 
 // CreateTask creates a new backlog task with server-assigned ID and next sort_order,
-// then inserts assignment rows.
+// then inserts assignment rows — all in a single transaction so that a partial
+// assignment failure does not leave an orphaned task row.
 func (s *PgStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (*api.TaskRow, error) {
-	maxSort, err := s.queries.GetMaxSortOrder(ctx)
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	maxSort, err := tx.GetMaxSortOrder(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get max sort order: %w", err)
 	}
 
-	taskRow, err := s.queries.CreateTask(ctx, db.CreateTaskParams{
+	taskRow, err := tx.CreateTask(ctx, db.CreateTaskParams{
 		Title:        input.Title,
 		Priority:     input.Priority,
 		PeopleNeeded: int32(input.PeopleNeeded),
@@ -470,13 +479,17 @@ func (s *PgStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (*a
 	}
 
 	for i, pid := range input.AssignedTo {
-		if err := s.queries.CreateTaskAssignment(ctx, db.CreateTaskAssignmentParams{
+		if err := tx.CreateTaskAssignment(ctx, db.CreateTaskAssignmentParams{
 			TaskID:    taskRow.ID,
 			PersonID:  pid,
 			SortOrder: int32(i),
 		}); err != nil {
 			return nil, fmt.Errorf("create task assignment: %w", err)
 		}
+	}
+
+	if err := pgxTx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
 	assigned := input.AssignedTo
@@ -497,16 +510,6 @@ func (s *PgStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (*a
 
 // UpdateTask updates a backlog task and replaces assignments transactionally.
 func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTaskInput) (*api.TaskRow, error) {
-	// Check task exists.
-	_, err := s.queries.GetTaskByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, api.ErrTaskNotFound
-		}
-		return nil, fmt.Errorf("get task by id: %w", err)
-	}
-
-	// Delete existing assignments and insert new ones in a transaction.
 	pgxTx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -514,6 +517,16 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 	defer pgxTx.Rollback(ctx) //nolint:errcheck
 
 	tx := s.queries.WithTx(pgxTx)
+
+	// Check task exists inside the transaction to avoid a TOCTOU race
+	// where a concurrent delete removes the row between check and update.
+	_, err = tx.GetTaskByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrTaskNotFound
+		}
+		return nil, fmt.Errorf("get task by id: %w", err)
+	}
 
 	if err := tx.DeleteTaskAssignments(ctx, id); err != nil {
 		return nil, fmt.Errorf("delete task assignments: %w", err)
@@ -538,6 +551,9 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 		Status:       input.Status,
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrTaskNotFound
+		}
 		return nil, fmt.Errorf("update task: %w", err)
 	}
 
@@ -561,9 +577,18 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 	}, nil
 }
 
-// DeleteTask removes a backlog task and its assignments.
+// DeleteTask removes a backlog task and its assignments in a single transaction
+// so that assignment rows are never orphaned if the task-delete query fails.
 func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
-	_, err := s.queries.GetTaskByID(ctx, id)
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	_, err = tx.GetTaskByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return api.ErrTaskNotFound
@@ -571,13 +596,16 @@ func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
 		return fmt.Errorf("get task by id: %w", err)
 	}
 
-	// Delete assignments then the task.
-	if err := s.queries.DeleteTaskAssignments(ctx, id); err != nil {
+	if err := tx.DeleteTaskAssignments(ctx, id); err != nil {
 		return fmt.Errorf("delete task assignments: %w", err)
 	}
 
-	if err := s.queries.DeleteTask(ctx, id); err != nil {
+	if err := tx.DeleteTask(ctx, id); err != nil {
 		return fmt.Errorf("delete task: %w", err)
+	}
+
+	if err := pgxTx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
 	}
 
 	return nil
