@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
+import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -159,8 +159,43 @@ export const updateRoom = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
+ * Create a backlog task
+ *
+ * Creates a new backlog task with server-assigned task-* ID and append sort order. Returns 400 for invalid priority, status, empty title, peopleNeeded < 1, missing room, or unknown assigned person IDs.
+ */
+export const createTask = <ThrowOnError extends boolean = false>(options: Options<CreateTaskData, ThrowOnError>): RequestResult<CreateTaskResponses, CreateTaskErrors, ThrowOnError> => (options.client ?? client).post<CreateTaskResponses, CreateTaskErrors, ThrowOnError>({
+    url: '/api/tasks',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Task backlog data
  *
  * Returns a combined payload with derived summary counts, task backlog rows, a canonical priority legend, and a canonical task-status legend. The endpoint serves as the read-only source of truth for backlog task data used by the dashboard and /tasks route.
  */
 export const getTasksBacklog = <ThrowOnError extends boolean = false>(options?: Options<GetTasksBacklogData, ThrowOnError>): RequestResult<GetTasksBacklogResponses, GetTasksBacklogErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksBacklogResponses, GetTasksBacklogErrors, ThrowOnError>({ url: '/api/tasks/backlog', ...options });
+
+/**
+ * Delete a backlog task
+ *
+ * Deletes a backlog task and its assignments transactionally. Returns 404 if the task ID is unknown.
+ */
+export const deleteTask = <ThrowOnError extends boolean = false>(options: Options<DeleteTaskData, ThrowOnError>): RequestResult<DeleteTaskResponses, DeleteTaskErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTaskResponses, DeleteTaskErrors, ThrowOnError>({ url: '/api/tasks/{id}', ...options });
+
+/**
+ * Update a backlog task
+ *
+ * Updates a backlog task and replaces assignments transactionally. Returns 400 for validation errors, 404 if the task ID is unknown.
+ */
+export const updateTask = <ThrowOnError extends boolean = false>(options: Options<UpdateTaskData, ThrowOnError>): RequestResult<UpdateTaskResponses, UpdateTaskErrors, ThrowOnError> => (options.client ?? client).put<UpdateTaskResponses, UpdateTaskErrors, ThrowOnError>({
+    url: '/api/tasks/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

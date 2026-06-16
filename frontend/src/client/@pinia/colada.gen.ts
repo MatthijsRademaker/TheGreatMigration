@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions, type UseMutationOptions } from '@p
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { createPerson, createRoom, deletePerson, deletePersonAvailability, deleteRoom, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, listRooms, type Options, putPlanningWindow, updatePerson, updateRoom, upsertPersonAvailability } from '../sdk.gen';
-import type { CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
+import { createPerson, createRoom, createTask, deletePerson, deletePersonAvailability, deleteRoom, deleteTask, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, listRooms, type Options, putPlanningWindow, updatePerson, updateRoom, updateTask, upsertPersonAvailability } from '../sdk.gen';
+import type { CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -281,6 +281,22 @@ export const updateRoomMutation = (options?: Partial<Options<UpdateRoomData>>): 
     }
 });
 
+/**
+ * Create a backlog task
+ *
+ * Creates a new backlog task with server-assigned task-* ID and append sort order. Returns 400 for invalid priority, status, empty title, peopleNeeded < 1, missing room, or unknown assigned person IDs.
+ */
+export const createTaskMutation = (options?: Partial<Options<CreateTaskData>>): UseMutationOptions<CreateTaskResponse, Options<CreateTaskData>, CreateTaskError> => ({
+    mutation: async (vars) => {
+        const { data } = await createTask({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
 export const getTasksBacklogQueryKey = (options?: Options<GetTasksBacklogData>) => createQueryKey('getTasksBacklog', options);
 
 /**
@@ -299,3 +315,35 @@ export const getTasksBacklogQuery = defineQueryOptions<Options<GetTasksBacklogDa
         return data;
     }
 }));
+
+/**
+ * Delete a backlog task
+ *
+ * Deletes a backlog task and its assignments transactionally. Returns 404 if the task ID is unknown.
+ */
+export const deleteTaskMutation = (options?: Partial<Options<DeleteTaskData>>): UseMutationOptions<DeleteTaskResponse, Options<DeleteTaskData>, DeleteTaskError> => ({
+    mutation: async (vars) => {
+        const { data } = await deleteTask({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Update a backlog task
+ *
+ * Updates a backlog task and replaces assignments transactionally. Returns 400 for validation errors, 404 if the task ID is unknown.
+ */
+export const updateTaskMutation = (options?: Partial<Options<UpdateTaskData>>): UseMutationOptions<UpdateTaskResponse, Options<UpdateTaskData>, UpdateTaskError> => ({
+    mutation: async (vars) => {
+        const { data } = await updateTask({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
