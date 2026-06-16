@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses } from './types.gen';
+import type { CreateRoomData, CreateRoomErrors, CreateRoomResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,13 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Daily schedule for the dashboard
+ *
+ * Returns a dashboard-ready daily schedule read model with date columns, available-helper counts, and ordered schedule task cards. The start parameter defaults to the planning-window start date (2026-07-05); clients should pass start explicitly for a different window.
+ */
+export const getDashboardDailySchedule = <ThrowOnError extends boolean = false>(options?: Options<GetDashboardDailyScheduleData, ThrowOnError>): RequestResult<GetDashboardDailyScheduleResponses, GetDashboardDailyScheduleErrors, ThrowOnError> => (options?.client ?? client).get<GetDashboardDailyScheduleResponses, GetDashboardDailyScheduleErrors, ThrowOnError>({ url: '/api/dashboard/daily-schedule', ...options });
 
 /**
  * People availability for the dashboard
@@ -38,6 +45,48 @@ export const getHello = <ThrowOnError extends boolean = false>(options?: Options
  * Returns the global move range with startDate, endDate, and inclusive day count. The planning window is the canonical source of truth for the move timeline. All date-dependent views derive their rendered content from this contract.
  */
 export const getPlanningWindow = <ThrowOnError extends boolean = false>(options?: Options<GetPlanningWindowData, ThrowOnError>): RequestResult<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError> => (options?.client ?? client).get<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError>({ url: '/api/planning-window', ...options });
+
+/**
+ * List rooms and areas
+ *
+ * Returns all room and area records ordered by name.
+ */
+export const listRooms = <ThrowOnError extends boolean = false>(options?: Options<ListRoomsData, ThrowOnError>): RequestResult<ListRoomsResponses, ListRoomsErrors, ThrowOnError> => (options?.client ?? client).get<ListRoomsResponses, ListRoomsErrors, ThrowOnError>({ url: '/api/rooms', ...options });
+
+/**
+ * Create a room or area
+ *
+ * Creates a new room or area record and returns it.
+ */
+export const createRoom = <ThrowOnError extends boolean = false>(options: Options<CreateRoomData, ThrowOnError>): RequestResult<CreateRoomResponses, CreateRoomErrors, ThrowOnError> => (options.client ?? client).post<CreateRoomResponses, CreateRoomErrors, ThrowOnError>({
+    url: '/api/rooms',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a room or area
+ *
+ * Deletes a room or area record by ID. Returns 404 if the ID is not found.
+ */
+export const deleteRoom = <ThrowOnError extends boolean = false>(options: Options<DeleteRoomData, ThrowOnError>): RequestResult<DeleteRoomResponses, DeleteRoomErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRoomResponses, DeleteRoomErrors, ThrowOnError>({ url: '/api/rooms/{id}', ...options });
+
+/**
+ * Update a room or area
+ *
+ * Updates an existing room or area record by ID. Returns 404 if the ID is not found.
+ */
+export const updateRoom = <ThrowOnError extends boolean = false>(options: Options<UpdateRoomData, ThrowOnError>): RequestResult<UpdateRoomResponses, UpdateRoomErrors, ThrowOnError> => (options.client ?? client).put<UpdateRoomResponses, UpdateRoomErrors, ThrowOnError>({
+    url: '/api/rooms/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Task backlog data

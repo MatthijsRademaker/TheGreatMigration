@@ -75,6 +75,17 @@ async function renderRoute(path: string) {
 					},
 				);
 			}
+			if (url.includes("/api/rooms")) {
+				return new Response(
+					JSON.stringify({
+						rooms: [],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
 			return new Response(
 				JSON.stringify({ message: "Hello from the backend!" }),
 				{
@@ -143,7 +154,7 @@ describe("application route rendering", () => {
 			title: "Rooms / Areas",
 			description:
 				"Organize and label rooms, floors, and zones for a clear move-day plan.",
-			content: "Feature coming soon",
+			content: "Add Room / Area",
 		},
 		{
 			path: "/settings",
@@ -170,6 +181,11 @@ describe("application route rendering", () => {
 				expect(html).toContain("5 Jul (Fri)");
 				expect(html).toContain("+ Add task");
 				expect(html).not.toContain("plan-day-column");
+			}
+
+			if (path === "/rooms") {
+				expect(html).toContain("No rooms or areas yet");
+				expect(html).not.toContain("Feature coming soon");
 			}
 
 			if (path === "/") {

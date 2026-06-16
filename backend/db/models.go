@@ -48,6 +48,14 @@ type PlanningWindow struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type RoomsArea struct {
+	ID        string
+	Name      string
+	Type      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type ScheduleTaskAssignment struct {
 	TaskCardID int32
 	PersonID   string

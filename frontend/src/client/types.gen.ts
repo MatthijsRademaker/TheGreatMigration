@@ -4,6 +4,21 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AssignedPerson = {
+    /**
+     * Stable person key
+     */
+    id: string;
+    /**
+     * Initials
+     */
+    initials: string;
+    /**
+     * Full name
+     */
+    name: string;
+};
+
 export type AvailabilityEntry = {
     /**
      * Date in ISO 8601 format (YYYY-MM-DD)
@@ -13,6 +28,36 @@ export type AvailabilityEntry = {
      * One of: available, busy, partial, off
      */
     status: string;
+};
+
+export type CreateRoomRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
+export type DailyScheduleBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * One entry per date in the requested window
+     */
+    days: Array<ScheduleDay> | null;
+    /**
+     * Date range metadata
+     */
+    range: ScheduleRange;
 };
 
 export type DashboardBody = {
@@ -92,6 +137,17 @@ export type HelloOutputBody = {
     message: string;
 };
 
+export type ListRoomsOutputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * All room/area records
+     */
+    rooms: Array<Room> | null;
+};
+
 export type Person = {
     /**
      * One entry per date in the range
@@ -164,6 +220,67 @@ export type Range = {
     startDate: string;
 };
 
+export type Room = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * ISO 8601 timestamp of creation
+     */
+    createdAt: string;
+    /**
+     * Stable room identifier, prefixed 'room-'
+     */
+    id: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: string;
+    /**
+     * ISO 8601 timestamp of last update
+     */
+    updatedAt: string;
+};
+
+export type ScheduleDay = {
+    /**
+     * Number of people available on this date
+     */
+    availablePeopleCount: number;
+    /**
+     * Date in ISO 8601 format (YYYY-MM-DD)
+     */
+    date: string;
+    /**
+     * Human-readable day header
+     */
+    label: string;
+    /**
+     * Ordered schedule task cards
+     */
+    tasks: Array<TaskCard> | null;
+};
+
+export type ScheduleRange = {
+    /**
+     * Number of dates in the window (inclusive of startDate)
+     */
+    days: number;
+    /**
+     * End date of the window (ISO 8601)
+     */
+    endDate: string;
+    /**
+     * Start date of the window (ISO 8601)
+     */
+    startDate: string;
+};
+
 export type StatusLegend = {
     /**
      * Design system color intent
@@ -192,6 +309,10 @@ export type Summary = {
 
 export type TaskBacklogBody = {
     /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
      * Canonical priority legend
      */
     priorities: Array<PriorityLegend> | null;
@@ -207,6 +328,41 @@ export type TaskBacklogBody = {
      * Backlog task rows
      */
     tasks: Array<TaskRow> | null;
+};
+
+export type TaskCard = {
+    /**
+     * Number of people currently assigned (derived from assignedPeople)
+     */
+    assignedCount: number;
+    /**
+     * People assigned to this task
+     */
+    assignedPeople: Array<AssignedPerson> | null;
+    /**
+     * Stable task identifier
+     */
+    id: string;
+    /**
+     * Number of people needed for the task (>=1)
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: string;
+    /**
+     * Room or area name
+     */
+    roomArea: string;
+    /**
+     * One of: fullyStaffed, underStaffed
+     */
+    staffingStatus: string;
+    /**
+     * Task title
+     */
+    title: string;
 };
 
 export type TaskRow = {
@@ -274,6 +430,43 @@ export type TaskSummary = {
     understaffedTasks: number;
 };
 
+export type UpdateRoomRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Updated human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
+export type CreateRoomRequestBodyWritable = {
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
+export type DailyScheduleBodyWritable = {
+    /**
+     * One entry per date in the requested window
+     */
+    days: Array<ScheduleDay> | null;
+    /**
+     * Date range metadata
+     */
+    range: ScheduleRange;
+};
+
 export type DashboardBodyWritable = {
     /**
      * People with daily availability
@@ -324,6 +517,13 @@ export type HelloOutputBodyWritable = {
     message: string;
 };
 
+export type ListRoomsOutputBodyWritable = {
+    /**
+     * All room/area records
+     */
+    rooms: Array<RoomWritable> | null;
+};
+
 export type PlanningWindowBodyWritable = {
     /**
      * Inclusive day count between startDate and endDate
@@ -338,6 +538,93 @@ export type PlanningWindowBodyWritable = {
      */
     startDate: string;
 };
+
+export type RoomWritable = {
+    /**
+     * ISO 8601 timestamp of creation
+     */
+    createdAt: string;
+    /**
+     * Stable room identifier, prefixed 'room-'
+     */
+    id: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: string;
+    /**
+     * ISO 8601 timestamp of last update
+     */
+    updatedAt: string;
+};
+
+export type TaskBacklogBodyWritable = {
+    /**
+     * Canonical priority legend
+     */
+    priorities: Array<PriorityLegend> | null;
+    /**
+     * Canonical task-status legend
+     */
+    statuses: Array<TaskStatusLegend> | null;
+    /**
+     * Derived summary counts
+     */
+    summary: TaskSummary;
+    /**
+     * Backlog task rows
+     */
+    tasks: Array<TaskRow> | null;
+};
+
+export type UpdateRoomRequestBodyWritable = {
+    /**
+     * Updated human-readable room or area name
+     */
+    name: string;
+    /**
+     * One of: room, area
+     */
+    type: 'room' | 'area';
+};
+
+export type GetDashboardDailyScheduleData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date 2026-07-05.
+         */
+        start?: string;
+        /**
+         * Number of days inclusive of start date.
+         */
+        days?: number;
+    };
+    url: '/api/dashboard/daily-schedule';
+};
+
+export type GetDashboardDailyScheduleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetDashboardDailyScheduleError = GetDashboardDailyScheduleErrors[keyof GetDashboardDailyScheduleErrors];
+
+export type GetDashboardDailyScheduleResponses = {
+    /**
+     * OK
+     */
+    200: DailyScheduleBody;
+};
+
+export type GetDashboardDailyScheduleResponse = GetDashboardDailyScheduleResponses[keyof GetDashboardDailyScheduleResponses];
 
 export type GetDashboardPeopleAvailabilityData = {
     body?: never;
@@ -422,6 +709,116 @@ export type GetPlanningWindowResponses = {
 };
 
 export type GetPlanningWindowResponse = GetPlanningWindowResponses[keyof GetPlanningWindowResponses];
+
+export type ListRoomsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/rooms';
+};
+
+export type ListRoomsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListRoomsError = ListRoomsErrors[keyof ListRoomsErrors];
+
+export type ListRoomsResponses = {
+    /**
+     * OK
+     */
+    200: ListRoomsOutputBody;
+};
+
+export type ListRoomsResponse = ListRoomsResponses[keyof ListRoomsResponses];
+
+export type CreateRoomData = {
+    body: CreateRoomRequestBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/rooms';
+};
+
+export type CreateRoomErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateRoomError = CreateRoomErrors[keyof CreateRoomErrors];
+
+export type CreateRoomResponses = {
+    /**
+     * Created
+     */
+    201: Room;
+};
+
+export type CreateRoomResponse = CreateRoomResponses[keyof CreateRoomResponses];
+
+export type DeleteRoomData = {
+    body?: never;
+    path: {
+        /**
+         * Room identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/rooms/{id}';
+};
+
+export type DeleteRoomErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteRoomError = DeleteRoomErrors[keyof DeleteRoomErrors];
+
+export type DeleteRoomResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteRoomResponse = DeleteRoomResponses[keyof DeleteRoomResponses];
+
+export type UpdateRoomData = {
+    body: UpdateRoomRequestBodyWritable;
+    path: {
+        /**
+         * Room identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/rooms/{id}';
+};
+
+export type UpdateRoomErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateRoomError = UpdateRoomErrors[keyof UpdateRoomErrors];
+
+export type UpdateRoomResponses = {
+    /**
+     * OK
+     */
+    200: Room;
+};
+
+export type UpdateRoomResponse = UpdateRoomResponses[keyof UpdateRoomResponses];
 
 export type GetTasksBacklogData = {
     body?: never;

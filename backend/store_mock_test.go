@@ -135,6 +135,7 @@ func buildMockPeople(startDate time.Time, days int, mp []struct {
 type mockStore struct {
 	planningWindow *PlanningWindowBody
 	taskBacklog    *TaskBacklogBody
+	rooms          map[string]Room
 }
 
 func newMockStore() *mockStore {
@@ -174,6 +175,10 @@ func newMockStore() *mockStore {
 			Tasks:      seedTasks,
 			Priorities: priorityLegend,
 			Statuses:   taskStatusLegend,
+		},
+		rooms: map[string]Room{
+			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room"},
+			"room-2": {ID: "room-2", Name: "Living Room", Type: "room"},
 		},
 	}
 }
@@ -271,4 +276,44 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 		},
 		Days: scheduleDays,
 	}, nil
+}
+
+// ---------- Room CRUD (mockStore) ----------
+
+func (m *mockStore) ListRooms(ctx context.Context) ([]Room, error) {
+	rooms := make([]Room, 0, len(m.rooms))
+	for _, r := range m.rooms {
+		rooms = append(rooms, r)
+	}
+	return rooms, nil
+}
+
+func (m *mockStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+	id := fmt.Sprintf("room-%d", len(m.rooms)+1)
+	r := Room{
+		ID:   id,
+		Name: input.Name,
+		Type: input.Type,
+	}
+	m.rooms[id] = r
+	return &r, nil
+}
+
+func (m *mockStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+	r, ok := m.rooms[id]
+	if !ok {
+		return nil, ErrRoomNotFound
+	}
+	r.Name = input.Name
+	r.Type = input.Type
+	m.rooms[id] = r
+	return &r, nil
+}
+
+func (m *mockStore) DeleteRoom(ctx context.Context, id string) error {
+	if _, ok := m.rooms[id]; !ok {
+		return ErrRoomNotFound
+	}
+	delete(m.rooms, id)
+	return nil
 }

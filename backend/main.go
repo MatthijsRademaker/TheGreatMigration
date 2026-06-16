@@ -117,6 +117,8 @@ func main() {
 	// Register GET /api/dashboard/daily-schedule.
 	registerDailySchedule(api, store)
 
+	registerRoomsAreas(api, store)
+
 	fmt.Println("Backend listening on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ func newTestAPI(store Store) (chi.Router, huma.API) {
 	registerPlanningWindow(api, store)
 	registerTasksBacklog(api, store)
 	registerDailySchedule(api, store)
+	registerRoomsAreas(api, store)
 
 	return router, api
 }
@@ -608,6 +610,22 @@ func (f *failingStore) GetDailySchedule(ctx context.Context, startDate time.Time
 	return nil, errTestFailure
 }
 
+func (f *failingStore) ListRooms(ctx context.Context) ([]Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) DeleteRoom(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -671,4 +689,221 @@ func (f *partialFailingStore) GetTaskBacklog(ctx context.Context) (*TaskBacklogB
 
 func (f *partialFailingStore) GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error) {
 	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) ListRooms(ctx context.Context) ([]Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) DeleteRoom(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+// ---------- Room CRUD tests ----------
+
+func TestListRooms(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/rooms", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", contentType)
+	}
+
+	var body struct {
+		Rooms []Room `json:"rooms"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if len(body.Rooms) != 2 {
+		t.Fatalf("expected 2 rooms, got %d", len(body.Rooms))
+	}
+
+	for _, room := range body.Rooms {
+		if room.ID == "" {
+			t.Fatal("room has empty id")
+		}
+		if room.Name == "" {
+			t.Fatalf("room %s has empty name", room.ID)
+		}
+		if room.Type != "room" && room.Type != "area" {
+			t.Fatalf("room %s has invalid type %q", room.ID, room.Type)
+		}
+	}
+}
+
+func TestCreateRoom(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	bodyJSON := `{"name":"Basement","type":"area"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/rooms", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var room Room
+	if err := json.Unmarshal(rec.Body.Bytes(), &room); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if room.Name != "Basement" {
+		t.Fatalf("expected name 'Basement', got %q", room.Name)
+	}
+	if room.Type != "area" {
+		t.Fatalf("expected type 'area', got %q", room.Type)
+	}
+	if room.ID == "" {
+		t.Fatal("room has empty id")
+	}
+}
+
+func TestCreateRoomInvalidType(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	bodyJSON := `{"name":"Lobby","type":"lobby"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/rooms", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status 422, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateRoom(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	bodyJSON := `{"name":"Updated Kitchen","type":"room"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/rooms/room-1", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var room Room
+	if err := json.Unmarshal(rec.Body.Bytes(), &room); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if room.ID != "room-1" {
+		t.Fatalf("expected id 'room-1', got %q", room.ID)
+	}
+	if room.Name != "Updated Kitchen" {
+		t.Fatalf("expected name 'Updated Kitchen', got %q", room.Name)
+	}
+}
+
+func TestUpdateRoomNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	bodyJSON := `{"name":"Ghost","type":"room"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/rooms/nonexistent", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteRoom(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/rooms/room-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteRoomNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/rooms/nonexistent", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestListRoomsStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/rooms", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateRoomStoreFailure(t *testing.T) {
+	router, _ := newTestAPI(&failingStore{})
+
+	bodyJSON := `{"name":"Basement","type":"area"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/rooms", strings.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRoomsOpenAPIInclusion(t *testing.T) {
+	_, api := newTestAPI(newMockStore())
+
+	openAPIBytes, err := json.Marshal(api.OpenAPI())
+	if err != nil {
+		t.Fatalf("failed to marshal OpenAPI: %v", err)
+	}
+
+	var spec map[string]interface{}
+	if err := json.Unmarshal(openAPIBytes, &spec); err != nil {
+		t.Fatalf("failed to unmarshal OpenAPI spec: %v", err)
+	}
+
+	paths, ok := spec["paths"].(map[string]interface{})
+	if !ok {
+		t.Fatal("OpenAPI spec missing 'paths' key")
+	}
+
+	if _, exists := paths["/api/rooms"]; !exists {
+		t.Fatal("OpenAPI spec does not include /api/rooms")
+	}
+	if _, exists := paths["/api/rooms/{id}"]; !exists {
+		t.Fatal("OpenAPI spec does not include /api/rooms/{id}")
+	}
 }
