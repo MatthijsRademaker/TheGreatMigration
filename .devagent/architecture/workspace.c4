@@ -88,6 +88,26 @@ model {
 
       dashboard = featureArea "Dashboard" {
         description "Command center showing high-priority work, available helpers, under-staffed tasks, move days, and move notes."
+
+        peopleKpi = component "People available today" {
+          #feature
+          description "People available today. Displays the number of helpers with confirmed availability. Backed by peopleData."
+        }
+
+        highPriorityKpi = component "High priority tasks" {
+          #feature
+          description "High priority tasks. Displays the count of tasks flagged as high priority. Backed by taskData."
+        }
+
+        unassignedKpi = component "Unassigned jobs" {
+          #feature
+          description "Unassigned jobs. Displays the count of tasks not yet assigned to any helper. Backed by taskData."
+        }
+
+        roomsKpi = component "Rooms completed" {
+          #feature
+          description "Rooms completed. Displays the number of fully completed rooms. Currently a static placeholder — no backend data source."
+        }
       }
 
       tasks = featureArea "Tasks" {
@@ -136,8 +156,10 @@ model {
   migration.spa.calendar -> migration.spa.taskData "Places ready tasks from"
   migration.spa.calendar -> migration.spa.peopleData "Checks helper availability from"
 
-  migration.spa.dashboard -[summarizes]-> migration.spa.taskData "High priority and under-staffed work"
-  migration.spa.dashboard -[summarizes]-> migration.spa.peopleData "Available helpers"
+  migration.spa.dashboard.peopleKpi -[summarizes]-> migration.spa.peopleData "Confirmed helpers count"
+  migration.spa.dashboard.highPriorityKpi -[summarizes]-> migration.spa.taskData "High priority task count"
+  migration.spa.dashboard.unassignedKpi -[summarizes]-> migration.spa.taskData "Unassigned job count"
+
   migration.spa.dashboard -[summarizes]-> migration.spa.scheduleData "Move days and next practical steps"
 
   migration.spa.tasks -[supports]-> migration.spa.calendar "Supplies ready work for scheduling"
@@ -201,5 +223,26 @@ views {
     migration.spa.calendar -> migration.spa.scheduleData "Place task on a move day"
     migration.spa.calendar -> migration.spa.dashboard "Expose schedule status and staffing gaps"
     household <- migration.spa.dashboard "Review next practical steps"
+  }
+
+  view dashboard-kpis of migration.spa.dashboard {
+    title "Dashboard KPI Cards"
+    description "How the four KPI summary cards derive their data from planning stores."
+
+    include *
+    include * -> migration.spa.dashboard.*
+    include migration.spa.taskData
+    include migration.spa.peopleData
+    include migration.spa.scheduleData
+
+    style migration.spa.dashboard.peopleKpi, migration.spa.dashboard.highPriorityKpi, migration.spa.dashboard.unassignedKpi, migration.spa.dashboard.roomsKpi {
+      color green
+    }
+
+    style migration.spa.taskData, migration.spa.peopleData, migration.spa.scheduleData {
+      color slate
+    }
+
+    autoLayout LeftRight
   }
 }
