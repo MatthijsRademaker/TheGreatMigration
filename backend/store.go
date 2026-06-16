@@ -297,6 +297,10 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 			if assignedCount == int(cr.PeopleNeeded) {
 				staffingStatus = "fullyStaffed"
 			}
+				var taskIDPtr *string
+			if cr.TaskID.Valid {
+				taskIDPtr = &cr.TaskID.String
+			}
 			tasks = append(tasks, api.TaskCard{
 				ID:             fmt.Sprintf("sched-%d", cr.ID),
 				Title:          cr.Title,
@@ -306,6 +310,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 				PeopleNeeded:   int(cr.PeopleNeeded),
 				AssignedCount:  assignedCount,
 				StaffingStatus: staffingStatus,
+				TaskId:         taskIDPtr,
 			})
 		}
 
@@ -584,7 +589,17 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 
 // DeleteTask removes a backlog task and its assignments in a single transaction
 // so that assignment rows are never orphaned if the task-delete query fails.
+// Returns an error if the task has referencing schedule cards.
 func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
+	// Check for referencing schedule cards before starting the transaction.
+	hasCards, err := s.queries.TaskHasScheduleCards(ctx, id)
+	if err != nil {
+		return fmt.Errorf("check task schedule references: %w", err)
+	}
+	if hasCards {
+		return fmt.Errorf("cannot delete task '%s': it has scheduled cards referencing it. Remove them first", id)
+	}
+
 	pgxTx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -619,10 +634,42 @@ func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
 // ---------- Schedule-card CRUD ----------
 
 // CreateScheduleCard creates a new schedule card with assignments in a single transaction.
+// If input.TaskId is set, title/priority/roomArea/peopleNeeded inherit from the referenced
+// backlog task unless explicit (non-empty/non-zero) values are supplied.
 func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateScheduleCardInput) (*api.TaskCard, error) {
 	scheduledDate, err := time.Parse("2006-01-02", input.ScheduledDate)
 	if err != nil {
 		return nil, fmt.Errorf("parse scheduledDate: %w", err)
+	}
+
+	// Resolve inherited fields from referenced backlog task.
+	title := input.Title
+	priority := input.Priority
+	roomArea := input.RoomArea
+	peopleNeeded := input.PeopleNeeded
+
+	if input.TaskId != "" {
+		refTask, err := s.queries.GetTaskByIDForRef(ctx, input.TaskId)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, fmt.Errorf("referenced task '%s' not found", input.TaskId)
+			}
+			return nil, fmt.Errorf("get referenced task: %w", err)
+		}
+
+		// Inherit only when the caller did not provide an explicit value.
+		if title == "" {
+			title = refTask.Title
+		}
+		if priority == "" {
+			priority = refTask.Priority
+		}
+		if roomArea == "" {
+			roomArea = refTask.Room
+		}
+		if peopleNeeded < 1 {
+			peopleNeeded = int(refTask.PeopleNeeded)
+		}
 	}
 
 	pgxTx, err := s.pool.Begin(ctx)
@@ -639,12 +686,13 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 	}
 
 	cardRow, err := tx.CreateScheduleCard(ctx, db.CreateScheduleCardParams{
-		Title:         input.Title,
-		Priority:      input.Priority,
-		RoomArea:      input.RoomArea,
-		PeopleNeeded:  int32(input.PeopleNeeded),
+		Title:         title,
+		Priority:      priority,
+		RoomArea:      roomArea,
+		PeopleNeeded:  int32(peopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
 		SortOrder:     maxSort + 1,
+		TaskID:        pgtype.Text{String: input.TaskId, Valid: input.TaskId != ""},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create schedule card: %w", err)
@@ -664,7 +712,7 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, ctx)
+	return s.buildTaskCardResponse(cardRow.ID, title, priority, roomArea, peopleNeeded, input.AssignedTo, cardRow.TaskID, ctx)
 }
 
 // UpdateScheduleCard updates a schedule card and replaces assignments transactionally.
@@ -720,6 +768,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		PeopleNeeded:  int32(input.PeopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
 		SortOrder:     existing.SortOrder, // Preserve existing sort order.
+		TaskID:        pgtype.Text{String: input.TaskId, Valid: input.TaskId != ""},
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -732,7 +781,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, ctx)
+	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, cardRow.TaskID, ctx)
 }
 
 // DeleteScheduleCard removes a schedule card and its assignments in a single transaction.
@@ -774,7 +823,7 @@ func (s *PgStore) DeleteScheduleCard(ctx context.Context, idStr string) error {
 }
 
 // buildTaskCardResponse resolves assignee identities and constructs the API TaskCard.
-func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, ctx context.Context) (*api.TaskCard, error) {
+func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, taskID pgtype.Text, ctx context.Context) (*api.TaskCard, error) {
 	// Fetch all people once and build a lookup map.
 	peopleRows, err := s.queries.GetAllPeople(ctx)
 	if err != nil {
@@ -800,6 +849,12 @@ func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea stri
 	if assignedCount == peopleNeeded {
 		staffingStatus = "fullyStaffed"
 	}
+
+	var taskIDPtr *string
+	if taskID.Valid {
+		taskIDPtr = &taskID.String
+	}
+
 	return &api.TaskCard{
 		ID:             fmt.Sprintf("sched-%d", id),
 		Title:          title,
@@ -809,7 +864,20 @@ func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea stri
 		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,
 		StaffingStatus: staffingStatus,
+		TaskId:         taskIDPtr,
 	}, nil
+}
+
+// ---------- Task reference checks ----------
+
+// TaskExists checks whether a backlog task with the given id exists.
+func (s *PgStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return s.queries.TaskExists(ctx, id)
+}
+
+// TaskHasScheduleCards checks whether a backlog task is referenced by any schedule cards.
+func (s *PgStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return s.queries.TaskHasScheduleCards(ctx, id)
 }
 
 // dbRoomToAPI converts a db.RoomsArea to the API-facing Room.

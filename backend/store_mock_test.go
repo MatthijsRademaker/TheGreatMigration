@@ -138,14 +138,15 @@ func buildMockPeople(startDate time.Time, days int, mp []struct {
 // Parameterless methods return pre-computed struct fields.
 // Parameterised methods compute from seed data on each call.
 type mockStore struct {
-	planningWindow   *api.PlanningWindowBody
-	tasks            map[string]api.TaskRow
-	nextTaskID       int
-	rooms            map[string]api.Room
-	nextRoomID       int
-	scheduleCards    map[string]api.TaskCard
-	scheduleDates    map[string]string // card ID -> scheduledDate string
-	nextScheduleID   int
+	planningWindow    *api.PlanningWindowBody
+	tasks             map[string]api.TaskRow
+	nextTaskID        int
+	rooms             map[string]api.Room
+	nextRoomID        int
+	scheduleCards     map[string]api.TaskCard
+	scheduleDates     map[string]string // card ID -> scheduledDate string
+	scheduleTaskRefs  map[string]string // card ID -> referenced task ID
+	nextScheduleID    int
 }
 
 func newMockStore() *mockStore {
@@ -171,10 +172,11 @@ func newMockStore() *mockStore {
 			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 			"room-2": {ID: "room-2", Name: "Living Room", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 		},
-		nextRoomID:     3,
-		scheduleCards:  make(map[string]api.TaskCard),
-		scheduleDates:  make(map[string]string),
-		nextScheduleID: 1,
+		nextRoomID:      3,
+		scheduleCards:   make(map[string]api.TaskCard),
+		scheduleDates:   make(map[string]string),
+		scheduleTaskRefs: make(map[string]string),
+		nextScheduleID:  1,
 	}
 }
 
@@ -292,6 +294,7 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 				PeopleNeeded:   tmpl.peopleNeeded,
 				AssignedCount:  assignedCount,
 				StaffingStatus: staffingStatus,
+				TaskId:         nil,
 			}
 		}
 
@@ -465,6 +468,29 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 	id := fmt.Sprintf("sched-%d", m.nextScheduleID)
 	m.nextScheduleID++
 
+	// Resolve inherited fields from referenced backlog task.
+	title := input.Title
+	priority := input.Priority
+	roomArea := input.RoomArea
+	peopleNeeded := input.PeopleNeeded
+
+	if input.TaskId != "" {
+		if refTask, ok := m.tasks[input.TaskId]; ok {
+			if title == "" {
+				title = refTask.Title
+			}
+			if priority == "" {
+				priority = refTask.Priority
+			}
+			if roomArea == "" {
+				roomArea = refTask.Room
+			}
+			if peopleNeeded < 1 {
+				peopleNeeded = refTask.PeopleNeeded
+			}
+		}
+	}
+
 	assignees := make([]api.AssignedPerson, 0, len(input.AssignedTo))
 	for _, pid := range input.AssignedTo {
 		if p, ok := findPersonByID(pid); ok {
@@ -473,22 +499,29 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 	}
 	assignedCount := len(assignees)
 	staffingStatus := "underStaffed"
-	if assignedCount == input.PeopleNeeded {
+	if assignedCount == peopleNeeded {
 		staffingStatus = "fullyStaffed"
+	}
+
+	var taskIDPtr *string
+	if input.TaskId != "" {
+		taskIDPtr = &input.TaskId
 	}
 
 	card := api.TaskCard{
 		ID:             id,
-		Title:          input.Title,
-		Priority:       input.Priority,
-		RoomArea:       input.RoomArea,
+		Title:          title,
+		Priority:       priority,
+		RoomArea:       roomArea,
 		AssignedPeople: assignees,
-		PeopleNeeded:   input.PeopleNeeded,
+		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,
 		StaffingStatus: staffingStatus,
+		TaskId:         taskIDPtr,
 	}
 	m.scheduleCards[id] = card
 	m.scheduleDates[id] = input.ScheduledDate
+	m.scheduleTaskRefs[id] = input.TaskId
 	return &card, nil
 }
 
@@ -496,6 +529,11 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	_, ok := m.scheduleCards[idStr]
 	if !ok {
 		return nil, api.ErrScheduleCardNotFound
+	}
+
+	var taskIDPtr *string
+	if input.TaskId != "" {
+		taskIDPtr = &input.TaskId
 	}
 
 	assignees := make([]api.AssignedPerson, 0, len(input.AssignedTo))
@@ -519,9 +557,11 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 		PeopleNeeded:   input.PeopleNeeded,
 		AssignedCount:  assignedCount,
 		StaffingStatus: staffingStatus,
+		TaskId:         taskIDPtr,
 	}
 	m.scheduleCards[idStr] = card
 	m.scheduleDates[idStr] = input.ScheduledDate
+	m.scheduleTaskRefs[idStr] = input.TaskId
 	return &card, nil
 }
 
@@ -531,5 +571,20 @@ func (m *mockStore) DeleteScheduleCard(ctx context.Context, idStr string) error 
 	}
 	delete(m.scheduleCards, idStr)
 	delete(m.scheduleDates, idStr)
+	delete(m.scheduleTaskRefs, idStr)
 	return nil
+}
+
+func (m *mockStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	_, ok := m.tasks[id]
+	return ok, nil
+}
+
+func (m *mockStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	for _, refID := range m.scheduleTaskRefs {
+		if refID == id {
+			return true, nil
+		}
+	}
+	return false, nil
 }

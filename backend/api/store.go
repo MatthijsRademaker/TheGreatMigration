@@ -29,6 +29,8 @@ type Store interface {
 	CreateTask(ctx context.Context, input CreateTaskInput) (*TaskRow, error)
 	UpdateTask(ctx context.Context, id string, input UpdateTaskInput) (*TaskRow, error)
 	DeleteTask(ctx context.Context, id string) error
+	TaskExists(ctx context.Context, id string) (bool, error)
+	TaskHasScheduleCards(ctx context.Context, id string) (bool, error)
 
 	// Schedule-card CRUD
 	CreateScheduleCard(ctx context.Context, input CreateScheduleCardInput) (*TaskCard, error)

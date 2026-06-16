@@ -782,6 +782,14 @@ func (f *failingStore) DeleteScheduleCard(ctx context.Context, id string) error 
 	return errTestFailure
 }
 
+func (f *failingStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *failingStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -922,6 +930,14 @@ func (f *partialFailingStore) UpdateScheduleCard(ctx context.Context, id string,
 
 func (f *partialFailingStore) DeleteScheduleCard(ctx context.Context, id string) error {
 	return errTestFailure
+}
+
+func (f *partialFailingStore) TaskExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *partialFailingStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
 }
 
 // ---------- Task CRUD tests ----------

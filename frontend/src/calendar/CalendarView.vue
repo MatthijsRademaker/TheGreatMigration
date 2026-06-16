@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { parseDate } from '@internationalized/date'
-import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
+import { useMutation, useQueryCache } from '@pinia/colada'
 import type { DateValue } from '@internationalized/date'
 import {
   createScheduleCardMutation,
   updateScheduleCardMutation,
   deleteScheduleCardMutation,
-  listRoomsQuery,
 } from '@/client/@pinia/colada.gen'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
+import { useTaskBacklog } from '@/tasks/composables/useTaskBacklog'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -29,7 +29,7 @@ import AddOperationModal from '@/shared/components/AddOperationModal.vue'
 // ---- Queries ----
 const { data: scheduleData, isLoading, isError, isEmpty, queryKey } = useDailySchedule()
 const { data: peopleData } = usePeopleAvailability()
-const roomsQuery = useQuery(listRoomsQuery())
+const { data: backlog, isLoading: backlogLoading, isEmpty: backlogEmpty } = useTaskBacklog()
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
@@ -49,14 +49,18 @@ const deleteMut = useMutation({
 // ---- Modal / form state ----
 const modalOpen = ref(false)
 const editingId = ref<string | null>(null)
+const isEditMode = computed(() => editingId.value !== null)
 const mutationError = ref<string | null>(null)
-const formTitle = ref('')
-const formPriority = ref<'high' | 'medium' | 'low'>('medium')
-const formPeopleNeeded = ref(2)
-const formRoomArea = ref('')
+const formTaskId = ref('')
 const formScheduledDate = ref('')
 const formAssignedTo = ref<string[]>([])
 const mutationLoading = ref(false)
+
+// ---- Selected task read-only display ----
+const selectedTask = computed(() => {
+  if (!formTaskId.value) return null
+  return backlog.value.tasks.find(t => t.id === formTaskId.value) ?? null
+})
 
 // ---- DatePicker model bridge (DateValue ↔ YYYY-MM-DD string) ----
 const scheduledDateModel = computed({
@@ -67,13 +71,19 @@ const scheduledDateModel = computed({
   },
 })
 
+// ---- Search filter for tasks ----
+const taskSearch = ref('')
+const filteredTasks = computed(() => {
+  if (!taskSearch.value) return backlog.value.tasks
+  const q = taskSearch.value.toLowerCase()
+  return backlog.value.tasks.filter(t => t.title.toLowerCase().includes(q))
+})
+
 // ---- Helpers ----
 function resetForm() {
   editingId.value = null
-  formTitle.value = ''
-  formPriority.value = 'medium'
-  formPeopleNeeded.value = 2
-  formRoomArea.value = ''
+  formTaskId.value = ''
+  taskSearch.value = ''
   formScheduledDate.value = ''
   formAssignedTo.value = []
   mutationError.value = null
@@ -87,13 +97,13 @@ function openCreate(date?: string) {
   modalOpen.value = true
 }
 
-function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string; assignedPeople?: { id: string }[] }) {
+function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string; assignedPeople?: { id: string }[]; taskId?: string | null }) {
   resetForm()
   editingId.value = card.id
-  formTitle.value = card.title
-  formPriority.value = card.priority as 'high' | 'medium' | 'low'
-  formPeopleNeeded.value = card.peopleNeeded
-  formRoomArea.value = card.roomArea
+  // For cards linked to a backlog task, show task reference as read-only
+  if (card.taskId) {
+    formTaskId.value = card.taskId
+  }
   formScheduledDate.value = card.scheduledDate
   formAssignedTo.value = card.assignedPeople?.map(p => p.id) ?? []
   modalOpen.value = true
@@ -103,21 +113,30 @@ async function handleSubmit() {
   mutationError.value = null
   mutationLoading.value = true
   try {
-    const body = {
-      title: formTitle.value,
-      priority: formPriority.value,
-      roomArea: formRoomArea.value,
-      peopleNeeded: formPeopleNeeded.value,
+    const hasTaskId = !!formTaskId.value
+    const body: Record<string, unknown> = {
       scheduledDate: formScheduledDate.value,
       assignedTo: [...formAssignedTo.value],
+    }
+    if (hasTaskId) {
+      // When referencing a backlog task, send taskId; omit title/priority/roomArea/peopleNeeded
+      body.taskId = formTaskId.value
+    } else {
+      // Fall back to free-form fields for cards with no backlog reference
+      body.title = ''
+      body.priority = 'medium'
+      body.roomArea = ''
+      body.peopleNeeded = 2
     }
     if (editingId.value) {
       await updateMut.mutateAsync({
         path: { id: editingId.value },
-        body,
+        body: body as Parameters<typeof updateMut.mutateAsync>[0]['body'],
       })
     } else {
-      await createMut.mutateAsync({ body })
+      await createMut.mutateAsync({
+        body: body as Parameters<typeof createMut.mutateAsync>[0]['body'],
+      })
     }
     modalOpen.value = false
   } catch (e: unknown) {
@@ -148,6 +167,8 @@ function toggleAssignment(personId: string) {
 function handleCancel() {
   modalOpen.value = false
 }
+
+
 </script>
 
 <template>
@@ -203,8 +224,8 @@ function handleCancel() {
     <!-- Add / Edit Modal -->
     <AddOperationModal
       v-model:open="modalOpen"
-      :title="editingId ? 'Edit task' : 'Add task'"
-      :description="editingId ? 'Update an existing schedule card.' : 'Create a new schedule card.'"
+      :title="isEditMode && selectedTask ? 'Edit scheduled task' : isEditMode ? 'Edit schedule card' : 'Add task to schedule'"
+      :description="isEditMode ? 'Adjust the scheduled date or assigned people.' : 'Select an existing backlog task to schedule. Tasks are defined in the Task Panel.'"
       submit-label="Save"
       :disabled="mutationLoading"
       :submitting="mutationLoading"
@@ -212,63 +233,74 @@ function handleCancel() {
       @cancel="handleCancel"
     >
       <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-1.5">
-          <label for="form-title" class="text-xs font-medium text-muted-foreground">Title</label>
-          <Input id="form-title" v-model="formTitle" placeholder="Task title" />
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label for="form-priority" class="text-xs font-medium text-muted-foreground">Priority</label>
-          <Select v-model="formPriority">
-            <SelectTrigger id="form-priority">
-              <SelectValue placeholder="Select priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label for="form-room" class="text-xs font-medium text-muted-foreground">Room / Area</label>
-          <Select v-if="roomsQuery.isLoading.value" disabled>
-            <SelectTrigger id="form-room">
-              <SelectValue placeholder="Loading rooms…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="loading" disabled>Loading…</SelectItem>
-            </SelectContent>
-          </Select>
-          <div v-else-if="roomsQuery.error.value" class="flex items-center gap-2">
-            <span class="text-xs text-destructive">Could not load rooms.</span>
-            <Button variant="outline" size="sm" @click="roomsQuery.refetch()">Retry</Button>
+        <!-- Task selector (create mode, or edit mode for cards without taskId) -->
+        <template v-if="!isEditMode || (!selectedTask && editingId)">
+          <!-- Empty backlog state -->
+          <div v-if="backlogEmpty && !backlogLoading" class="rounded border border-dashed border-muted-foreground/30 p-4 text-center">
+            <p class="text-sm text-muted-foreground mb-2">
+              No tasks in the backlog yet.
+            </p>
+            <p class="text-xs text-muted-foreground">
+              Create tasks in the Task Panel first, then schedule them here.
+            </p>
           </div>
-          <Select
-            v-else
-            v-model="formRoomArea"
-          >
-            <SelectTrigger id="form-room">
-              <SelectValue placeholder="Select a room…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="room in roomsQuery.data.value?.rooms ?? []"
-                :key="room.id"
-                :value="room.name"
-              >
-                {{ room.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        <div class="flex flex-col gap-1.5">
-          <label for="form-people" class="text-xs font-medium text-muted-foreground">People needed</label>
-          <Input id="form-people" v-model.number="formPeopleNeeded" type="number" min="1" />
-        </div>
+          <!-- Loading state -->
+          <div v-else-if="backlogLoading" class="py-4 text-center">
+            <p class="text-sm text-muted-foreground">Loading tasks…</p>
+          </div>
 
+          <!-- Task selector with search -->
+          <template v-else>
+            <div class="flex flex-col gap-1.5">
+              <label for="form-task-search" class="text-xs font-medium text-muted-foreground">Search task</label>
+              <Input
+                id="form-task-search"
+                v-model="taskSearch"
+                placeholder="Type to filter backlog tasks…"
+              />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label for="form-task-select" class="text-xs font-medium text-muted-foreground">Select a task</label>
+              <Select v-model="formTaskId">
+                <SelectTrigger id="form-task-select">
+                  <SelectValue :placeholder="filteredTasks.length === 0 ? 'No matching tasks' : 'Choose a task…'" />
+                </SelectTrigger>
+                <SelectContent class="max-h-[240px]">
+                  <SelectItem
+                    v-for="task in filteredTasks"
+                    :key="task.id"
+                    :value="task.id"
+                  >
+                    {{ task.title }}
+                  </SelectItem>
+                  <div v-if="filteredTasks.length === 0" class="px-2 py-4 text-center text-xs text-muted-foreground">
+                    No tasks match your search.
+                  </div>
+                </SelectContent>
+              </Select>
+            </div>
+          </template>
+        </template>
+
+        <!-- Edit mode: show read-only task info when card has taskId -->
+        <template v-if="selectedTask">
+          <div class="rounded border border-border bg-muted/30 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-medium text-muted-foreground">Task</span>
+              <span class="text-xs text-muted-foreground">From backlog</span>
+            </div>
+            <p class="text-sm font-medium">{{ selectedTask.title }}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>Priority: <strong>{{ selectedTask.priority }}</strong></span>
+              <span>Room: <strong>{{ selectedTask.room }}</strong></span>
+              <span>People needed: <strong>{{ selectedTask.peopleNeeded }}</strong></span>
+            </div>
+          </div>
+        </template>
+
+        <!-- Scheduled date -->
         <div class="flex flex-col gap-1.5">
           <label for="form-date" class="text-xs font-medium text-muted-foreground">Scheduled date</label>
           <DatePicker id="form-date" v-model="scheduledDateModel" />
