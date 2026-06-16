@@ -328,8 +328,8 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 
 // Person CRUD mocks (no-op for existing tests).
 
-func (m *mockStore) CreatePerson(ctx context.Context, id, name, initials string) error {
-	return nil
+func (m *mockStore) CreatePerson(ctx context.Context, name, initials string) (string, error) {
+	return "p-mock-id", nil
 }
 
 func (m *mockStore) UpdatePerson(ctx context.Context, id, name, initials string) error {

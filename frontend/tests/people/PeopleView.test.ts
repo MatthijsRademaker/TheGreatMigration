@@ -108,12 +108,15 @@ describe("PeopleView management controls", () => {
 		const html = await renderPeopleView();
 
 		expect(html).toContain("Add a person");
-		expect(html).toContain("Create a new person with a short unique ID.");
+		expect(html).toContain(
+			"Create a new person. The ID is assigned server-side.",
+		);
 		expect(html).toContain(">Create<");
 		// Input fields with placeholders
-		expect(html).toContain("e.g. p9");
 		expect(html).toContain("Full name");
 		expect(html).toContain("e.g. JS");
+		// ID input should not be present
+		expect(html).not.toContain("e.g. p9");
 	});
 
 	it("renders the editable PeopleAvailability matrix with person names and Delete buttons", async () => {

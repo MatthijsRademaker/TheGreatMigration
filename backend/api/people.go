@@ -25,7 +25,6 @@ var canonicalStatuses = map[string]bool{
 // CreatePersonInput holds the body for POST /api/people.
 type CreatePersonInput struct {
 	Body struct {
-		ID       string `json:"id" doc:"Client-supplied stable person key (slug)" minLength:"1" maxLength:"100"`
 		Name     string `json:"name" doc:"Full name" minLength:"1" maxLength:"200"`
 		Initials string `json:"initials" doc:"Initials" minLength:"1" maxLength:"10"`
 	}
@@ -130,34 +129,27 @@ func isForeignKeyViolation(err error) bool {
 func registerPeopleEndpoints(api huma.API, store Store) {
 	// POST /api/people
 	huma.Register(api, huma.Operation{
-		OperationID: "create-person",
-		Method:      http.MethodPost,
-		Path:        "/api/people",
-		Summary:     "Create a person",
-		Description: "Creates a new person with a client-supplied stable ID suitable for name-derived slugs.",
-		Tags:        []string{"People"},
+		OperationID:   "create-person",
+		Method:        http.MethodPost,
+		Path:          "/api/people",
+		Summary:       "Create a person",
+		Description:   "Creates a new person with a server-assigned sequential ID.",
+		DefaultStatus: http.StatusCreated,
+		Tags:          []string{"People"},
 	}, func(ctx context.Context, input *CreatePersonInput) (*CreatePersonOutput, error) {
 		// Validate fields are non-empty (Huma's minLength handles this, but double-check).
-		if input.Body.ID == "" || input.Body.Name == "" || input.Body.Initials == "" {
-			return nil, huma.Error400BadRequest("id, name, and initials are required")
+		if input.Body.Name == "" || input.Body.Initials == "" {
+			return nil, huma.Error400BadRequest("name and initials are required")
 		}
 
-		// Check for duplicate ID.
-		exists, err := store.PersonExists(ctx, input.Body.ID)
+		id, err := store.CreatePerson(ctx, input.Body.Name, input.Body.Initials)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to check person existence", err)
-		}
-		if exists {
-			return nil, huma.Error409Conflict("a person with this id already exists")
-		}
-
-		if err := store.CreatePerson(ctx, input.Body.ID, input.Body.Name, input.Body.Initials); err != nil {
 			return nil, huma.Error500InternalServerError("failed to create person", err)
 		}
 
 		return &CreatePersonOutput{
 			Body: Person{
-				ID:           input.Body.ID,
+				ID:           id,
 				Name:         input.Body.Name,
 				Initials:     input.Body.Initials,
 				Availability: []AvailabilityEntry{},

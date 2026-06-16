@@ -54,12 +54,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "id": {
-            "description": "Client-supplied stable person key (slug)",
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string"
-          },
           "initials": {
             "description": "Initials",
             "maxLength": 10,
@@ -74,7 +68,6 @@
           }
         },
         "required": [
-          "id",
           "name",
           "initials"
         ],
@@ -1296,7 +1289,7 @@
     },
     "/api/people": {
       "post": {
-        "description": "Creates a new person with a client-supplied stable ID suitable for name-derived slugs.",
+        "description": "Creates a new person with a server-assigned sequential ID.",
         "operationId": "create-person",
         "requestBody": {
           "content": {
@@ -1309,7 +1302,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1317,7 +1310,7 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "Created"
           },
           "default": {
             "content": {

@@ -37,20 +37,22 @@ func (q *Queries) CheckPersonScheduleReferences(ctx context.Context, personID st
 	return has_refs, err
 }
 
-const createPerson = `-- name: CreatePerson :exec
+const createPerson = `-- name: CreatePerson :one
 INSERT INTO people (id, name, initials)
-VALUES ($1, $2, $3)
+VALUES ('p' || nextval('people_id_seq'), $1, $2)
+RETURNING id
 `
 
 type CreatePersonParams struct {
-	ID       string
 	Name     string
 	Initials string
 }
 
-func (q *Queries) CreatePerson(ctx context.Context, arg CreatePersonParams) error {
-	_, err := q.db.Exec(ctx, createPerson, arg.ID, arg.Name, arg.Initials)
-	return err
+func (q *Queries) CreatePerson(ctx context.Context, arg CreatePersonParams) (string, error) {
+	row := q.db.QueryRow(ctx, createPerson, arg.Name, arg.Initials)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const deleteAvailability = `-- name: DeleteAvailability :exec

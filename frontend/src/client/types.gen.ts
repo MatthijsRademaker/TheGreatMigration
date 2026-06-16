@@ -36,10 +36,6 @@ export type CreatePersonInputBody = {
 	 */
 	readonly $schema?: string;
 	/**
-	 * Client-supplied stable person key (slug)
-	 */
-	id: string;
-	/**
 	 * Initials
 	 */
 	initials: string;
@@ -613,10 +609,6 @@ export type UpsertAvailabilityOutputBody = {
 
 export type CreatePersonInputBodyWritable = {
 	/**
-	 * Client-supplied stable person key (slug)
-	 */
-	id: string;
-	/**
 	 * Initials
 	 */
 	initials: string;
@@ -1021,7 +1013,7 @@ export type GetDashboardPeopleAvailabilityData = {
 	path?: never;
 	query?: {
 		/**
-		 * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the server-local current date.
+		 * Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date.
 		 */
 		start?: string;
 		/**
