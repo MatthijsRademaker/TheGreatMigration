@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useMutation, useQueryCache } from '@pinia/colada'
-import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -15,7 +14,7 @@ import {
   upsertPersonAvailabilityMutation,
 } from '@/client/@pinia/colada.gen'
 import { getHttpErrorStatus } from '@/shared/lib/errorStatus'
-import type { AvailabilityStatus } from './types'
+import type { CellChangePayload } from './types'
 
 const queryCache = useQueryCache()
 
@@ -53,19 +52,21 @@ const deleteAvailabilityMutation = useMutation({
   },
 })
 
-// --- Error state clearing ---
+// --- Error state ---
+const createError = ref('')
+const deleteError = ref('')
+const updateError = ref('')
+
 function clearErrors() {
   createError.value = ''
   deleteError.value = ''
-  statusError.value = ''
-  clearAvailabilityError.value = ''
+  updateError.value = ''
 }
 
 // --- Create person form ---
 const newId = ref('')
 const newName = ref('')
 const newInitials = ref('')
-const createError = ref('')
 
 async function handleCreate() {
   clearErrors()
@@ -96,7 +97,6 @@ async function handleCreate() {
 }
 
 // --- Delete person ---
-const deleteError = ref('')
 const deletingId = ref<string | null>(null)
 
 async function handleDelete(id: string) {
@@ -119,67 +119,48 @@ async function handleDelete(id: string) {
   }
 }
 
-// --- Status update ---
-const editingCell = ref<{ personId: string; date: string } | null>(null)
-const statusError = ref('')
-
-async function handleStatusUpdate(status: string) {
-  if (!editingCell.value) return
+// --- Handle cell update from editable matrix ---
+async function handleCellUpdate(payload: CellChangePayload) {
   clearErrors()
-  const { personId, date } = editingCell.value
+  const { personId, dayIndex, status } = payload
+
+  const date = getISODate(dayIndex)
+  if (!date) {
+    updateError.value = 'Could not determine date for the selected cell.'
+    return
+  }
+
   try {
-    await upsertMutation.mutateAsync({
-      path: { id: personId, date },
-      body: { status: status as AvailabilityStatus },
-    })
-    editingCell.value = null
+    if (status === null) {
+      await deleteAvailabilityMutation.mutateAsync({
+        path: { id: personId, date },
+      })
+    } else {
+      await upsertMutation.mutateAsync({
+        path: { id: personId, date },
+        body: { status },
+      })
+    }
   } catch (err: unknown) {
-    const status = getHttpErrorStatus(err)
-    if (status === 400) {
-      statusError.value = 'Invalid status or date.'
-    } else if (status === 404) {
-      statusError.value = 'Person not found.'
+    const httpStatus = getHttpErrorStatus(err)
+    if (httpStatus === 400) {
+      updateError.value = 'Invalid status or date.'
+    } else if (httpStatus === 404) {
+      updateError.value = 'Person not found.'
     } else {
       const msg = err instanceof Error ? err.message : String(err)
-      statusError.value = `Failed to update status: ${msg}`
+      updateError.value = `Failed to update availability: ${msg}`
     }
-    editingCell.value = null
   }
 }
 
-// --- Clear availability (delete) ---
-const clearAvailabilityError = ref('')
-
-async function handleClearAvailability() {
-  if (!editingCell.value) return
-  clearErrors()
-  const { personId, date } = editingCell.value
-  try {
-    await deleteAvailabilityMutation.mutateAsync({
-      path: { id: personId, date },
-    })
-    editingCell.value = null
-  } catch (err: unknown) {
-    const status = getHttpErrorStatus(err)
-    if (status === 404) {
-      clearAvailabilityError.value = 'Person not found.'
-    } else {
-      const msg = err instanceof Error ? err.message : String(err)
-      clearAvailabilityError.value = `Failed to clear availability: ${msg}`
-    }
-    editingCell.value = null
-  }
-}
-
-// --- Derive ISO date from day index ---
+// --- Derive ISO date from day index (UTC-based to match codebase convention) ---
 function getISODate(dayIndex: number): string {
   if (!rawData.value?.range) return ''
   const start = new Date(rawData.value.range.startDate)
-  start.setDate(start.getDate() + dayIndex)
+  start.setUTCDate(start.getUTCDate() + dayIndex)
   return start.toISOString().slice(0, 10)
 }
-
-const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'off']
 
 // Helper to safely access mutation loading state (SSR-safe).
 function isMutationLoading(mutation: typeof createMutation | typeof deleteMutation | typeof upsertMutation | typeof deleteAvailabilityMutation): boolean {
@@ -226,7 +207,7 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
       </CardContent>
     </Card>
 
-    <!-- Success: people matrix + management controls -->
+    <!-- Success: create form + editable matrix -->
     <template v-else>
       <!-- Create person form -->
       <Card>
@@ -279,86 +260,19 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
         </CardContent>
       </Card>
 
-      <!-- People availability matrix -->
-      <PeopleAvailability v-bind="availabilityData" />
+      <!-- Mutation error display -->
+      <p v-if="deleteError" class="text-sm text-destructive">{{ deleteError }}</p>
+      <p v-if="updateError" class="text-sm text-destructive">{{ updateError }}</p>
 
-      <!-- Per-person management controls -->
-      <Card>
-        <CardHeader>
-          <CardTitle>Manage people</CardTitle>
-          <CardDescription>Update statuses or remove people no longer needed.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <!-- Status editing -->
-          <div v-if="editingCell" class="mb-4 rounded-md border p-3">
-            <p class="mb-2 text-sm">
-              Change status for <strong>{{ editingCell.personId }}</strong> on {{ editingCell.date }}:
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <Badge
-                v-for="s in statusOptions"
-                :key="s"
-                :variant="s"
-                class="cursor-pointer hover:ring-2 hover:ring-ring"
-                @click="handleStatusUpdate(s)"
-              >
-                {{ s.charAt(0).toUpperCase() + s.slice(1) }}
-              </Badge>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="isMutationLoading(deleteAvailabilityMutation)"
-                @click="handleClearAvailability"
-              >
-                {{ isMutationLoading(deleteAvailabilityMutation) ? 'Clearing…' : 'Clear (reset to off)' }}
-              </Button>
-              <Button variant="ghost" size="sm" @click="editingCell = null">
-                Cancel
-              </Button>
-            </div>
-          </div>
-          <p v-if="clearAvailabilityError" class="mb-3 text-sm text-destructive">{{ clearAvailabilityError }}</p>
-          <p v-if="statusError" class="mb-3 text-sm text-destructive">{{ statusError }}</p>
-          <p v-if="deleteError" class="mb-3 text-sm text-destructive">{{ deleteError }}</p>
-
-          <!-- Person list with actions -->
-          <div class="space-y-2">
-            <div
-              v-for="person in availabilityData.people"
-              :key="person.id"
-              class="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2"
-            >
-              <span class="min-w-[120px] text-sm font-medium">{{ person.name }}</span>
-
-              <!-- Day cells as clickable badges -->
-              <div class="flex flex-wrap gap-1">
-                <Badge
-                  v-for="(entry, dayIdx) in person.availability"
-                  :key="`${person.id}-${entry.date}`"
-                  :variant="entry.status"
-                  class="cursor-pointer hover:ring-2 hover:ring-ring"
-                  @click="clearErrors(); editingCell = { personId: person.id, date: getISODate(dayIdx) }"
-                >
-                  {{ entry.status.charAt(0).toUpperCase() + entry.status.slice(1) }}
-                </Badge>
-              </div>
-
-              <div class="ml-auto">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  :disabled="isMutationLoading(deleteMutation) && deletingId === person.id"
-                  @click="handleDelete(person.id)"
-                >
-                  {{ isMutationLoading(deleteMutation) && deletingId === person.id ? 'Deleting…' : 'Delete' }}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <!-- People availability matrix (editable) -->
+      <PeopleAvailability
+        v-bind="availabilityData"
+        :editable="true"
+        :deleting-person-id="deletingId"
+        :updating="isMutationLoading(upsertMutation) || isMutationLoading(deleteAvailabilityMutation)"
+        @update-cell="handleCellUpdate"
+        @delete-person="handleDelete"
+      />
     </template>
   </section>
 </template>

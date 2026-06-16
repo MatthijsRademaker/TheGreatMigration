@@ -1,5 +1,5 @@
 import { renderToString } from "@vue/server-renderer";
-import { createSSRApp, h } from "vue";
+import { createSSRApp, h, nextTick } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { ref, computed } from "vue";
 
@@ -108,27 +108,29 @@ describe("PeopleView management controls", () => {
 		expect(html).toContain("e.g. JS");
 	});
 
-	it("renders the manage people section with delete button per person", async () => {
+	it("renders the editable PeopleAvailability matrix with person names and Delete buttons", async () => {
 		const html = await renderPeopleView();
 
-		expect(html).toContain("Manage people");
-		expect(html).toContain(
-			"Update statuses or remove people no longer needed.",
-		);
-
-		// Person names in manage section
+		// Person names are rendered in the matrix
 		expect(html).toContain("Sophia Chen");
 		expect(html).toContain("Marcus Rivera");
 
-		// Each person has a Delete button
+		// The matrix renders full day labels
+		expect(html).toContain("Sun 5 Jul");
+		expect(html).toContain("Mon 6 Jul");
+
+		// Actions column is present (editable mode)
+		expect(html).toContain("Actions");
+
+		// Each person has a Delete button (2 people = 2 Delete buttons)
 		const deleteButtonCount = (html.match(/>Delete</g) || []).length;
 		expect(deleteButtonCount).toBe(2);
 	});
 
-	it("renders status badges per person in the manage card", async () => {
+	it("renders status badges in the editable matrix", async () => {
 		const html = await renderPeopleView();
 
-		// Status badges with data-variant attributes
+		// Status badges with data-variant attributes (now from the matrix, not the manage card)
 		expect(html).toContain('data-variant="available"');
 		expect(html).toContain('data-variant="busy"');
 		expect(html).toContain('data-variant="off"');
@@ -139,21 +141,11 @@ describe("PeopleView management controls", () => {
 		expect(html).toContain(">Off<");
 	});
 
-	it("renders the PeopleAvailability matrix", async () => {
+	it("does not render the old Manage people card", async () => {
 		const html = await renderPeopleView();
 
-		// The matrix renders full day labels (e.g. "Sun 5 Jul")
-		expect(html).toContain("Sun 5 Jul");
-		expect(html).toContain("Mon 6 Jul");
-	});
-
-	it("includes clear availability option description in the card", async () => {
-		const html = await renderPeopleView();
-
-		// The card description confirms update and delete capabilities
-		expect(html).toContain(
-			"Update statuses or remove people no longer needed.",
-		);
+		// The old manage card heading and description should not appear
+		expect(html).not.toContain("Manage people");
 	});
 
 	it("does not show error messages in initial success state", async () => {
@@ -163,14 +155,55 @@ describe("PeopleView management controls", () => {
 		expect(html).not.toContain("Failed to create person");
 		expect(html).not.toContain("Failed to delete person");
 		expect(html).not.toContain("Failed to update status");
+		expect(html).not.toContain("Failed to update availability");
 		expect(html).not.toContain("Failed to clear availability");
 	});
-
 	it("does not show loading or error states when data is present", async () => {
 		const html = await renderPeopleView();
 
 		expect(html).not.toContain("Loading availability data");
 		expect(html).not.toContain("Backend unavailable");
 		expect(html).not.toContain("No people found");
+	});
+});
+
+// --- Client-render tests for loading state passing ---
+// @vitest-environment jsdom
+
+describe("PeopleView loading state wiring", () => {
+	it("passes deletingPersonId from handleDelete to the matrix", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		// The matrix should have a PeopleAvailability component
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		expect(matrix.exists()).toBe(true);
+
+		// deletingPersonId prop should be undefined initially (no delete in progress)
+		expect(matrix.props("deletingPersonId")).toBeNull();
+
+		// updating prop should be falsy (no upsert in progress)
+		expect(matrix.props("updating")).toBe(false);
+
+		wrapper.unmount();
+	});
+
+	it("passes editable=true to the matrix on success", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleView, {
+			attachTo: document.body,
+		});
+
+		await nextTick();
+
+		const matrix = wrapper.findComponent({ name: "PeopleAvailability" });
+		expect(matrix.exists()).toBe(true);
+		expect(matrix.props("editable")).toBe(true);
+
+		wrapper.unmount();
 	});
 });
