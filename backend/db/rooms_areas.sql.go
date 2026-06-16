@@ -10,11 +10,8 @@ import (
 )
 
 const createRoom = `-- name: CreateRoom :one
-WITH next_id AS (
-  SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 6) AS INTEGER)), 0) + 1 AS num FROM rooms_areas
-)
 INSERT INTO rooms_areas (id, name, type)
-SELECT 'room-' || next_id.num, $1, $2 FROM next_id
+VALUES ('room-' || nextval('rooms_areas_id_seq'), $1, $2)
 RETURNING id, name, type, created_at, updated_at
 `
 

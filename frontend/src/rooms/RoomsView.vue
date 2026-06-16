@@ -21,6 +21,7 @@ import {
 // ---- State ----
 const editingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
+const mutationError = ref<string | null>(null)
 const formName = ref('')
 const formType = ref<'room' | 'area'>('room')
 
@@ -57,26 +58,34 @@ function cancelEdit() {
 
 async function handleSubmit() {
   if (!formName.value.trim()) return
+  mutationError.value = null
 
-  if (editingId.value) {
-    await updateMut.mutateAsync({
-      path: { id: editingId.value },
-      body: { name: formName.value.trim(), type: formType.value },
-    })
-    cancelEdit()
-  } else {
-    await createMut.mutateAsync({
-      body: { name: formName.value.trim(), type: formType.value },
-    })
-    formName.value = ''
-    formType.value = 'room'
+  try {
+    if (editingId.value) {
+      await updateMut.mutateAsync({
+        path: { id: editingId.value },
+        body: { name: formName.value.trim(), type: formType.value },
+      })
+      cancelEdit()
+    } else {
+      await createMut.mutateAsync({
+        body: { name: formName.value.trim(), type: formType.value },
+      })
+      formName.value = ''
+      formType.value = 'room'
+    }
+  } catch (e: any) {
+    mutationError.value = e?.message || 'Something went wrong. Please try again.'
   }
 }
 
 async function handleDelete(id: string) {
   deletingId.value = id
+  mutationError.value = null
   try {
     await deleteMut.mutateAsync({ path: { id } })
+  } catch (e: any) {
+    mutationError.value = e?.message || 'Could not delete. Please try again.'
   } finally {
     deletingId.value = null
   }
@@ -92,6 +101,14 @@ watch(() => roomsQuery.data.value?.rooms, (rooms) => {
 
 <template>
   <section class="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+    <!-- Mutation error -->
+    <p
+      v-if="mutationError"
+      class="rounded border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+    >
+      {{ mutationError }}
+    </p>
+
     <!-- Create / Edit form -->
     <Card>
       <CardHeader>

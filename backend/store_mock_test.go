@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -136,6 +137,7 @@ type mockStore struct {
 	planningWindow *PlanningWindowBody
 	taskBacklog    *TaskBacklogBody
 	rooms          map[string]Room
+	nextRoomID     int
 }
 
 func newMockStore() *mockStore {
@@ -177,9 +179,10 @@ func newMockStore() *mockStore {
 			Statuses:   taskStatusLegend,
 		},
 		rooms: map[string]Room{
-			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room"},
-			"room-2": {ID: "room-2", Name: "Living Room", Type: "room"},
+			"room-1": {ID: "room-1", Name: "Kitchen", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
+			"room-2": {ID: "room-2", Name: "Living Room", Type: "room", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
 		},
+		nextRoomID: 3,
 	}
 }
 
@@ -285,15 +288,20 @@ func (m *mockStore) ListRooms(ctx context.Context) ([]Room, error) {
 	for _, r := range m.rooms {
 		rooms = append(rooms, r)
 	}
+	sort.Slice(rooms, func(i, j int) bool { return rooms[i].Name < rooms[j].Name })
 	return rooms, nil
 }
 
 func (m *mockStore) CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error) {
-	id := fmt.Sprintf("room-%d", len(m.rooms)+1)
+	id := fmt.Sprintf("room-%d", m.nextRoomID)
+	m.nextRoomID++
+	now := time.Now().UTC().Format(time.RFC3339)
 	r := Room{
-		ID:   id,
-		Name: input.Name,
-		Type: input.Type,
+		ID:        id,
+		Name:      input.Name,
+		Type:      input.Type,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	m.rooms[id] = r
 	return &r, nil
