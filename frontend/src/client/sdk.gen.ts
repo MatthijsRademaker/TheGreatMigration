@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses } from './types.gen';
+import type { GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -38,3 +38,10 @@ export const getHello = <ThrowOnError extends boolean = false>(options?: Options
  * Returns the global move range with startDate, endDate, and inclusive day count. The planning window is the canonical source of truth for the move timeline. All date-dependent views derive their rendered content from this contract.
  */
 export const getPlanningWindow = <ThrowOnError extends boolean = false>(options?: Options<GetPlanningWindowData, ThrowOnError>): RequestResult<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError> => (options?.client ?? client).get<GetPlanningWindowResponses, GetPlanningWindowErrors, ThrowOnError>({ url: '/api/planning-window', ...options });
+
+/**
+ * Task backlog data
+ *
+ * Returns a combined payload with derived summary counts, task backlog rows, a canonical priority legend, and a canonical task-status legend. The endpoint serves as the read-only source of truth for backlog task data used by the dashboard and /tasks route.
+ */
+export const getTasksBacklog = <ThrowOnError extends boolean = false>(options?: Options<GetTasksBacklogData, ThrowOnError>): RequestResult<GetTasksBacklogResponses, GetTasksBacklogErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksBacklogResponses, GetTasksBacklogErrors, ThrowOnError>({ url: '/api/tasks/backlog', ...options });
