@@ -148,7 +148,7 @@ const vTitle: Directive<HTMLElement, string> = {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in planNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
+              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
                 <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>
@@ -166,7 +166,7 @@ const vTitle: Directive<HTMLElement, string> = {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in organizationNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
+              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
                 <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>

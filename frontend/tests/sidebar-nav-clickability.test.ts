@@ -98,6 +98,16 @@ describe("sidebar nav-item clickability", () => {
 		return { wrapper, router };
 	}
 
+	it("does not wrap nav items in Reka UI Tooltip elements", async () => {
+		const { wrapper } = await mountSidebarDesktop();
+
+		// Tooltip component renders <TooltipRoot data-slot="tooltip">.
+		// If any nav-item SidebarMenuButton has a :tooltip prop, the Tooltip
+		// wrapper chain (Tooltip > TooltipTrigger > SidebarMenuButtonChild)
+		// remains active, which interferes with clickability.
+		expect(wrapper.find('[data-slot="tooltip"]').exists()).toBe(false);
+	});
+
 	it("renders a native <a> for each nav item with correct href", async () => {
 		const { wrapper } = await mountSidebarDesktop();
 
