@@ -1,8 +1,11 @@
 # task-backlog-api Specification
 
 ## Purpose
+
 Defines the first read-only backend API contract for the task backlog, providing seeded task rows and derived summary counts for the homepage dashboard and `/tasks` route.
+
 ## Requirements
+
 ### Requirement: Backend SHALL expose a Huma-registered read-only endpoint for task backlog data
 
 The backend SHALL continue to register `GET /api/tasks/backlog` via Huma and SHALL add `POST /api/tasks`, `PUT /api/tasks/{id}`, and `DELETE /api/tasks/{id}` to `/openapi.json`. `GET /api/tasks/backlog` SHALL remain the canonical read model for task rows, summary counts, priority legend, and status legend. Successful creates, updates, and deletes SHALL be observable through subsequent `GET /api/tasks/backlog` responses rather than a separate task read contract.
@@ -27,10 +30,12 @@ The JSON response body SHALL include the following top-level fields:
 - `statuses`: an array of canonical task-status legend objects.
 
 #### Scenario: Response shape matches the contract
+
 - **WHEN** `GET /api/tasks/backlog` returns 200
 - **THEN** the JSON body contains `summary`, `tasks`, `priorities`, and `statuses` top-level fields
 
 #### Scenario: Summary counts are consistent with task data
+
 - **WHEN** the response is returned
 - **THEN** `summary.totalTasks` equals `len(tasks)`
 - **AND** `summary.highPriorityTasks` equals the count of tasks where `priority` equals `"high"`
@@ -50,12 +55,14 @@ Each object in the `tasks` array SHALL include:
 - `assignedTo` (array of strings): person-ID strings for assigned helpers, may be empty.
 
 #### Scenario: Task rows have all required fields with correct types
+
 - **WHEN** the response is returned
 - **THEN** every object in `tasks` has non-empty `id`, `title`, `priority`, `room`, and `status` string fields
 - **AND** every task has `peopleNeeded` as a positive integer
 - **AND** every task has `assignedTo` as an array (possibly empty)
 
 #### Scenario: Task IDs follow the stable prefix pattern
+
 - **WHEN** the response is returned
 - **THEN** every task `id` starts with `"task-"` and is unique within the response
 
@@ -70,10 +77,12 @@ Every `priority` value in `tasks[]` SHALL be one of exactly three values: `"high
 | `low` | `Low` | `success` |
 
 #### Scenario: All priority values are canonical
+
 - **WHEN** the response is returned
 - **THEN** every `priority` value in every task is one of `high`, `medium`, or `low`
 
 #### Scenario: Priority legend includes all three values with metadata
+
 - **WHEN** the response is returned
 - **THEN** `priorities` is an array of exactly three objects with `id`, `label`, and `colorIntent` fields matching the canonical design-system vocabulary
 
@@ -88,10 +97,12 @@ Every `status` value in `tasks[]` SHALL be one of exactly three values: `"backlo
 | `assigned` | `Assigned` | `success` |
 
 #### Scenario: All status values are canonical
+
 - **WHEN** the response is returned
 - **THEN** every `status` value in every task is one of `backlog`, `ready`, or `assigned`
 
 #### Scenario: Status legend includes all three values with metadata
+
 - **WHEN** the response is returned
 - **THEN** `statuses` is an array of exactly three objects with `id`, `label`, and `colorIntent` fields matching the canonical status vocabulary
 
@@ -108,10 +119,12 @@ The endpoint handler SHALL read task backlog data from a `Store` interface backe
 The response summary SHALL continue to be derived from the returned task rows rather than stored as separate persisted counts.
 
 #### Scenario: Seed data preserves the current deterministic backlog rows
+
 - **WHEN** `GET /api/tasks/backlog` is called against seeded Postgres data
 - **THEN** `tasks` contains the same stable IDs and seeded assignment variety currently defined by the in-memory backlog seed
 
 #### Scenario: Database-backed rows still exercise all canonical vocabulary values
+
 - **WHEN** the endpoint is called
 - **THEN** across all returned tasks, the priorities `high`, `medium`, and `low` each appear at least once
 - **AND** the statuses `backlog`, `ready`, and `assigned` each appear at least once
@@ -123,6 +136,7 @@ The response summary SHALL continue to be derived from the returned task rows ra
 The task backlog endpoint SHALL remain read-only and additive. `GET /api/hello`, `GET /api/planning-window`, and `GET /api/dashboard/people-availability` SHALL continue to return their expected responses, and `GET /api/tasks/backlog` SHALL preserve its existing JSON contract while switching to Postgres-backed storage.
 
 #### Scenario: Task backlog contract remains stable after persistence wiring
+
 - **WHEN** `GET /api/tasks/backlog` is called after the refactor
 - **THEN** the response still contains `summary`, `tasks`, `priorities`, and `statuses`
 - **AND** the task rows and derived summary counts still satisfy the existing contract invariants
@@ -132,10 +146,12 @@ The task backlog endpoint SHALL remain read-only and additive. `GET /api/hello`,
 Backend tests in `backend/main_test.go` SHALL continue to verify the existing task backlog contract, and they SHALL also cover Store-backed success and failure paths for the backlog handler. Integration tests SHALL validate the backlog contract against the seeded Postgres database.
 
 #### Scenario: MockStore-backed task backlog tests pass
+
 - **WHEN** `go test ./...` runs in `backend/`
 - **THEN** task backlog tests verify the existing contract invariants using a Store-backed handler registration
 
 #### Scenario: Real-Postgres task backlog integration test passes
+
 - **WHEN** `go test -tags=integration ./...` runs in `backend/`
 - **THEN** the integration suite verifies the seeded backlog payload and summary invariants through `GET /api/tasks/backlog`
 
@@ -144,10 +160,12 @@ Backend tests in `backend/main_test.go` SHALL continue to verify the existing ta
 The `registerTasksBacklog` function SHALL accept a `Store` parameter. The handler closure SHALL call `store.GetTaskBacklog(ctx)` and SHALL return a `huma.Error500InternalServerError` if the Store call fails.
 
 #### Scenario: Backlog handler delegates to Store on success
+
 - **WHEN** the handler is called and the Store returns backlog data
 - **THEN** the response body matches the Store-backed backlog payload
 
 #### Scenario: Backlog handler returns 500 on Store failure
+
 - **WHEN** the handler is called and the Store returns an error
 - **THEN** the response is a 500 Internal Server Error
 
@@ -157,8 +175,9 @@ Create and update requests SHALL accept `title`, `priority`, `peopleNeeded`, `ro
 
 #### Scenario: Invalid task input is rejected
 
-- **WHEN** a create or update request includes an empty title, non-canonical priority or status, `peopleNeeded < 1`, a missing room, or an unknown assigned person ID
-- **THEN** the endpoint returns `400`
+- **WHEN** a create or update request includes an empty title, a missing room, or an unknown assigned person ID
+- **THEN** the endpoint returns `400` (custom validation in `validateTaskInput`)
+- **AND** non-canonical priority or status values and `peopleNeeded < 1` return `422` (Huma struct-tag validation)
 
 #### Scenario: Missing task IDs return not found
 

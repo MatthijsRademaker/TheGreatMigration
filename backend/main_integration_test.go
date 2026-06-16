@@ -246,6 +246,162 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 	})
 
+	// Test task CRUD lifecycle against Postgres.
+	t.Run("TasksCRUD", func(t *testing.T) {
+		// Create: add a new task with assignments.
+		createBody := `{"title":"Integration test task","priority":"high","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":["p1","p2"]}`
+		createReq := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(createBody))
+		createReq.Header.Set("Content-Type", "application/json")
+		createRec := httptest.NewRecorder()
+		router.ServeHTTP(createRec, createReq)
+
+		if createRec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d\nbody: %s", createRec.Code, createRec.Body.String())
+		}
+
+		var created backendapi.TaskRow
+		if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+			t.Fatalf("failed to unmarshal created task: %v", err)
+		}
+		if created.Title != "Integration test task" {
+			t.Fatalf("unexpected title: %q", created.Title)
+		}
+		if created.Priority != "high" || created.Status != "backlog" || created.PeopleNeeded != 2 || created.Room != "Kitchen" {
+			t.Fatalf("unexpected created fields: prio=%q status=%q ppl=%d room=%q", created.Priority, created.Status, created.PeopleNeeded, created.Room)
+		}
+		if created.ID == "" || created.ID[:5] != "task-" {
+			t.Fatalf("created task has invalid ID: %q", created.ID)
+		}
+		if len(created.AssignedTo) != 2 || created.AssignedTo[0] != "p1" || created.AssignedTo[1] != "p2" {
+			t.Fatalf("unexpected assignedTo: %v", created.AssignedTo)
+		}
+
+		// Verify created task appears in backlog.
+		backlogReq := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
+		backlogRec := httptest.NewRecorder()
+		router.ServeHTTP(backlogRec, backlogReq)
+
+		if backlogRec.Code != http.StatusOK {
+			t.Fatalf("backlog GET failed: %d", backlogRec.Code)
+		}
+
+		var backlog backendapi.TaskBacklogBody
+		if err := json.Unmarshal(backlogRec.Body.Bytes(), &backlog); err != nil {
+			t.Fatalf("failed to unmarshal backlog: %v", err)
+		}
+
+		found := false
+		for _, task := range backlog.Tasks {
+			if task.ID == created.ID {
+				found = true
+				if task.Title != "Integration test task" {
+					t.Fatalf("backlog task has wrong title: %q", task.Title)
+				}
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("created task %s not found in backlog", created.ID)
+		}
+
+		// Update: change title and assignments.
+		updateBody := `{"title":"Updated integration task","priority":"medium","peopleNeeded":1,"room":"Garage","status":"ready","assignedTo":["p3"]}`
+		updateReq := httptest.NewRequest(http.MethodPut, "/api/tasks/"+created.ID, strings.NewReader(updateBody))
+		updateReq.Header.Set("Content-Type", "application/json")
+		updateRec := httptest.NewRecorder()
+		router.ServeHTTP(updateRec, updateReq)
+
+		if updateRec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d\nbody: %s", updateRec.Code, updateRec.Body.String())
+		}
+
+		var updated backendapi.TaskRow
+		if err := json.Unmarshal(updateRec.Body.Bytes(), &updated); err != nil {
+			t.Fatalf("failed to unmarshal updated task: %v", err)
+		}
+		if updated.ID != created.ID {
+			t.Fatalf("updated task id changed: %q -> %q", created.ID, updated.ID)
+		}
+		if updated.Title != "Updated integration task" || updated.Priority != "medium" || updated.Status != "ready" {
+			t.Fatalf("unexpected updated fields: title=%q prio=%q status=%q", updated.Title, updated.Priority, updated.Status)
+		}
+		if updated.PeopleNeeded != 1 || updated.Room != "Garage" {
+			t.Fatalf("unexpected updated fields: ppl=%d room=%q", updated.PeopleNeeded, updated.Room)
+		}
+		if len(updated.AssignedTo) != 1 || updated.AssignedTo[0] != "p3" {
+			t.Fatalf("unexpected updated assignedTo: %v", updated.AssignedTo)
+		}
+
+		// Verify update appears in backlog.
+		backlogReq2 := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
+		backlogRec2 := httptest.NewRecorder()
+		router.ServeHTTP(backlogRec2, backlogReq2)
+
+		var backlog2 backendapi.TaskBacklogBody
+		if err := json.Unmarshal(backlogRec2.Body.Bytes(), &backlog2); err != nil {
+			t.Fatalf("failed to unmarshal backlog: %v", err)
+		}
+		foundUpdated := false
+		for _, task := range backlog2.Tasks {
+			if task.ID == created.ID {
+				foundUpdated = true
+				if task.Title != "Updated integration task" {
+					t.Fatalf("backlog shows stale title: %q", task.Title)
+				}
+				if len(task.AssignedTo) != 1 || task.AssignedTo[0] != "p3" {
+					t.Fatalf("backlog shows stale assignments: %v", task.AssignedTo)
+				}
+				break
+			}
+		}
+		if !foundUpdated {
+			t.Fatalf("updated task %s not found in backlog", created.ID)
+		}
+
+		// Delete the task.
+		deleteReq := httptest.NewRequest(http.MethodDelete, "/api/tasks/"+created.ID, nil)
+		deleteRec := httptest.NewRecorder()
+		router.ServeHTTP(deleteRec, deleteReq)
+
+		if deleteRec.Code != http.StatusNoContent {
+			t.Fatalf("expected status 204, got %d\nbody: %s", deleteRec.Code, deleteRec.Body.String())
+		}
+
+		// Delete again: should 404.
+		deleteReq2 := httptest.NewRequest(http.MethodDelete, "/api/tasks/"+created.ID, nil)
+		deleteRec2 := httptest.NewRecorder()
+		router.ServeHTTP(deleteRec2, deleteReq2)
+
+		if deleteRec2.Code != http.StatusNotFound {
+			t.Fatalf("expected status 404 on re-delete, got %d", deleteRec2.Code)
+		}
+
+		// Verify task is gone from backlog.
+		backlogReq3 := httptest.NewRequest(http.MethodGet, "/api/tasks/backlog", nil)
+		backlogRec3 := httptest.NewRecorder()
+		router.ServeHTTP(backlogRec3, backlogReq3)
+
+		var backlog3 backendapi.TaskBacklogBody
+		if err := json.Unmarshal(backlogRec3.Body.Bytes(), &backlog3); err != nil {
+			t.Fatalf("failed to unmarshal backlog: %v", err)
+		}
+		for _, task := range backlog3.Tasks {
+			if task.ID == created.ID {
+				t.Fatalf("deleted task %s still present in backlog", created.ID)
+			}
+		}
+
+		// Update non-existent task: should 404.
+		updateReq2 := httptest.NewRequest(http.MethodPut, "/api/tasks/"+created.ID, strings.NewReader(updateBody))
+		updateReq2.Header.Set("Content-Type", "application/json")
+		updateRec2 := httptest.NewRecorder()
+		router.ServeHTTP(updateRec2, updateReq2)
+
+		if updateRec2.Code != http.StatusNotFound {
+			t.Fatalf("expected status 404 for update on deleted task, got %d", updateRec2.Code)
+		}
+	})
+
 	// Test daily schedule from Postgres-backed store.
 	t.Run("DailySchedule", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/dashboard/daily-schedule", nil)
@@ -505,7 +661,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 		if !ok {
 			t.Fatal("OpenAPI spec missing paths")
 		}
-		expectedPaths := []string{"/api/hello", "/api/planning-window", "/api/dashboard/people-availability", "/api/tasks/backlog", "/api/dashboard/daily-schedule", "/api/rooms", "/api/rooms/{id}"}
+		expectedPaths := []string{"/api/hello", "/api/planning-window", "/api/dashboard/people-availability", "/api/tasks", "/api/tasks/{id}", "/api/tasks/backlog", "/api/dashboard/daily-schedule", "/api/rooms", "/api/rooms/{id}"}
 		for _, p := range expectedPaths {
 			if _, exists := paths[p]; !exists {
 				t.Fatalf("OpenAPI paths missing %q", p)

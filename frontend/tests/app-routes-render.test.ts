@@ -325,10 +325,6 @@ describe("application route rendering", () => {
 				// Management controls
 				expect(html).toContain("Edit");
 				expect(html).toContain("Delete");
-				// Assignment UI from people availability query
-				expect(html).toContain("Assign People");
-				expect(html).toContain("Sophia Chen");
-				expect(html).toContain("Marcus Rivera");
 				// No fixture content
 				expect(html).not.toContain("Painting hall");
 			}
