@@ -99,7 +99,10 @@ describe("application route rendering", () => {
 
 		expect(html).toContain("The Great Migration");
 		expect(html).toContain("House move planner");
-		expect(html).toContain("Planning mode");
+		expect(html).toContain("Jul");
+		expect(html).toContain("2026");
+		expect(html).toContain("40 days");
+		expect(html).not.toContain("Planning mode");
 		expect(html).toContain("Dashboard");
 		expect(html).toContain("Tasks");
 		expect(html).toContain("Schedule");
