@@ -12,7 +12,7 @@ import {
   SettingsIcon,
   UsersRoundIcon,
 } from '@lucide/vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Sidebar,
   SidebarContent,
@@ -71,16 +71,32 @@ function isActive(path: string) {
  * Custom directive that navigates via SPA routing on standard left-click.
  * Uses addEventListener directly to survive Primitive(as-child) VNode cloning
  * which drops onClick from merged props but preserves custom directives.
+ * Cleans up the listener on unmount and falls back to native navigation if
+ * SPA routing fails.
  */
+const clickHandlers = new WeakMap<HTMLElement, (event: MouseEvent) => void>()
+
 const vClickNav: Directive<HTMLElement, string> = {
   mounted(el, binding) {
     const to = binding.value
-    el.addEventListener('click', (event: MouseEvent) => {
+    const handler = (event: MouseEvent) => {
       if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
         event.preventDefault()
-        router.push(to)
+        router.push(to).catch(() => {
+          // SPA navigation failed; fall back to native navigation
+          window.location.assign(to)
+        })
       }
-    })
+    }
+    el.addEventListener('click', handler)
+    clickHandlers.set(el, handler)
+  },
+  unmounted(el) {
+    const handler = clickHandlers.get(el)
+    if (handler) {
+      el.removeEventListener('click', handler)
+      clickHandlers.delete(el)
+    }
   },
 }
 
@@ -105,7 +121,7 @@ const vTitle: Directive<HTMLElement, string> = {
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" as-child>
-            <RouterLink to="/" aria-label="Open moving dashboard">
+            <a href="/" aria-label="Open moving dashboard" v-click-nav="'/'">
               <div class="flex aspect-square size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <NotebookTabsIcon />
               </div>
@@ -113,7 +129,7 @@ const vTitle: Directive<HTMLElement, string> = {
                 <span class="truncate text-sm font-semibold">The Great Migration</span>
                 <span class="truncate text-xs text-muted-foreground">House move planner</span>
               </div>
-            </RouterLink>
+            </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -132,7 +148,7 @@ const vTitle: Directive<HTMLElement, string> = {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in planNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
+              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
                 <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>
@@ -150,7 +166,7 @@ const vTitle: Directive<HTMLElement, string> = {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in organizationNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
+              <SidebarMenuButton :is-active="isActive(item.to)" :tooltip="item.title" as-child>
                 <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
                   <span>{{ item.title }}</span>

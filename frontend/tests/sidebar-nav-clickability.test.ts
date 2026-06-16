@@ -6,7 +6,7 @@
 import { vi } from "vitest";
 
 // ---------------------------------------------------------------------------
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, nextTick } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -134,9 +134,12 @@ describe("sidebar nav-item clickability", () => {
 			expect(link.attributes("title")).toBe(item.title);
 		}
 
-		// Verify navigation routing works for a sidebar route.
-		await router.push("/people");
-		await nextTick();
+		// Verify navigation routing works via click on a sidebar nav <a> element.
+		const peopleLink = wrapper.find(
+			'a[data-sidebar="menu-button"]:not([aria-label])[href="/people"]',
+		);
+		await peopleLink.trigger("click");
+		await flushPromises();
 		await nextTick();
 		expect(router.currentRoute.value.path).toBe("/people");
 	});
