@@ -58,26 +58,6 @@ type TaskStatusLegend struct {
 	ColorIntent string `json:"colorIntent" doc:"Design system color intent"`
 }
 
-// ---------- Seed data ----------
-
-var seedTasks = []TaskRow{
-	// High priority
-	{ID: "task-1", Title: "Disconnect kitchen appliances", Priority: "high", PeopleNeeded: 3, Room: "Kitchen", Status: "backlog", AssignedTo: []string{}},
-	{ID: "task-2", Title: "Wrap living room furniture", Priority: "high", PeopleNeeded: 2, Room: "Living Room", Status: "ready", AssignedTo: []string{}},
-	{ID: "task-3", Title: "Pack kitchen fragile items", Priority: "high", PeopleNeeded: 2, Room: "Kitchen", Status: "assigned", AssignedTo: []string{"p1"}},
-	{ID: "task-4", Title: "Disassemble bedroom furniture", Priority: "high", PeopleNeeded: 2, Room: "Bedroom 1", Status: "assigned", AssignedTo: []string{"p2", "p3"}},
-	// Medium priority
-	{ID: "task-5", Title: "Sort and label moving boxes", Priority: "medium", PeopleNeeded: 3, Room: "Living Room", Status: "backlog", AssignedTo: []string{"p4"}},
-	{ID: "task-6", Title: "Clear garage shelving", Priority: "medium", PeopleNeeded: 1, Room: "Garage", Status: "ready", AssignedTo: []string{}},
-	{ID: "task-7", Title: "Move bedroom wardrobe", Priority: "medium", PeopleNeeded: 3, Room: "Bedroom 2", Status: "assigned", AssignedTo: []string{"p5", "p6", "p7"}},
-	// Low priority
-	{ID: "task-8", Title: "Sweep garage floor", Priority: "low", PeopleNeeded: 1, Room: "Garage", Status: "backlog", AssignedTo: []string{"p8"}},
-	{ID: "task-9", Title: "Dust living room shelves", Priority: "low", PeopleNeeded: 2, Room: "Living Room", Status: "ready", AssignedTo: []string{}},
-	{ID: "task-10", Title: "Wipe down kitchen counters", Priority: "low", PeopleNeeded: 2, Room: "Kitchen", Status: "assigned", AssignedTo: []string{"p1", "p2"}},
-	// Extra medium to ensure assignment variety
-	{ID: "task-11", Title: "Inventory bedroom closet", Priority: "medium", PeopleNeeded: 3, Room: "Bedroom 1", Status: "ready", AssignedTo: []string{"p3"}},
-}
-
 // ---------- Legends ----------
 
 var priorityLegend = []PriorityLegend{

@@ -130,6 +130,21 @@ export type PlanningWindowBody = {
     startDate: string;
 };
 
+export type PriorityLegend = {
+    /**
+     * Design system color intent
+     */
+    colorIntent: string;
+    /**
+     * Priority identifier
+     */
+    id: string;
+    /**
+     * Human-readable label
+     */
+    label: string;
+};
+
 export type Range = {
     /**
      * Number of dates in the window (inclusive of startDate)
@@ -173,6 +188,90 @@ export type Summary = {
      * Total number of people in the response
      */
     totalPeople: number;
+};
+
+export type TaskBacklogBody = {
+    /**
+     * Canonical priority legend
+     */
+    priorities: Array<PriorityLegend> | null;
+    /**
+     * Canonical task-status legend
+     */
+    statuses: Array<TaskStatusLegend> | null;
+    /**
+     * Derived summary counts
+     */
+    summary: TaskSummary;
+    /**
+     * Backlog task rows
+     */
+    tasks: Array<TaskRow> | null;
+};
+
+export type TaskRow = {
+    /**
+     * Person-ID strings for assigned helpers, may be empty
+     */
+    assignedTo: Array<string> | null;
+    /**
+     * Stable task identifier, prefixed 'task-'
+     */
+    id: string;
+    /**
+     * Number of people required for the task, minimum 1
+     */
+    peopleNeeded: number;
+    /**
+     * One of: high, medium, low
+     */
+    priority: string;
+    /**
+     * Room or area the task belongs to
+     */
+    room: string;
+    /**
+     * One of: backlog, ready, assigned
+     */
+    status: string;
+    /**
+     * Human-readable task description
+     */
+    title: string;
+};
+
+export type TaskStatusLegend = {
+    /**
+     * Design system color intent
+     */
+    colorIntent: string;
+    /**
+     * Status identifier
+     */
+    id: string;
+    /**
+     * Human-readable label
+     */
+    label: string;
+};
+
+export type TaskSummary = {
+    /**
+     * Count of tasks with priority 'high'
+     */
+    highPriorityTasks: number;
+    /**
+     * Total number of tasks in the backlog
+     */
+    totalTasks: number;
+    /**
+     * Count of tasks with empty assignedTo
+     */
+    unassignedTasks: number;
+    /**
+     * Count of tasks with non-empty assignedTo where len(assignedTo) < peopleNeeded
+     */
+    understaffedTasks: number;
 };
 
 export type DashboardBodyWritable = {
@@ -323,3 +422,28 @@ export type GetPlanningWindowResponses = {
 };
 
 export type GetPlanningWindowResponse = GetPlanningWindowResponses[keyof GetPlanningWindowResponses];
+
+export type GetTasksBacklogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/tasks/backlog';
+};
+
+export type GetTasksBacklogErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetTasksBacklogError = GetTasksBacklogErrors[keyof GetTasksBacklogErrors];
+
+export type GetTasksBacklogResponses = {
+    /**
+     * OK
+     */
+    200: TaskBacklogBody;
+};
+
+export type GetTasksBacklogResponse = GetTasksBacklogResponses[keyof GetTasksBacklogResponses];

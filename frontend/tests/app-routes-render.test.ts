@@ -8,9 +8,6 @@ import App from "../src/app/App.vue";
 import { configureApiClient } from "../src/shared/lib/api-client";
 import { routes } from "../src/app/routes";
 
-/** The mocked planning-window days value used in assertions. */
-const MOCK_PLAN_WINDOW_DAYS = 40;
-
 async function renderRoute(path: string) {
 	const router = createRouter({
 		history: createMemoryHistory(),
@@ -24,12 +21,53 @@ async function renderRoute(path: string) {
 		baseUrl: "http://example.test",
 		fetch: vi.fn(async (input: RequestInfo | URL) => {
 			const url = input instanceof Request ? input.url : input.toString();
+			if (url.includes("/api/dashboard/people-availability")) {
+				return new Response(
+					JSON.stringify({
+						range: {
+							startDate: "2026-07-05",
+							endDate: "2026-08-13",
+							days: 40,
+							selectedDate: "2026-07-05",
+						},
+						summary: {
+							availableToday: 6,
+							totalPeople: 8,
+						},
+						people: [],
+						statuses: [],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+			if (url.includes("/api/tasks/backlog")) {
+				return new Response(
+					JSON.stringify({
+						summary: {
+							totalTasks: 11,
+							highPriorityTasks: 4,
+							unassignedTasks: 3,
+							understaffedTasks: 2,
+						},
+						tasks: [],
+						priorities: [],
+						statuses: [],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
 			if (url.includes("/api/planning-window")) {
 				return new Response(
 					JSON.stringify({
 						startDate: "2026-07-05",
 						endDate: "2026-08-13",
-						days: MOCK_PLAN_WINDOW_DAYS,
+						days: 40,
 					}),
 					{
 						status: 200,
@@ -69,7 +107,6 @@ describe("application route rendering", () => {
 		expect(html).toContain("Rooms / Areas");
 		expect(html).toContain("Settings");
 		expect(html).toContain("Moving dashboard");
-		expect(html).toContain("Today’s plan");
 		expect(html).toContain("Add note");
 		expect(html).toContain("Help &amp; Support");
 	});
@@ -80,7 +117,7 @@ describe("application route rendering", () => {
 			title: "Moving dashboard",
 			description:
 				"Today’s priorities, staffing gaps, and move notes at a glance.",
-			content: "Today’s plan",
+			content: "Move notes",
 		},
 		{
 			path: "/tasks",
@@ -93,7 +130,7 @@ describe("application route rendering", () => {
 			path: "/calendar",
 			title: "Schedule board",
 			description: "Plan work across move days and balance available helpers.",
-			content: "Schedule board foundation",
+			content: "Daily Schedule",
 		},
 		{
 			path: "/people",
@@ -126,10 +163,32 @@ describe("application route rendering", () => {
 			expect(html).toContain(content);
 
 			if (path === "/calendar") {
-				// Each success day column carries data-testid="plan-day-column".
-				// Count occurrences to verify we render the mocked planning-window day count.
-				const columnMatches = html.match(/data-testid="plan-day-column"/g);
-				expect(columnMatches?.length).toBe(MOCK_PLAN_WINDOW_DAYS);
+				expect(html).toContain("Painting hall");
+				expect(html).toContain("2 / 2");
+				expect(html).toContain('data-variant="priorityHigh"');
+				expect(html).toContain("2 Jul (Tue)");
+				expect(html).toContain("5 Jul (Fri)");
+				expect(html).toContain("+ Add task");
+				expect(html).not.toContain("plan-day-column");
+			}
+
+			if (path === "/") {
+				expect(html).toContain("People available today");
+				expect(html).toContain("High priority tasks");
+				expect(html).toContain("Unassigned jobs");
+				expect(html).toContain("Rooms completed");
+
+				// Verify rendered KPI values from mock data
+				expect(html).toContain("6");
+				expect(html).toContain("of 8");
+				expect(html).toContain("available");
+				expect(html).toContain("4");
+				expect(html).toContain("3");
+
+				expect(html).toContain("Task Management");
+				expect(html).toContain("People availability");
+				expect(html).toContain("Daily Schedule");
+				expect(html).toContain("Move notes");
 			}
 
 			if (path === "/tasks") {
