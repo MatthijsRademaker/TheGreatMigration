@@ -172,6 +172,40 @@ async function renderRoute(path: string) {
 					},
 				);
 			}
+			if (url.includes("/api/dashboard/daily-schedule")) {
+				return new Response(
+					JSON.stringify({
+						range: {
+							startDate: "2026-07-05",
+							endDate: "2026-07-08",
+							days: 4,
+						},
+						days: [
+							{
+								date: "2026-07-05",
+								label: "5 Jul (Sun)",
+								availablePeopleCount: 6,
+								tasks: [
+									{
+										id: "sched-1",
+										title: "API-driven task",
+										priority: "high",
+										roomArea: "Kitchen",
+										assignedPeople: [{ id: "p1", name: "Alex", initials: "A" }],
+										peopleNeeded: 2,
+										assignedCount: 1,
+										staffingStatus: "underStaffed",
+									},
+								],
+							},
+						],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
 			return new Response(
 				JSON.stringify({ message: "Hello from the backend!" }),
 				{
@@ -263,11 +297,10 @@ describe("application route rendering", () => {
 			expect(html).toContain(content);
 
 			if (path === "/calendar") {
-				expect(html).toContain("Painting hall");
-				expect(html).toContain("2 / 2");
+				expect(html).toContain("API-driven task");
+				expect(html).toContain("1 / 2");
 				expect(html).toContain('data-variant="priorityHigh"');
-				expect(html).toContain("2 Jul (Tue)");
-				expect(html).toContain("5 Jul (Fri)");
+				expect(html).toContain("5 Jul (Sun)");
 				expect(html).toContain("+ Add task");
 				expect(html).not.toContain("plan-day-column");
 			}

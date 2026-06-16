@@ -688,8 +688,8 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 
 	tx := s.queries.WithTx(pgxTx)
 
-	// Check card exists inside the transaction.
-	_, err = tx.GetScheduleCardByID(ctx, id)
+	// Check card exists and preserve its sort order.
+	existing, err := tx.GetScheduleCardByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, api.ErrScheduleCardNotFound
@@ -719,7 +719,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		RoomArea:      input.RoomArea,
 		PeopleNeeded:  int32(input.PeopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
-		SortOrder:     0, // Keep existing order on update.
+		SortOrder:     existing.SortOrder, // Preserve existing sort order.
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -775,22 +775,24 @@ func (s *PgStore) DeleteScheduleCard(ctx context.Context, idStr string) error {
 
 // buildTaskCardResponse resolves assignee identities and constructs the API TaskCard.
 func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, ctx context.Context) (*api.TaskCard, error) {
+	// Fetch all people once and build a lookup map.
+	peopleRows, err := s.queries.GetAllPeople(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get all people: %w", err)
+	}
+	peopleByID := make(map[string]db.Person, len(peopleRows))
+	for _, p := range peopleRows {
+		peopleByID[p.ID] = p
+	}
+
 	assignees := make([]api.AssignedPerson, 0, len(assigneeIDs))
 	for _, pid := range assigneeIDs {
-		// Resolve against people table.
-		peopleRows, err := s.queries.GetAllPeople(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("get all people: %w", err)
-		}
-		for _, p := range peopleRows {
-			if p.ID == pid {
-				assignees = append(assignees, api.AssignedPerson{
-					ID:       p.ID,
-					Name:     p.Name,
-					Initials: p.Initials,
-				})
-				break
-			}
+		if p, ok := peopleByID[pid]; ok {
+			assignees = append(assignees, api.AssignedPerson{
+				ID:       p.ID,
+				Name:     p.Name,
+				Initials: p.Initials,
+			})
 		}
 	}
 	assignedCount := len(assignees)

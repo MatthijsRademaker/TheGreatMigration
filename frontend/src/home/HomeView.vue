@@ -8,7 +8,7 @@ import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailabilit
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 
 const { data: availabilityData } = usePeopleAvailability()
-const { data: scheduleData } = useDailySchedule()
+const { data: scheduleData, isLoading: scheduleLoading, isError: scheduleError, isEmpty: scheduleEmpty } = useDailySchedule()
 </script>
 
 <template>
@@ -22,8 +22,42 @@ const { data: scheduleData } = useDailySchedule()
     </div>
 
     <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-      <!-- Daily Schedule: shows backend data on success, demo data otherwise (read-only) -->
-      <DailySchedule :days="scheduleData.days.length > 0 ? scheduleData.days : undefined" />
+      <!-- Daily Schedule: state-driven rendering, read-only on home -->
+      <Card v-if="scheduleLoading">
+        <CardHeader>
+          <CardTitle>Daily Schedule</CardTitle>
+          <CardDescription>Loading schedule data…</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-sm text-muted-foreground">Fetching task cards from the backend.</p>
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="scheduleError">
+        <CardHeader>
+          <CardTitle>Daily Schedule</CardTitle>
+          <CardDescription>Backend unavailable</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-sm text-destructive">
+            Could not load daily schedule data. The backend may be unreachable or experiencing issues.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="scheduleEmpty">
+        <CardHeader>
+          <CardTitle>Daily Schedule</CardTitle>
+          <CardDescription>No tasks scheduled</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-sm text-muted-foreground">
+            There are currently no task cards scheduled. Add tasks from the calendar page.
+          </p>
+        </CardContent>
+      </Card>
+
+      <DailySchedule v-else :days="scheduleData.days" />
 
       <Card>
         <CardHeader>
