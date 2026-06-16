@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useMutation, useQueryCache } from '@pinia/colada'
+import { ref, computed } from 'vue'
+import { parseDate } from '@internationalized/date'
+import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
+import type { DateValue } from '@internationalized/date'
 import {
   createScheduleCardMutation,
   updateScheduleCardMutation,
   deleteScheduleCardMutation,
+  listRoomsQuery,
 } from '@/client/@pinia/colada.gen'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
@@ -20,11 +23,13 @@ import {
   SelectValue,
 } from '@/shared/ui/select'
 import { Checkbox } from '@/shared/ui/checkbox'
+import { DatePicker } from '@/shared/ui/date-picker'
 import AddOperationModal from '@/shared/components/AddOperationModal.vue'
 
 // ---- Queries ----
 const { data: scheduleData, isLoading, isError, isEmpty, queryKey } = useDailySchedule()
 const { data: peopleData } = usePeopleAvailability()
+const roomsQuery = useQuery(listRoomsQuery())
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
@@ -52,6 +57,15 @@ const formRoomArea = ref('')
 const formScheduledDate = ref('')
 const formAssignedTo = ref<string[]>([])
 const mutationLoading = ref(false)
+
+// ---- DatePicker model bridge (DateValue ↔ YYYY-MM-DD string) ----
+const scheduledDateModel = computed({
+  get: (): DateValue | undefined =>
+    formScheduledDate.value ? parseDate(formScheduledDate.value) : undefined,
+  set: (val: DateValue | undefined) => {
+    formScheduledDate.value = val ? val.toString() : ''
+  },
+})
 
 // ---- Helpers ----
 function resetForm() {
@@ -219,7 +233,35 @@ function handleCancel() {
 
         <div class="flex flex-col gap-1.5">
           <label for="form-room" class="text-xs font-medium text-muted-foreground">Room / Area</label>
-          <Input id="form-room" v-model="formRoomArea" placeholder="e.g. Kitchen" />
+          <Select v-if="roomsQuery.isLoading.value" disabled>
+            <SelectTrigger id="form-room">
+              <SelectValue placeholder="Loading rooms…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="loading" disabled>Loading…</SelectItem>
+            </SelectContent>
+          </Select>
+          <div v-else-if="roomsQuery.error.value" class="flex items-center gap-2">
+            <span class="text-xs text-destructive">Could not load rooms.</span>
+            <Button variant="outline" size="sm" @click="roomsQuery.refetch()">Retry</Button>
+          </div>
+          <Select
+            v-else
+            v-model="formRoomArea"
+          >
+            <SelectTrigger id="form-room">
+              <SelectValue placeholder="Select a room…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="room in roomsQuery.data.value?.rooms ?? []"
+                :key="room.id"
+                :value="room.name"
+              >
+                {{ room.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -229,7 +271,7 @@ function handleCancel() {
 
         <div class="flex flex-col gap-1.5">
           <label for="form-date" class="text-xs font-medium text-muted-foreground">Scheduled date</label>
-          <Input id="form-date" v-model="formScheduledDate" placeholder="YYYY-MM-DD" />
+          <DatePicker id="form-date" v-model="scheduledDateModel" />
         </div>
 
         <!-- Assignment -->

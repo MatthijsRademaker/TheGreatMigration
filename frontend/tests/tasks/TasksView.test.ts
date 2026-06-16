@@ -21,6 +21,7 @@ vi.mock("@/client/@pinia/colada.gen", () => ({
 	createTaskMutation: () => ({}),
 	updateTaskMutation: () => ({}),
 	deleteTaskMutation: () => ({}),
+	listRoomsQuery: () => ({ key: ["listRooms"], query: vi.fn() }),
 }));
 
 vi.mock("@/tasks/composables/useTaskBacklog", () => ({
@@ -61,6 +62,12 @@ vi.mock("@pinia/colada", async () => {
 	const actual = await vi.importActual("@pinia/colada");
 	return {
 		...actual,
+		useQuery: vi.fn(() => ({
+			isLoading: ref(false),
+			error: ref(null),
+			data: ref(null),
+			refetch: vi.fn(),
+		})),
 		useQueryCache: () => ({
 			invalidateQueries: vi.fn(),
 		}),

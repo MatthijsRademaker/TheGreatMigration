@@ -90,7 +90,30 @@ The frontend test suite SHALL update `/tasks` route assertions to target the new
 
 ### Requirement: `/tasks` SHALL own the minimal CRUD interactions and refresh from the canonical backlog query
 
-The `/tasks` route SHALL provide add, edit, delete, and assignment update flows using the typed generated frontend client for the task write endpoints. Create and edit interactions SHALL use the shared add-operation modal, `Input`, `Select`, `Checkbox`, and `Button` primitives for a focused form instead of the existing shared `Sheet`. `TasksView.vue` SHALL continue to own task form state, mutation handlers, query invalidation, assignment toggling, and modal open-state control. The add and edit flows SHALL both use explicit `v-model:open` state management, with the Add Task handler opening the modal directly instead of relying on trigger timing. After each successful create or update mutation, the task backlog query SHALL be invalidated or refetched so the rendered rows, summary-derived information, and legends reflect backend-confirmed state, and the modal SHALL close only after route-owned reset logic runs. Failed create or update mutations SHALL keep the modal open and preserve user-entered values while showing the error inside the modal body. Delete behavior SHALL remain outside the add-operation modal and SHALL continue to refresh from `GET /api/tasks/backlog` after success.
+The `/tasks` route SHALL provide add, edit, delete, and assignment update flows using the typed generated frontend client for the task write endpoints. Create and edit interactions SHALL use the shared add-operation modal, `Select`, `Input`, `Checkbox`, and `Button` primitives for a focused form instead of the existing shared `Sheet`. The Room / Area field SHALL use a `Select` populated from the `listRoomsQuery` (`GET /api/rooms`) instead of a free-form text `Input`. While the rooms query is pending, the room Select SHALL show a loading placeholder. If the rooms query fails, the room Select SHALL display an error message with a retry control. `TasksView.vue` SHALL continue to own task form state, mutation handlers, query invalidation, assignment toggling, and modal open-state control. The add and edit flows SHALL both use explicit `v-model:open` state management, with the Add Task handler opening the modal directly instead of relying on trigger timing. After each successful create or update mutation, the task backlog query SHALL be invalidated or refetched so the rendered rows, summary-derived information, and legends reflect backend-confirmed state, and the modal SHALL close only after route-owned reset logic runs. Failed create or update mutations SHALL keep the modal open and preserve user-entered values while showing the error inside the modal body. Delete behavior SHALL remain outside the add-operation modal and SHALL continue to refresh from `GET /api/tasks/backlog` after success.
+
+#### Scenario: Room select shows managed rooms on success
+
+- **WHEN** a user opens the task create or edit modal and the rooms query resolves
+- **THEN** the Room / Area field renders as a Select populated with room names from the backend response
+- **AND** the user can select a room from the dropdown instead of typing free-form text
+
+#### Scenario: Room select shows loading state while rooms fetch
+
+- **WHEN** a user opens the task modal and the rooms query is pending
+- **THEN** the Room / Area field shows a loading placeholder
+- **AND** the rest of the form remains interactive
+
+#### Scenario: Room select shows error state on failure
+
+- **WHEN** the rooms query fails
+- **THEN** the Room / Area field displays an error message indicating rooms could not be loaded
+- **AND** the field provides a retry control for the rooms query
+
+#### Scenario: Selected room name is submitted as room value
+
+- **WHEN** a user selects a room from the dropdown and submits the form
+- **THEN** the submitted `room` value is the selected room's name string
 
 #### Scenario: Add Task opens the reusable modal and creates a task
 
