@@ -1,5 +1,4 @@
 import { useMutation, useQueryCache } from "@pinia/colada";
-import { computed } from "vue";
 import {
 	getPlanningWindowQueryKey,
 	putPlanningWindowMutation,
@@ -8,7 +7,11 @@ import {
 export function useUpdatePlanningWindow() {
 	const queryCache = useQueryCache();
 
-	const { mutate, status, error } = useMutation({
+	const {
+		mutate,
+		isLoading: isPending,
+		error,
+	} = useMutation({
 		...putPlanningWindowMutation(),
 		onSuccess: () => {
 			queryCache.invalidateQueries({
@@ -17,8 +20,6 @@ export function useUpdatePlanningWindow() {
 			});
 		},
 	});
-
-	const isPending = computed(() => status.value === "pending");
 
 	return {
 		mutate,
