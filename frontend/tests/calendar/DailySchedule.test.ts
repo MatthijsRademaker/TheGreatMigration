@@ -177,7 +177,7 @@ describe("DailySchedule", () => {
 	it("hides edit, delete, and add-task controls when readonly is true", async () => {
 		const html = await renderComponent(DailySchedule, {
 			days: sampleDays,
-			readonly: true,
+			readOnly: true,
 		});
 		expect(html).toContain("Daily Schedule");
 		expect(html).toContain("Custom task");
@@ -190,7 +190,7 @@ describe("DailySchedule", () => {
 	it("shows edit, delete, and add-task controls when readonly is false (default)", async () => {
 		const html = await renderComponent(DailySchedule, {
 			days: sampleDays,
-			readonly: false,
+			readOnly: false,
 		});
 		expect(html).toContain(">Edit<");
 		expect(html).toContain(">Delete<");
