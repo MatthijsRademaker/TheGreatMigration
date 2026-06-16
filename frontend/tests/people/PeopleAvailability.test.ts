@@ -1,5 +1,5 @@
 import { renderToString } from "@vue/server-renderer";
-import { createSSRApp, h } from "vue";
+import { createSSRApp, h, nextTick } from "vue";
 import { describe, expect, it } from "vitest";
 import PeopleAvailability from "../../src/people/PeopleAvailability.vue";
 import type { PeopleAvailabilityProps } from "../../src/people/types";
@@ -212,5 +212,237 @@ describe("PeopleAvailability", () => {
 		const html = await renderToString(app);
 		expect(html).toContain('data-variant="available"');
 		expect(html).not.toContain('data-variant="unknown"');
+	});
+});
+
+// --- Editable mode tests (client-render) ---
+// @vitest-environment jsdom
+
+describe("PeopleAvailability editable mode", () => {
+	it("renders Popover triggers in editable mode", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleAvailability, {
+			props: {
+				editable: true,
+			},
+			attachTo: document.body,
+		});
+
+		// Popover triggers should exist
+		const triggers = wrapper.findAll('[data-slot="popover-trigger"]');
+		// 4 people × 4 days = 16 triggers
+		expect(triggers.length).toBe(16);
+
+		// Actions column header should be present
+		expect(wrapper.text()).toContain("Actions");
+
+		// Delete buttons should be present (one per person)
+		const deleteButtons = wrapper
+			.findAll("button")
+			.filter((b) => b.text() === "Delete");
+		expect(deleteButtons.length).toBe(4);
+
+		wrapper.unmount();
+	});
+
+	it("emits update-cell when a status is selected in the popover", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon", "Tue"],
+			people: [
+				{
+					id: "p1",
+					name: "Test Person",
+					availability: [
+						{ date: "Mon", status: "available" as const },
+						{ date: "Tue", status: "busy" as const },
+					],
+				},
+			],
+			availableToday: 0,
+			totalPeople: 1,
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		// Click the first popover trigger (person p1, day 0 = Mon, status="available")
+		const firstTrigger = wrapper.find('[data-slot="popover-trigger"]');
+		expect(firstTrigger.exists()).toBe(true);
+		await firstTrigger.trigger("click");
+		await nextTick();
+
+		// The popover content is teleported to document.body.
+		const popoverContent = document.body.querySelector(
+			'[data-slot="popover-content"]',
+		);
+		expect(popoverContent).not.toBeNull();
+
+		// Find all option buttons inside popover content (excluding the Clear button which is last)
+		const optionButtons = Array.from(
+			popoverContent?.querySelectorAll("button") ?? [],
+		).filter((button) => {
+			const text = button.textContent?.trim();
+			return (
+				text === "Available" ||
+				text === "Busy" ||
+				text === "Partial" ||
+				text === "Off"
+			);
+		});
+		expect(optionButtons.length).toBeGreaterThanOrEqual(2);
+
+		// Click the "Busy" option
+		const busyButton = optionButtons.find(
+			(button) => button.textContent?.trim() === "Busy",
+		);
+		expect(busyButton).toBeDefined();
+		busyButton?.click();
+		await nextTick();
+
+		const emitted = wrapper.emitted("update-cell");
+		expect(emitted).toBeTruthy();
+		if (emitted) {
+			const payload = emitted[0][0] as {
+				personId: string;
+				dayIndex: number;
+				status: string | null;
+			};
+			expect(payload.personId).toBe("p1");
+			expect(payload.dayIndex).toBe(0);
+			expect(payload.status).toBe("busy");
+		}
+
+		wrapper.unmount();
+	});
+
+	it("emits update-cell with status null when Clear is selected", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		// Click the trigger to open popover
+		const trigger = wrapper.find('[data-slot="popover-trigger"]');
+		expect(trigger.exists()).toBe(true);
+		await trigger.trigger("click");
+		await nextTick();
+
+		// Find the Clear button by text. The popover content is teleported to document.body.
+		const popoverContent = document.body.querySelector(
+			'[data-slot="popover-content"]',
+		);
+		expect(popoverContent).not.toBeNull();
+
+		const clearButton = Array.from(
+			popoverContent?.querySelectorAll("button") ?? [],
+		).filter((button) => button.textContent?.includes("Clear"));
+		expect(clearButton.length).toBe(1);
+		clearButton[0]?.click();
+		await nextTick();
+
+		const emitted = wrapper.emitted("update-cell");
+		expect(emitted).toBeTruthy();
+		if (emitted) {
+			const payload = emitted[0][0] as {
+				personId: string;
+				dayIndex: number;
+				status: string | null;
+			};
+			expect(payload.personId).toBe("p1");
+			expect(payload.dayIndex).toBe(0);
+			expect(payload.status).toBeNull();
+		}
+
+		wrapper.unmount();
+	});
+
+	it("emits delete-person when delete button is clicked", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const props = {
+			editable: true,
+			days: ["Mon"],
+			people: [
+				{
+					id: "p1",
+					name: "Test",
+					availability: [{ date: "Mon", status: "available" as const }],
+				},
+			],
+			availableToday: 1,
+			totalPeople: 1,
+		};
+
+		const wrapper = mount(PeopleAvailability, {
+			props,
+			attachTo: document.body,
+		});
+
+		const deleteButton = wrapper
+			.findAll("button")
+			.filter((b) => b.text() === "Delete");
+		expect(deleteButton.length).toBe(1);
+		await deleteButton[0].trigger("click");
+
+		const emitted = wrapper.emitted("delete-person");
+		expect(emitted).toBeTruthy();
+		if (emitted) {
+			expect(emitted[0][0]).toBe("p1");
+		}
+
+		wrapper.unmount();
+	});
+
+	it("does not render Popover triggers without editable prop", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleAvailability, {
+			props: {},
+			attachTo: document.body,
+		});
+
+		const triggers = wrapper.findAll('[data-slot="popover-trigger"]');
+		expect(triggers.length).toBe(0);
+
+		// No Actions column header
+		expect(wrapper.text()).not.toContain("Actions");
+
+		// No Delete buttons (read-only)
+		const deleteButtons = wrapper
+			.findAll("button")
+			.filter((b) => b.text() === "Delete");
+		expect(deleteButtons.length).toBe(0);
+
+		wrapper.unmount();
+	});
+
+	it("does not render Popover triggers when editable is false", async () => {
+		const { mount } = await import("@vue/test-utils");
+		const wrapper = mount(PeopleAvailability, {
+			props: { editable: false },
+			attachTo: document.body,
+		});
+
+		const triggers = wrapper.findAll('[data-slot="popover-trigger"]');
+		expect(triggers.length).toBe(0);
+
+		wrapper.unmount();
 	});
 });

@@ -22,6 +22,12 @@ export interface StatusLegendItem {
 	label: string;
 }
 
+export interface CellChangePayload {
+	personId: string;
+	dayIndex: number;
+	status: AvailabilityStatus | null;
+}
+
 export interface PeopleAvailabilityProps {
 	title?: string;
 	description?: string;
@@ -30,4 +36,5 @@ export interface PeopleAvailabilityProps {
 	legend?: StatusLegendItem[];
 	availableToday?: number;
 	totalPeople?: number;
+	editable?: boolean;
 }
