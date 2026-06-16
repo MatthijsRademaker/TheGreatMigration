@@ -26,16 +26,66 @@ async function renderRoute(path: string) {
 					JSON.stringify({
 						range: {
 							startDate: "2026-07-05",
-							endDate: "2026-08-13",
-							days: 40,
+							endDate: "2026-07-08",
+							days: 4,
 							selectedDate: "2026-07-05",
 						},
 						summary: {
 							availableToday: 6,
 							totalPeople: 8,
 						},
-						people: [],
-						statuses: [],
+						people: [
+							{
+								id: "p1",
+								name: "Sophia Chen",
+								initials: "SC",
+								availability: [
+									{ date: "2026-07-05", status: "available" },
+									{ date: "2026-07-06", status: "available" },
+									{ date: "2026-07-07", status: "available" },
+									{ date: "2026-07-08", status: "available" },
+								],
+							},
+							{
+								id: "p2",
+								name: "Marcus Rivera",
+								initials: "MR",
+								availability: [
+									{ date: "2026-07-05", status: "available" },
+									{ date: "2026-07-06", status: "available" },
+									{ date: "2026-07-07", status: "available" },
+									{ date: "2026-07-08", status: "available" },
+								],
+							},
+							{
+								id: "p3",
+								name: "Elena Kowalski",
+								initials: "EK",
+								availability: [
+									{ date: "2026-07-05", status: "available" },
+									{ date: "2026-07-06", status: "available" },
+									{ date: "2026-07-07", status: "available" },
+									{ date: "2026-07-08", status: "available" },
+								],
+							},
+							{
+								id: "p4",
+								name: "James Okafor",
+								initials: "JO",
+								availability: [
+									{ date: "2026-07-05", status: "busy" },
+									{ date: "2026-07-06", status: "busy" },
+									{ date: "2026-07-07", status: "busy" },
+									{ date: "2026-07-08", status: "busy" },
+								],
+							},
+						],
+						statuses: [
+							{ id: "available", label: "Available", colorIntent: "success" },
+							{ id: "busy", label: "Busy", colorIntent: "destructive" },
+							{ id: "partial", label: "Partial", colorIntent: "warning" },
+							{ id: "off", label: "Off", colorIntent: "muted" },
+						],
 					}),
 					{
 						status: 200,
@@ -139,7 +189,7 @@ describe("application route rendering", () => {
 			path: "/people",
 			title: "People availability",
 			description: "Track who is available and where each person can help.",
-			content: "1 of 4 available today",
+			content: "6 of 8 available today",
 		},
 		{
 			path: "/rooms",
@@ -192,6 +242,17 @@ describe("application route rendering", () => {
 				expect(html).toContain("People availability");
 				expect(html).toContain("Daily Schedule");
 				expect(html).toContain("Move notes");
+			}
+
+			if (path === "/people") {
+				expect(html).toContain("Add a person");
+				expect(html).toContain("Manage people");
+				expect(html).toContain('data-variant="available"');
+				expect(html).toContain('data-variant="busy"');
+				expect(html).toContain("Sophia Chen");
+				expect(html).toContain("Marcus Rivera");
+				expect(html).toContain("Elena Kowalski");
+				expect(html).toContain("James Okafor");
 			}
 
 			if (path === "/tasks") {

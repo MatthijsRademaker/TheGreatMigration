@@ -274,6 +274,46 @@ export type TaskSummary = {
     understaffedTasks: number;
 };
 
+export type SimpleMessageBody = {
+    /**
+     * Response message
+     */
+    message: string;
+};
+
+export type CreatePersonInputBody = {
+    /**
+     * Client-supplied stable person key (slug)
+     */
+    id: string;
+    /**
+     * Full name
+     */
+    name: string;
+    /**
+     * Initials
+     */
+    initials: string;
+};
+
+export type UpdatePersonInputBody = {
+    /**
+     * Full name
+     */
+    name: string;
+    /**
+     * Initials
+     */
+    initials: string;
+};
+
+export type UpsertAvailabilityInputBody = {
+    /**
+     * One of: available, busy, partial, off
+     */
+    status: string;
+};
+
 export type DashboardBodyWritable = {
     /**
      * People with daily availability
@@ -447,3 +487,156 @@ export type GetTasksBacklogResponses = {
 };
 
 export type GetTasksBacklogResponse = GetTasksBacklogResponses[keyof GetTasksBacklogResponses];
+
+export type CreatePersonData = {
+    body: CreatePersonInputBody;
+    path?: never;
+    query?: never;
+    url: '/api/people';
+};
+
+export type CreatePersonErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreatePersonError = CreatePersonErrors[keyof CreatePersonErrors];
+
+export type CreatePersonResponses = {
+    /**
+     * OK
+     */
+    200: Person;
+};
+
+export type CreatePersonResponse = CreatePersonResponses[keyof CreatePersonResponses];
+
+export type DeletePersonData = {
+    body?: never;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/people/{id}';
+};
+
+export type DeletePersonErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeletePersonError = DeletePersonErrors[keyof DeletePersonErrors];
+
+export type DeletePersonResponses = {
+    /**
+     * OK
+     */
+    200: SimpleMessageBody;
+};
+
+export type DeletePersonResponse = DeletePersonResponses[keyof DeletePersonResponses];
+
+export type UpdatePersonData = {
+    body: UpdatePersonInputBody;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/people/{id}';
+};
+
+export type UpdatePersonErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdatePersonError = UpdatePersonErrors[keyof UpdatePersonErrors];
+
+export type UpdatePersonResponses = {
+    /**
+     * OK
+     */
+    200: Person;
+};
+
+export type UpdatePersonResponse = UpdatePersonResponses[keyof UpdatePersonResponses];
+
+export type DeletePersonAvailabilityData = {
+    body?: never;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+        /**
+         * Date in ISO 8601 format (YYYY-MM-DD)
+         */
+        date: string;
+    };
+    query?: never;
+    url: '/api/people/{id}/availability/{date}';
+};
+
+export type DeletePersonAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeletePersonAvailabilityError = DeletePersonAvailabilityErrors[keyof DeletePersonAvailabilityErrors];
+
+export type DeletePersonAvailabilityResponses = {
+    /**
+     * OK
+     */
+    200: SimpleMessageBody;
+};
+
+export type DeletePersonAvailabilityResponse = DeletePersonAvailabilityResponses[keyof DeletePersonAvailabilityResponses];
+
+export type UpsertPersonAvailabilityData = {
+    body: UpsertAvailabilityInputBody;
+    path: {
+        /**
+         * Stable person key
+         */
+        id: string;
+        /**
+         * Date in ISO 8601 format (YYYY-MM-DD)
+         */
+        date: string;
+    };
+    query?: never;
+    url: '/api/people/{id}/availability/{date}';
+};
+
+export type UpsertPersonAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpsertPersonAvailabilityError = UpsertPersonAvailabilityErrors[keyof UpsertPersonAvailabilityErrors];
+
+export type UpsertPersonAvailabilityResponses = {
+    /**
+     * OK
+     */
+    200: SimpleMessageBody;
+};
+
+export type UpsertPersonAvailabilityResponse = UpsertPersonAvailabilityResponses[keyof UpsertPersonAvailabilityResponses];

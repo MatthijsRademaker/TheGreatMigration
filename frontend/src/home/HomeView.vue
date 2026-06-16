@@ -4,6 +4,9 @@ import KpiCards from './components/KpiCards.vue'
 import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
 import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
+import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
+
+const { data: availabilityData } = usePeopleAvailability()
 </script>
 
 <template>
@@ -13,7 +16,7 @@ import DailySchedule from '@/calendar/DailySchedule.vue'
 
     <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
       <TaskManagementPanel />
-      <PeopleAvailability />
+      <PeopleAvailability v-bind="availabilityData" />
     </div>
 
     <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">

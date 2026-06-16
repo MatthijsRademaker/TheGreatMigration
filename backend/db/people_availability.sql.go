@@ -11,6 +11,73 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const checkPersonBacklogReferences = `-- name: CheckPersonBacklogReferences :one
+SELECT EXISTS (
+    SELECT 1 FROM backlog_task_assignments WHERE person_id = $1
+) AS has_refs
+`
+
+func (q *Queries) CheckPersonBacklogReferences(ctx context.Context, personID string) (bool, error) {
+	row := q.db.QueryRow(ctx, checkPersonBacklogReferences, personID)
+	var has_refs bool
+	err := row.Scan(&has_refs)
+	return has_refs, err
+}
+
+const checkPersonScheduleReferences = `-- name: CheckPersonScheduleReferences :one
+SELECT EXISTS (
+    SELECT 1 FROM schedule_task_assignments WHERE person_id = $1
+) AS has_refs
+`
+
+func (q *Queries) CheckPersonScheduleReferences(ctx context.Context, personID string) (bool, error) {
+	row := q.db.QueryRow(ctx, checkPersonScheduleReferences, personID)
+	var has_refs bool
+	err := row.Scan(&has_refs)
+	return has_refs, err
+}
+
+const createPerson = `-- name: CreatePerson :exec
+INSERT INTO people (id, name, initials)
+VALUES ($1, $2, $3)
+`
+
+type CreatePersonParams struct {
+	ID       string
+	Name     string
+	Initials string
+}
+
+func (q *Queries) CreatePerson(ctx context.Context, arg CreatePersonParams) error {
+	_, err := q.db.Exec(ctx, createPerson, arg.ID, arg.Name, arg.Initials)
+	return err
+}
+
+const deleteAvailability = `-- name: DeleteAvailability :exec
+DELETE FROM availability
+WHERE person_id = $1 AND date = $2
+`
+
+type DeleteAvailabilityParams struct {
+	PersonID string
+	Date     pgtype.Date
+}
+
+func (q *Queries) DeleteAvailability(ctx context.Context, arg DeleteAvailabilityParams) error {
+	_, err := q.db.Exec(ctx, deleteAvailability, arg.PersonID, arg.Date)
+	return err
+}
+
+const deletePerson = `-- name: DeletePerson :exec
+DELETE FROM people
+WHERE id = $1
+`
+
+func (q *Queries) DeletePerson(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deletePerson, id)
+	return err
+}
+
 const getAllPeople = `-- name: GetAllPeople :many
 SELECT id, name, initials, created_at
 FROM people
@@ -78,4 +145,70 @@ func (q *Queries) GetAvailabilityByDateRange(ctx context.Context, arg GetAvailab
 		return nil, err
 	}
 	return items, nil
+}
+
+const getPerson = `-- name: GetPerson :one
+SELECT id, name, initials, created_at
+FROM people
+WHERE id = $1
+`
+
+func (q *Queries) GetPerson(ctx context.Context, id string) (Person, error) {
+	row := q.db.QueryRow(ctx, getPerson, id)
+	var i Person
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Initials,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const personExists = `-- name: PersonExists :one
+SELECT EXISTS (
+    SELECT 1 FROM people WHERE id = $1
+) AS exists
+`
+
+func (q *Queries) PersonExists(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, personExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const updatePerson = `-- name: UpdatePerson :exec
+UPDATE people
+SET name = $2, initials = $3
+WHERE id = $1
+`
+
+type UpdatePersonParams struct {
+	ID       string
+	Name     string
+	Initials string
+}
+
+func (q *Queries) UpdatePerson(ctx context.Context, arg UpdatePersonParams) error {
+	_, err := q.db.Exec(ctx, updatePerson, arg.ID, arg.Name, arg.Initials)
+	return err
+}
+
+const upsertAvailability = `-- name: UpsertAvailability :exec
+INSERT INTO availability (person_id, date, status)
+VALUES ($1, $2, $3)
+ON CONFLICT (person_id, date)
+DO UPDATE SET status = EXCLUDED.status
+`
+
+type UpsertAvailabilityParams struct {
+	PersonID string
+	Date     pgtype.Date
+	Status   string
+}
+
+func (q *Queries) UpsertAvailability(ctx context.Context, arg UpsertAvailabilityParams) error {
+	_, err := q.db.Exec(ctx, upsertAvailability, arg.PersonID, arg.Date, arg.Status)
+	return err
 }

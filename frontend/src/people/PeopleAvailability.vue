@@ -1,51 +1,8 @@
 <script setup lang="ts">
-import { Badge, type BadgeVariants } from '@/shared/ui/badge'
+import { Badge } from '@/shared/ui/badge'
 import { Avatar } from '@/shared/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
-
-/** Availability status values kept in sync with Badge variants. */
-type AvailabilityStatus = Extract<
-  NonNullable<BadgeVariants['variant']>,
-  'available' | 'busy' | 'partial' | 'off'
->
-
-export interface PersonAvailabilityEntry {
-  date: string
-  status: AvailabilityStatus
-}
-
-/**
- * Person with daily availability data — component-local contract.
- *
- * When wiring to the API SDK Person type (client/types.gen.ts), an adapter
- * must bridge three gaps: (1) the API type carries an extra `initials`
- * field the component does not consume, (2) the API `availability` field
- * is `Array<AvailabilityEntry> | null`, and (3) the API `status` field is
- * the loose `string` type rather than the narrow union used here.
- *
- * TODO(task-2f0b5a56): implement adapter function in a follow-up change
- * once the /api/dashboard/people-availability endpoint is wired.
- */
-export interface PersonAvailability {
-  id: string
-  name: string
-  availability: PersonAvailabilityEntry[]
-}
-
-export interface StatusLegendItem {
-  id: AvailabilityStatus
-  label: string
-}
-
-export interface PeopleAvailabilityProps {
-  title?: string
-  description?: string
-  days?: string[]
-  people?: PersonAvailability[]
-  legend?: StatusLegendItem[]
-  availableToday?: number
-  totalPeople?: number
-}
+import type { PeopleAvailabilityProps } from './types'
 
 withDefaults(defineProps<PeopleAvailabilityProps>(), {
   title: 'People availability',

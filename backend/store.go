@@ -16,6 +16,17 @@ type Store interface {
 	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)
 	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
 	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
+
+	// Person CRUD
+	CreatePerson(ctx context.Context, id, name, initials string) error
+	UpdatePerson(ctx context.Context, id, name, initials string) error
+	DeletePerson(ctx context.Context, id string) error
+	PersonExists(ctx context.Context, id string) (bool, error)
+	PersonHasReferences(ctx context.Context, id string) (bool, error)
+
+	// Availability write
+	UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error
+	DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error
 }
 
 // PgStore implements Store backed by a pgx connection pool and sqlc queries.
@@ -303,6 +314,63 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 		},
 		Days: scheduleDays,
 	}, nil
+}
+
+// CreatePerson inserts a new person row.
+func (s *PgStore) CreatePerson(ctx context.Context, id, name, initials string) error {
+	return s.queries.CreatePerson(ctx, db.CreatePersonParams{
+		ID:       id,
+		Name:     name,
+		Initials: initials,
+	})
+}
+
+// UpdatePerson updates an existing person's name and initials.
+func (s *PgStore) UpdatePerson(ctx context.Context, id, name, initials string) error {
+	return s.queries.UpdatePerson(ctx, db.UpdatePersonParams{
+		ID:       id,
+		Name:     name,
+		Initials: initials,
+	})
+}
+
+// DeletePerson removes a person by id.
+func (s *PgStore) DeletePerson(ctx context.Context, id string) error {
+	return s.queries.DeletePerson(ctx, id)
+}
+
+// PersonExists checks whether a person with the given id exists.
+func (s *PgStore) PersonExists(ctx context.Context, id string) (bool, error) {
+	return s.queries.PersonExists(ctx, id)
+}
+
+// PersonHasReferences checks whether a person is referenced by backlog or schedule assignments.
+func (s *PgStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
+	backlogRefs, err := s.queries.CheckPersonBacklogReferences(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if backlogRefs {
+		return true, nil
+	}
+	return s.queries.CheckPersonScheduleReferences(ctx, id)
+}
+
+// UpsertAvailability inserts or updates an availability row for a person on a given date.
+func (s *PgStore) UpsertAvailability(ctx context.Context, personID string, date pgtype.Date, status string) error {
+	return s.queries.UpsertAvailability(ctx, db.UpsertAvailabilityParams{
+		PersonID: personID,
+		Date:     date,
+		Status:   status,
+	})
+}
+
+// DeleteAvailability removes an availability row for a person on a given date.
+func (s *PgStore) DeleteAvailability(ctx context.Context, personID string, date pgtype.Date) error {
+	return s.queries.DeleteAvailability(ctx, db.DeleteAvailabilityParams{
+		PersonID: personID,
+		Date:     date,
+	})
 }
 
 // pgDateToTime converts a pgtype.Date to time.Time.
