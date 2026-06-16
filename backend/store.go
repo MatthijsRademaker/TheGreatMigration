@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/user/the-great-migration/backend/db"
@@ -343,14 +341,7 @@ func (s *PgStore) DeletePerson(ctx context.Context, id string) error {
 
 // PersonExists checks whether a person with the given id exists.
 func (s *PgStore) PersonExists(ctx context.Context, id string) (bool, error) {
-	_, err := s.queries.GetPerson(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	return s.queries.PersonExists(ctx, id)
 }
 
 // PersonHasReferences checks whether a person is referenced by backlog or schedule assignments.

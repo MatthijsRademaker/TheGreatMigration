@@ -14,6 +14,11 @@ SELECT id, name, initials, created_at
 FROM people
 WHERE id = $1;
 
+-- name: PersonExists :one
+SELECT EXISTS (
+    SELECT 1 FROM people WHERE id = $1
+) AS exists;
+
 -- name: CreatePerson :exec
 INSERT INTO people (id, name, initials)
 VALUES ($1, $2, $3);

@@ -110,11 +110,6 @@ func isWithinPlanningWindow(dateStr string, pw *PlanningWindowBody) bool {
 	return !d.Before(start) && !d.After(end)
 }
 
-// formatDateISO formats a time.Time as "2006-01-02".
-func formatDateISO(t time.Time) string {
-	return t.Format("2006-01-02")
-}
-
 // isoToDate parses an ISO date string and returns a time.Time.
 func isoToDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
@@ -299,7 +294,7 @@ func registerPeopleEndpoints(api huma.API, store Store) {
 		Method:      http.MethodDelete,
 		Path:        "/api/people/{id}/availability/{date}",
 		Summary:     "Delete person availability for a date",
-		Description: "Deletes a single availability entry for a person on a specific date. Subsequent dashboard reads will fall back to the default-missing-availability behavior.",
+		Description: "Deletes a single availability entry for a person on a specific date. Idempotent: deleting an already-absent entry succeeds without error. Subsequent dashboard reads will fall back to the default-missing-availability behavior.",
 		Tags:        []string{"People"},
 	}, func(ctx context.Context, input *DeleteAvailabilityInput) (*DeleteAvailabilityOutput, error) {
 		// Validate date format.

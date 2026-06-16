@@ -165,6 +165,19 @@ func (q *Queries) GetPerson(ctx context.Context, id string) (Person, error) {
 	return i, err
 }
 
+const personExists = `-- name: PersonExists :one
+SELECT EXISTS (
+    SELECT 1 FROM people WHERE id = $1
+) AS exists
+`
+
+func (q *Queries) PersonExists(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, personExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const updatePerson = `-- name: UpdatePerson :exec
 UPDATE people
 SET name = $2, initials = $3

@@ -53,6 +53,14 @@ const deleteAvailabilityMutation = useMutation({
   },
 })
 
+// --- Error state clearing ---
+function clearErrors() {
+  createError.value = ''
+  deleteError.value = ''
+  statusError.value = ''
+  clearAvailabilityError.value = ''
+}
+
 // --- Create person form ---
 const newId = ref('')
 const newName = ref('')
@@ -60,7 +68,7 @@ const newInitials = ref('')
 const createError = ref('')
 
 async function handleCreate() {
-  createError.value = ''
+  clearErrors()
   if (!newId.value.trim() || !newName.value.trim() || !newInitials.value.trim()) {
     createError.value = 'All fields are required.'
     return
@@ -92,7 +100,7 @@ const deleteError = ref('')
 const deletingId = ref<string | null>(null)
 
 async function handleDelete(id: string) {
-  deleteError.value = ''
+  clearErrors()
   deletingId.value = id
   try {
     await deleteMutation.mutateAsync({ path: { id } })
@@ -117,7 +125,7 @@ const statusError = ref('')
 
 async function handleStatusUpdate(status: string) {
   if (!editingCell.value) return
-  statusError.value = ''
+  clearErrors()
   const { personId, date } = editingCell.value
   try {
     await upsertMutation.mutateAsync({
@@ -144,7 +152,7 @@ const clearAvailabilityError = ref('')
 
 async function handleClearAvailability() {
   if (!editingCell.value) return
-  clearAvailabilityError.value = ''
+  clearErrors()
   const { personId, date } = editingCell.value
   try {
     await deleteAvailabilityMutation.mutateAsync({
@@ -331,7 +339,7 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
                   :key="`${person.id}-${entry.date}`"
                   :variant="entry.status"
                   class="cursor-pointer hover:ring-2 hover:ring-ring"
-                  @click="editingCell = { personId: person.id, date: getISODate(dayIdx) }"
+                  @click="clearErrors(); editingCell = { personId: person.id, date: getISODate(dayIdx) }"
                 >
                   {{ entry.status.charAt(0).toUpperCase() + entry.status.slice(1) }}
                 </Badge>
