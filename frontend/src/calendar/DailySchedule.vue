@@ -3,12 +3,12 @@ import { computed } from 'vue'
 import { Avatar } from '@/shared/ui/avatar'
 import { Badge } from '@/shared/ui/badge'
 import type { BadgeVariants } from '@/shared/ui/badge'
+import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 
 interface AssignedPerson {
   id: string
   name: string
-  initials: string
 }
 
 interface TaskCard {
@@ -19,7 +19,6 @@ interface TaskCard {
   assignedPeople: AssignedPerson[]
   peopleNeeded: number
   assignedCount: number
-  staffingStatus: 'fullyStaffed' | 'underStaffed'
 }
 
 interface ScheduleDay {
@@ -43,32 +42,29 @@ const defaultDays: ScheduleDay[] = [
         priority: 'high',
         roomArea: 'Hallway',
         assignedPeople: [
-          { id: 'p1', name: 'Alex', initials: 'A' },
-          { id: 'p2', name: 'Morgan', initials: 'M' },
+          { id: 'p1', name: 'Alex' },
+          { id: 'p2', name: 'Morgan' },
         ],
         peopleNeeded: 2,
         assignedCount: 2,
-        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't2',
         title: 'Steam walls',
         priority: 'medium',
         roomArea: 'Bathroom',
-        assignedPeople: [{ id: 'p3', name: 'Sam', initials: 'S' }],
+        assignedPeople: [{ id: 'p3', name: 'Sam' }],
         peopleNeeded: 1,
         assignedCount: 1,
-        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't3',
         title: 'Clean up',
         priority: 'low',
         roomArea: 'Kitchen',
-        assignedPeople: [{ id: 'p4', name: 'Riley', initials: 'R' }],
+        assignedPeople: [{ id: 'p4', name: 'Riley' }],
         peopleNeeded: 2,
         assignedCount: 1,
-        staffingStatus: 'underStaffed',
       },
     ],
   },
@@ -83,22 +79,20 @@ const defaultDays: ScheduleDay[] = [
         priority: 'high',
         roomArea: 'Living Room',
         assignedPeople: [
-          { id: 'p1', name: 'Alex', initials: 'A' },
-          { id: 'p5', name: 'Jordan', initials: 'J' },
+          { id: 'p1', name: 'Alex' },
+          { id: 'p5', name: 'Jordan' },
         ],
         peopleNeeded: 3,
         assignedCount: 2,
-        staffingStatus: 'underStaffed',
       },
       {
         id: 't5',
         title: 'Bedroom painting',
         priority: 'medium',
         roomArea: 'Bedroom',
-        assignedPeople: [{ id: 'p3', name: 'Sam', initials: 'S' }],
+        assignedPeople: [{ id: 'p3', name: 'Sam' }],
         peopleNeeded: 1,
         assignedCount: 1,
-        staffingStatus: 'fullyStaffed',
       },
     ],
   },
@@ -112,10 +106,9 @@ const defaultDays: ScheduleDay[] = [
         title: 'Touch up woodwork',
         priority: 'low',
         roomArea: 'Dining Room',
-        assignedPeople: [{ id: 'p2', name: 'Morgan', initials: 'M' }],
+        assignedPeople: [{ id: 'p2', name: 'Morgan' }],
         peopleNeeded: 1,
         assignedCount: 1,
-        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't7',
@@ -123,12 +116,11 @@ const defaultDays: ScheduleDay[] = [
         priority: 'high',
         roomArea: 'Living Room',
         assignedPeople: [
-          { id: 'p4', name: 'Riley', initials: 'R' },
-          { id: 'p1', name: 'Alex', initials: 'A' },
+          { id: 'p4', name: 'Riley' },
+          { id: 'p1', name: 'Alex' },
         ],
         peopleNeeded: 2,
         assignedCount: 2,
-        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't8',
@@ -138,7 +130,6 @@ const defaultDays: ScheduleDay[] = [
         assignedPeople: [],
         peopleNeeded: 2,
         assignedCount: 0,
-        staffingStatus: 'underStaffed',
       },
     ],
   },
@@ -152,20 +143,18 @@ const defaultDays: ScheduleDay[] = [
         title: 'Kitchen painting',
         priority: 'medium',
         roomArea: 'Kitchen',
-        assignedPeople: [{ id: 'p3', name: 'Sam', initials: 'S' }],
+        assignedPeople: [{ id: 'p3', name: 'Sam' }],
         peopleNeeded: 1,
         assignedCount: 1,
-        staffingStatus: 'fullyStaffed',
       },
       {
         id: 't10',
         title: 'Final clean',
         priority: 'low',
         roomArea: 'Whole House',
-        assignedPeople: [{ id: 'p5', name: 'Jordan', initials: 'J' }],
+        assignedPeople: [{ id: 'p5', name: 'Jordan' }],
         peopleNeeded: 2,
         assignedCount: 1,
-        staffingStatus: 'underStaffed',
       },
     ],
   },
@@ -200,8 +189,8 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
     <CardContent>
       <!-- Header controls -->
       <div class="flex items-center justify-between mb-4">
-        <span class="text-sm font-medium">View by: Day</span>
-        <span class="text-sm font-medium">Add task</span>
+        <Button variant="link" size="sm">View by: Day</Button>
+        <Button variant="link" size="sm">Add task</Button>
       </div>
 
       <!-- Day columns -->
@@ -252,7 +241,7 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
                 <p class="text-xs text-muted-foreground">
                   {{ task.assignedCount }} / {{ task.peopleNeeded }}
                   <span
-                    v-if="task.staffingStatus === 'underStaffed'"
+                    v-if="task.assignedCount < task.peopleNeeded"
                     class="text-destructive"
                   >&nbsp;— needs help</span>
                 </p>
@@ -262,7 +251,7 @@ const scheduleDays = computed(() => props.days ?? defaultDays)
               <div
                 class="rounded-lg border-2 border-dashed border-muted-foreground/25 p-3 text-center"
               >
-                <span class="text-xs text-muted-foreground">+ Add task</span>
+                <Button variant="ghost" size="xs">+ Add task</Button>
               </div>
             </div>
           </div>
