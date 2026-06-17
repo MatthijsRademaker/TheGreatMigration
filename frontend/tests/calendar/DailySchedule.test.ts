@@ -98,7 +98,7 @@ describe("DailySchedule", () => {
 		expect(html).toContain("Daily Schedule");
 	});
 
-	it("renders header controls", async () => {
+	it("renders header controls in compact header row", async () => {
 		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain("View by: Day");
 		expect(html).toContain("Add task");
@@ -141,24 +141,31 @@ describe("DailySchedule", () => {
 		expect(html).toContain("— needs help");
 	});
 
-	it("renders per-column Add task placeholders", async () => {
-		const html = await renderComponent(DailySchedule, { days: sampleDays });
+	it("renders per-column Add task placeholders in editable mode", async () => {
+		const html = await renderComponent(DailySchedule, {
+			days: sampleDays,
+			readOnly: false,
+		});
 		const matches = html.match(/\+ Add task/g);
 		expect(matches?.length).toBe(2);
 	});
 
-	it("renders assignee metadata", async () => {
+	it("renders assignee initials in compact comma-separated format", async () => {
 		const html = await renderComponent(DailySchedule, { days: sampleDays });
-		expect(html).toContain("Taylor");
-		expect(html).toContain("Alex");
-		expect(html).toContain("Morgan");
-		expect(html).toContain("Sam");
+		// First day — one assignee
+		expect(html).toContain("T");
+		// Second day — two assignees: comma-separated
+		expect(html).toContain("A, M");
+		// No full names rendered directly
+		expect(html).not.toContain("Taylor");
+		expect(html).not.toContain("Alex");
 	});
 
-	it("renders a Card shell", async () => {
+	it("renders a Card shell without CardHeader/CardTitle wrappers", async () => {
 		const html = await renderComponent(DailySchedule, { days: sampleDays });
 		expect(html).toContain('data-slot="card"');
-		expect(html).toContain('data-slot="card-title"');
+		expect(html).not.toContain('data-slot="card-title"');
+		expect(html).not.toContain('data-slot="card-header"');
 	});
 
 	it("renders correctly with empty days array (no crash)", async () => {
@@ -174,7 +181,7 @@ describe("DailySchedule", () => {
 		// No crash, renders shell with no days
 	});
 
-	it("hides edit, delete, and add-task controls when readonly is true", async () => {
+	it("hides all Add-task, Edit, and Delete controls when readOnly is true", async () => {
 		const html = await renderComponent(DailySchedule, {
 			days: sampleDays,
 			readOnly: true,
@@ -184,9 +191,10 @@ describe("DailySchedule", () => {
 		expect(html).not.toContain(">Edit<");
 		expect(html).not.toContain(">Delete<");
 		expect(html).not.toContain("+ Add task");
+		expect(html).not.toContain("Add task");
 	});
 
-	it("shows edit, delete, and add-task controls when readonly is false (default)", async () => {
+	it("shows Edit, Delete, and Add-task controls when readOnly is false", async () => {
 		const html = await renderComponent(DailySchedule, {
 			days: sampleDays,
 			readOnly: false,
@@ -271,6 +279,139 @@ describe("DailySchedule", () => {
 			});
 			expect(html).not.toContain("Previous");
 			expect(html).not.toContain("Next");
+			expect(html).not.toContain("Page");
+		});
+	});
+
+	describe("compact header anatomy", () => {
+		it("renders a single header row with title left and controls right", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 2,
+				totalPages: 5,
+				dateRangeLabel: "5 Jul – 8 Jul",
+				readOnly: false,
+			});
+			// Compact header contains title + controls all in one row
+			expect(html).toContain("Daily Schedule");
+			expect(html).toContain("5 Jul – 8 Jul");
+			expect(html).toContain("Page 2 of 5");
+			expect(html).toContain("Previous");
+			expect(html).toContain("Next");
+			expect(html).toContain("View by: Day");
+			expect(html).toContain("Add task");
+			// No separate CardHeader/CardTitle wrappers
+			expect(html).not.toContain('data-slot="card-title"');
+			expect(html).not.toContain('data-slot="card-header"');
+		});
+
+		it("omits pagination text from header when page is 0", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 0,
+				totalPages: 0,
+			});
+			expect(html).toContain("Daily Schedule");
+			expect(html).toContain("View by: Day");
+			expect(html).not.toContain("Page");
+			expect(html).not.toContain("Previous");
+			expect(html).not.toContain("Next");
+		});
+
+		it("hides Add task in header when readOnly is true", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				readOnly: true,
+			});
+			expect(html).toContain("Daily Schedule");
+			expect(html).toContain("View by: Day");
+			expect(html).not.toContain("Add task");
+		});
+	});
+
+	describe("compact assignee display", () => {
+		it("renders initials as comma-separated text without avatars", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+			});
+			// T for first day's single assignee
+			expect(html).toContain("T");
+			// A, M for second day's two assignees (comma-separated)
+			expect(html).toContain("A, M");
+			// No Avatar data-slot rendered
+			expect(html).not.toContain('data-slot="avatar"');
+		});
+
+		it("omits assignee line when task has no assigned people", async () => {
+			const daysWithUnassigned = [
+				{
+					date: "2026-08-01",
+					label: "1 Aug (Sat)",
+					availablePeopleCount: 3,
+					tasks: [
+						{
+							id: "c1",
+							title: "Unassigned task",
+							priority: "medium" as const,
+							roomArea: "Room",
+							assignedPeople: [],
+							peopleNeeded: 2,
+							assignedCount: 0,
+							staffingStatus: "underStaffed" as const,
+							scheduledDate: "2026-08-01",
+						},
+					],
+				},
+			];
+			const html = await renderComponent(DailySchedule, {
+				days: daysWithUnassigned,
+			});
+			expect(html).toContain("Unassigned task");
+			expect(html).toContain("0 / 2");
+			// No initials rendered (empty assignedPeople array)
+		});
+	});
+
+	describe("simplified card anatomy", () => {
+		it("does not render From backlog badge", async () => {
+			const daysWithBacklogTask = [
+				{
+					date: "2026-08-01",
+					label: "1 Aug (Sat)",
+					availablePeopleCount: 3,
+					tasks: [
+						{
+							id: "c1",
+							title: "Linked task",
+							priority: "high" as const,
+							roomArea: "Room",
+							assignedPeople: [{ id: "x1", name: "Taylor", initials: "T" }],
+							peopleNeeded: 1,
+							assignedCount: 1,
+							staffingStatus: "fullyStaffed" as const,
+							scheduledDate: "2026-08-01",
+							taskId: "task-1",
+						},
+					],
+				},
+			];
+			const html = await renderComponent(DailySchedule, {
+				days: daysWithBacklogTask,
+			});
+			expect(html).toContain("Linked task");
+			expect(html).toContain('data-variant="priorityHigh"');
+			expect(html).toContain("1 / 1");
+			expect(html).not.toContain("From backlog");
+		});
+
+		it("renders compact day headers in horizontal layout", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+			});
+			expect(html).toContain("1 Aug (Sat)");
+			expect(html).toContain("3 available");
+			expect(html).toContain("2 Aug (Sun)");
+			expect(html).toContain("5 available");
 		});
 	});
 });
