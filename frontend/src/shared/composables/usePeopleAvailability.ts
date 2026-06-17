@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useQuery } from "@pinia/colada";
 import {
 	getDashboardPeopleAvailabilityQuery,
@@ -147,6 +147,19 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 	const totalPages = computed<number>(() => {
 		return Math.max(1, Math.ceil(totalDays.value / daysPerPage.value));
 	});
+
+	// Watch for planning window changes and reset page to 1 when the window actually changes
+	// (not on initial load, not on loading→loaded transition).
+	if (planningWindow) {
+		watch(
+			() => planningWindow.planWindowDays.value.map((d) => d.dateString),
+			(_newDates, oldDates) => {
+				if (oldDates && oldDates.length > 0 && page.value > 1) {
+					page.value = 1;
+				}
+			},
+		);
+	}
 
 	// Compute the effective start date: planning window start + (page-1) * daysPerPage.
 	const startParam = computed<string | undefined>(() => {
