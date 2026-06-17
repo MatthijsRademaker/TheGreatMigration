@@ -59,6 +59,14 @@ interface DailyScheduleProps {
   goToNextPage?: () => void
 }
 
+interface DailyScheduleEmits {
+  "add-task": [date?: string]
+  "edit-task": [task: TaskCard]
+  "delete-task": [taskId: string]
+  "prev-page": []
+  "next-page": []
+}
+
 const props = withDefaults(defineProps<DailyScheduleProps>(), {
   readOnly: false,
   page: 0,
@@ -66,15 +74,12 @@ const props = withDefaults(defineProps<DailyScheduleProps>(), {
   dateRangeLabel: '',
   goToPrevPage: undefined,
   goToNextPage: undefined,
+
 })
 
-const hasPagination = computed(() => props.page > 0 && props.totalPages > 0 && !!props.goToPrevPage && !!props.goToNextPage)
+const hasPagination = computed(() => props.page > 0 && props.totalPages > 0)
 
-const emit = defineEmits<{
-  "add-task": [date?: string]
-  "edit-task": [task: TaskCard]
-  "delete-task": [taskId: string]
-}>()
+const emit = defineEmits<DailyScheduleEmits>()
 
 const scheduleDays = computed(() => props.days ?? [])
 </script>
@@ -97,7 +102,7 @@ const scheduleDays = computed(() => props.days ?? [])
           variant="outline"
           size="sm"
           :disabled="page <= 1"
-          @click="goToPrevPage?.()"
+          @click="emit('prev-page')"
         >
           Previous
         </Button>
@@ -105,7 +110,7 @@ const scheduleDays = computed(() => props.days ?? [])
           variant="outline"
           size="sm"
           :disabled="page >= totalPages"
-          @click="goToNextPage?.()"
+          @click="emit('next-page')"
         >
           Next
         </Button>

@@ -6,7 +6,7 @@ import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
-import { computed } from 'vue'
+
 
 const { data: availabilityData } = usePeopleAvailability()
 const {
@@ -18,15 +18,8 @@ const {
   totalPages,
   goToPrevPage,
   goToNextPage,
+  dateRangeLabel,
 } = useDailySchedule()
-
-const dateRangeLabel = computed(() => {
-  const days = scheduleData.value?.days
-  if (!days || days.length === 0) return '—'
-  const first = days[0]?.label ?? '—'
-  const last = days[days.length - 1]?.label ?? '—'
-  return `${first} – ${last}`
-})
 </script>
 
 <template>
@@ -81,8 +74,8 @@ const dateRangeLabel = computed(() => {
           :page="page"
           :total-pages="totalPages"
           :date-range-label="dateRangeLabel"
-          :go-to-prev-page="goToPrevPage"
-          :go-to-next-page="goToNextPage"
+          @prev-page="goToPrevPage"
+          @next-page="goToNextPage"
           read-only
         />
       </template>

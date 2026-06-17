@@ -36,16 +36,9 @@ const {
   totalPages,
   goToPrevPage,
   goToNextPage,
+  dateRangeLabel,
   queryKey,
 } = useDailySchedule()
-
-const dateRangeLabel = computed(() => {
-  const days = scheduleData.value?.days
-  if (!days || days.length === 0) return '—'
-  const first = days[0]?.label ?? '—'
-  const last = days[days.length - 1]?.label ?? '—'
-  return `${first} – ${last}`
-})
 const { data: peopleData } = usePeopleAvailability()
 const { data: backlog, isLoading: backlogLoading, isEmpty: backlogEmpty } = useTaskBacklog()
 
@@ -250,8 +243,8 @@ function handleCancel() {
         :page="page"
         :total-pages="totalPages"
         :date-range-label="dateRangeLabel"
-        :go-to-prev-page="goToPrevPage"
-        :go-to-next-page="goToNextPage"
+        @prev-page="goToPrevPage"
+        @next-page="goToNextPage"
         @add-task="openCreate"
         @edit-task="openEdit"
         @delete-task="handleDelete"

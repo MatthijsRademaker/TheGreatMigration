@@ -196,6 +196,15 @@ export function useDailySchedule(options?: UseDailyScheduleOptions) {
 		() => !isLoading.value && !isError.value && data.value.days.length === 0,
 	);
 
+	/** Human-readable label for the currently visible date range, e.g. "1 Aug (Sat) – 4 Aug (Tue)". */
+	const dateRangeLabel = computed<string>(() => {
+		const days = data.value.days;
+		if (!days || days.length === 0) return "—";
+		const first = days[0]?.label ?? "—";
+		const last = days[days.length - 1]?.label ?? "—";
+		return `${first} – ${last}`;
+	});
+
 	/** Navigate to the previous page. */
 	function goToPrevPage() {
 		if (page.value > 1) {
@@ -221,6 +230,8 @@ export function useDailySchedule(options?: UseDailyScheduleOptions) {
 		totalDays,
 		goToPrevPage,
 		goToNextPage,
+		/** Human-readable label for the currently visible date range. */
+		dateRangeLabel,
 		/** Refresh the underlying daily-schedule query. */
 		refresh: () => query.refetch(),
 		queryKey: getDashboardDailyScheduleQueryKey(),

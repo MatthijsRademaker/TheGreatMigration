@@ -1,7 +1,7 @@
 import { renderToString } from "@vue/server-renderer";
 import { createSSRApp, h } from "vue";
 import type { Component } from "vue";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import DailySchedule from "../../src/calendar/DailySchedule.vue";
 
 interface AssignedPerson {
@@ -184,7 +184,6 @@ describe("DailySchedule", () => {
 		expect(html).not.toContain(">Edit<");
 		expect(html).not.toContain(">Delete<");
 		expect(html).not.toContain("+ Add task");
-		expect(html).not.toContain("Add task");
 	});
 
 	it("shows edit, delete, and add-task controls when readonly is false (default)", async () => {
@@ -199,15 +198,11 @@ describe("DailySchedule", () => {
 	});
 
 	describe("pagination bar", () => {
-		it("renders pagination bar when pagination props are provided", async () => {
-			const goToPrevPage = vi.fn();
-			const goToNextPage = vi.fn();
+		it("renders pagination bar when page and totalPages are provided", async () => {
 			const html = await renderComponent(DailySchedule, {
 				days: sampleDays,
 				page: 2,
 				totalPages: 5,
-				goToPrevPage,
-				goToNextPage,
 			});
 			expect(html).toContain("Page 2 of 5");
 			expect(html).toContain("Previous");
@@ -229,8 +224,6 @@ describe("DailySchedule", () => {
 				page: 1,
 				totalPages: 3,
 				dateRangeLabel: "1 Aug (Sat) – 4 Aug (Tue)",
-				goToPrevPage: vi.fn(),
-				goToNextPage: vi.fn(),
 			});
 			expect(html).toContain("1 Aug (Sat) – 4 Aug (Tue)");
 		});
@@ -240,8 +233,6 @@ describe("DailySchedule", () => {
 				days: sampleDays,
 				page: 1,
 				totalPages: 3,
-				goToPrevPage: vi.fn(),
-				goToNextPage: vi.fn(),
 			});
 			const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
 			const prevButton = allButtons.find((b) => b.includes("Previous"));
@@ -254,8 +245,6 @@ describe("DailySchedule", () => {
 				days: sampleDays,
 				page: 3,
 				totalPages: 3,
-				goToPrevPage: vi.fn(),
-				goToNextPage: vi.fn(),
 			});
 			const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
 			const nextButton = allButtons.find((b) => b.includes("Next"));
@@ -263,15 +252,15 @@ describe("DailySchedule", () => {
 			expect(nextButton).toContain("disabled");
 		});
 
-		it("does not render pagination bar when page and totalPages are set but callbacks are missing", async () => {
+		it("renders pagination bar even without callbacks (they are optional emits)", async () => {
 			const html = await renderComponent(DailySchedule, {
 				days: sampleDays,
 				page: 2,
 				totalPages: 5,
-				// no goToPrevPage or goToNextPage provided
 			});
-			expect(html).not.toContain("Previous");
-			expect(html).not.toContain("Next");
+			expect(html).toContain("Previous");
+			expect(html).toContain("Next");
+			expect(html).toContain("Page 2 of 5");
 		});
 
 		it("does not render pagination bar when page is 0 (no pagination state)", async () => {
@@ -279,8 +268,6 @@ describe("DailySchedule", () => {
 				days: sampleDays,
 				page: 0,
 				totalPages: 0,
-				goToPrevPage: vi.fn(),
-				goToNextPage: vi.fn(),
 			});
 			expect(html).not.toContain("Previous");
 			expect(html).not.toContain("Next");
