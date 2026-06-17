@@ -11,7 +11,7 @@ import (
 type Store interface {
 	GetPlanningWindow(ctx context.Context) (*PlanningWindowBody, error)
 	UpdatePlanningWindow(ctx context.Context, startDate, endDate time.Time) (*PlanningWindowBody, error)
-	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*DashboardBody, error)
+	GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*DashboardBody, error)
 	GetTaskBacklog(ctx context.Context) (*TaskBacklogBody, error)
 	GetDailySchedule(ctx context.Context, startDate time.Time, days int) (*DailyScheduleBody, error)
 	// Person CRUD

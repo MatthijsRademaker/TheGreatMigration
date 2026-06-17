@@ -29,6 +29,7 @@ function makeDashboardBody(startDate: string, days: number): DashboardBody {
 		range: { startDate, endDate: "", days, selectedDate: startDate },
 		summary: { availableToday: 1, totalPeople: 1 },
 		people,
+		pagination: { totalPeople: 1, page: 1, perPage: 1 },
 		statuses: [
 			{ id: "available", label: "Available", colorIntent: "green" },
 			{ id: "busy", label: "Busy", colorIntent: "red" },

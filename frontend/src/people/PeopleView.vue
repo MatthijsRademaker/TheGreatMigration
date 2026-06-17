@@ -24,6 +24,10 @@ const {
   isLoading,
   isError,
   isEmpty,
+  page,
+  totalPages,
+  goToPrevPage,
+  goToNextPage,
 } = usePeopleAvailability()
 
 // --- Mutation state ---
@@ -248,6 +252,38 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
       <!-- Mutation error display -->
       <p v-if="deleteError" class="text-sm text-destructive">{{ deleteError }}</p>
       <p v-if="updateError" class="text-sm text-destructive">{{ updateError }}</p>
+
+      <!-- Day pagination navigation -->
+      <div
+        class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2"
+      >
+        <span class="text-sm text-muted-foreground">
+          {{ availabilityData.days?.[0] ?? '—' }}
+          –
+          {{ availabilityData.days?.[availabilityData.days.length - 1] ?? '—' }}
+        </span>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">
+            Page {{ page }} of {{ totalPages }}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="page <= 1"
+            @click="goToPrevPage"
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="page >= totalPages"
+            @click="goToNextPage"
+          >
+            Next
+          </Button>
+        </div>
+      </div>
 
       <!-- People availability matrix (editable) -->
       <PeopleAvailability

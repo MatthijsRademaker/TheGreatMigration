@@ -228,10 +228,28 @@ func (m *mockStore) GetTaskBacklog(ctx context.Context) (*api.TaskBacklogBody, e
 	}, nil
 }
 
-func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*api.DashboardBody, error) {
+func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*api.DashboardBody, error) {
 	endDate := startDate.AddDate(0, 0, days-1)
 	selectedDate := startDate.Format("2006-01-02")
-	people := buildMockPeople(startDate, days, seedPeople)
+	allPeople := buildMockPeople(startDate, days, seedPeople)
+
+	total := len(allPeople)
+
+	// Apply pagination slicing.
+	var people []api.Person
+	if limit > 0 {
+		start := offset
+		if start > total {
+			start = total
+		}
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		people = allPeople[start:end]
+	} else {
+		people = allPeople
+	}
 
 	availableToday := 0
 	for _, p := range people {
@@ -252,7 +270,7 @@ func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Ti
 		},
 		Summary: api.Summary{
 			AvailableToday: availableToday,
-			TotalPeople:    len(people),
+			TotalPeople:    total,
 		},
 		People:   people,
 		Statuses: api.StatusLegendData,

@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useQuery } from "@pinia/colada";
 import {
 	getDashboardPeopleAvailabilityQuery,
@@ -115,16 +115,50 @@ function adaptToComponentProps(data: DashboardBody | undefined): AdaptedResult {
 interface UsePeopleAvailabilityOptions {
 	/** Explicit start date (YYYY-MM-DD). When omitted, the planning window start date is used. */
 	start?: string;
+	/** 1-indexed page for day pagination. Default 1. */
+	page?: number;
+	/** Number of days per page. Default 7. */
+	daysPerPage?: number;
+	/** Number of people to skip for person-level pagination. Default 0. */
+	offset?: number;
+	/** Maximum people to return. 0 means no limit. Default 0. */
+	limit?: number;
 }
 
 export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
-	// Resolve the start date: explicit or from the planning window.
+	const page = ref(options?.page ?? 1);
+	const daysPerPage = ref(options?.daysPerPage ?? 7);
+	const offset = ref(options?.offset ?? 0);
+	const limit = ref(options?.limit ?? 0);
+
+	// Resolve the planning window.
 	const planningWindow = options?.start ? null : usePlanningWindow();
 
+	// Compute total days from planning window.
+	const totalDays = computed<number>(() => {
+		if (planningWindow?.planWindowDays.value.length) {
+			return planningWindow.planWindowDays.value.length;
+		}
+		// Fall back to daysPerPage when planning window is unavailable.
+		return daysPerPage.value;
+	});
+
+	// Compute total pages.
+	const totalPages = computed<number>(() => {
+		return Math.max(1, Math.ceil(totalDays.value / daysPerPage.value));
+	});
+
+	// Compute the effective start date: planning window start + (page-1) * daysPerPage.
 	const startParam = computed<string | undefined>(() => {
 		if (options?.start) return options.start;
 		if (planningWindow?.planWindowDays.value.length) {
-			return planningWindow.planWindowDays.value[0].dateString;
+			const baseDate = planningWindow.planWindowDays.value[0].dateString;
+			if (page.value > 1) {
+				const d = new Date(baseDate);
+				d.setDate(d.getDate() + (page.value - 1) * daysPerPage.value);
+				return d.toISOString().slice(0, 10);
+			}
+			return baseDate;
 		}
 		return undefined;
 	});
@@ -137,7 +171,16 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 
 	const query = useQuery(() => ({
 		...getDashboardPeopleAvailabilityQuery(
-			startParam.value ? { query: { start: startParam.value } } : undefined,
+			startParam.value
+				? {
+						query: {
+							start: startParam.value,
+							days: daysPerPage.value,
+							...(offset.value > 0 ? { offset: offset.value } : {}),
+							...(limit.value > 0 ? { limit: limit.value } : {}),
+						},
+					}
+				: undefined,
 		),
 		enabled: queryEnabled.value,
 	}));
@@ -163,6 +206,20 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 		() => !isLoading.value && !isError.value && data.value.totalPeople === 0,
 	);
 
+	/** Navigate to the previous page. */
+	function goToPrevPage() {
+		if (page.value > 1) {
+			page.value--;
+		}
+	}
+
+	/** Navigate to the next page. */
+	function goToNextPage() {
+		if (page.value < totalPages.value) {
+			page.value++;
+		}
+	}
+
 	return {
 		data,
 		daysISO,
@@ -170,6 +227,12 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 		isLoading,
 		isError,
 		isEmpty,
+		page,
+		totalPages,
+		daysPerPage,
+		totalDays,
+		goToPrevPage,
+		goToNextPage,
 		/** Refresh the underlying query. */
 		refresh: () => query.refetch(),
 		queryKey: getDashboardPeopleAvailabilityQueryKey(),
