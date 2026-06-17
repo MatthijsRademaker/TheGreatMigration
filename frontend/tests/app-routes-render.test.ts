@@ -304,6 +304,9 @@ describe("application route rendering", () => {
 				expect(html).toContain("Next");
 				// Calendar-specific controls still render
 				expect(html).toContain("Add task");
+				// Calendar is editable: Edit/Delete controls on task cards
+				expect(html).toContain("Edit");
+				expect(html).toContain("Delete");
 			}
 
 			if (path === "/rooms") {

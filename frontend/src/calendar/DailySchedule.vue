@@ -77,7 +77,7 @@ const scheduleDays = computed(() => props.days ?? [])
 </script>
 
 <template>
-  <Card class="relative">
+  <Card class="!gap-0 relative">
     <!-- Compact header row: title left, controls right -->
     <div class="flex items-center justify-between border-b border-border px-4 py-3">
       <h2 class="text-lg font-semibold">Daily Schedule</h2>
