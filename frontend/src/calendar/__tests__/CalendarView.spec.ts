@@ -49,6 +49,9 @@ function createDailyScheduleMock(
 		isError: boolean;
 		isEmpty: boolean;
 		days: unknown[];
+		page: number;
+		totalPages: number;
+		dateRangeLabel: string;
 	}> = {},
 ) {
 	const state = {
@@ -56,12 +59,20 @@ function createDailyScheduleMock(
 		isError: overrides.isError ?? false,
 		isEmpty: overrides.isEmpty ?? true,
 		days: overrides.days ?? [],
+		page: overrides.page ?? 0,
+		totalPages: overrides.totalPages ?? 0,
+		dateRangeLabel: overrides.dateRangeLabel ?? "",
 	};
 	return {
 		data: computed(() => ({ days: state.days })),
 		isLoading: ref(state.isLoading),
 		isError: ref(state.isError),
 		isEmpty: ref(state.isEmpty),
+		page: ref(state.page),
+		totalPages: ref(state.totalPages),
+		dateRangeLabel: computed(() => state.dateRangeLabel),
+		goToPrevPage: vi.fn(),
+		goToNextPage: vi.fn(),
 		queryKey: ["daily-schedule"],
 	};
 }
@@ -405,6 +416,117 @@ describe("CalendarView – Edit Modal", () => {
 		expect(html).toContain("form-room");
 		expect(html).toContain("form-people");
 		expect(html).not.toContain("From backlog");
+
+		wrapper.unmount();
+	});
+});
+
+describe("CalendarView – Pagination Integration", () => {
+	beforeEach(() => {
+		mockBacklog = createBacklogMock();
+		mockDailySchedule = createDailyScheduleMock();
+		setupMutationSpies();
+	});
+
+	it("passes page and totalPages to DailySchedule", async () => {
+		mockDailySchedule = createDailyScheduleMock({
+			isEmpty: false,
+			days: [
+				{
+					date: "2026-07-10",
+					label: "10 Jul (Fri)",
+					availablePeopleCount: 4,
+					tasks: [],
+				},
+			],
+			page: 2,
+			totalPages: 5,
+			dateRangeLabel: "10 Jul (Fri) – 13 Jul (Mon)",
+		});
+
+		const wrapper = await mountCalendar();
+
+		const html = document.body.innerHTML;
+		expect(html).toContain("Page 2 of 5");
+		expect(html).toContain("Previous");
+		expect(html).toContain("Next");
+		expect(html).toContain("10 Jul (Fri) – 13 Jul (Mon)");
+
+		wrapper.unmount();
+	});
+
+	it("does not show pagination bar when page is 0", async () => {
+		mockDailySchedule = createDailyScheduleMock({
+			isEmpty: false,
+			days: [
+				{
+					date: "2026-07-10",
+					label: "10 Jul (Fri)",
+					availablePeopleCount: 4,
+					tasks: [],
+				},
+			],
+			page: 0,
+			totalPages: 0,
+		});
+
+		const wrapper = await mountCalendar();
+
+		const html = document.body.innerHTML;
+		expect(html).not.toContain("Previous");
+		expect(html).not.toContain("Next");
+
+		wrapper.unmount();
+	});
+
+	it("disables Previous button on page 1", async () => {
+		mockDailySchedule = createDailyScheduleMock({
+			isEmpty: false,
+			days: [
+				{
+					date: "2026-07-10",
+					label: "10 Jul (Fri)",
+					availablePeopleCount: 4,
+					tasks: [],
+				},
+			],
+			page: 1,
+			totalPages: 3,
+		});
+
+		const wrapper = await mountCalendar();
+
+		const html = document.body.innerHTML;
+		const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+		const prevButton = allButtons.find((b) => b.includes("Previous"));
+		expect(prevButton).toBeDefined();
+		expect(prevButton).toContain("disabled");
+
+		wrapper.unmount();
+	});
+
+	it("disables Next button on last page", async () => {
+		mockDailySchedule = createDailyScheduleMock({
+			isEmpty: false,
+			days: [
+				{
+					date: "2026-07-10",
+					label: "10 Jul (Fri)",
+					availablePeopleCount: 4,
+					tasks: [],
+				},
+			],
+			page: 3,
+			totalPages: 3,
+		});
+
+		const wrapper = await mountCalendar();
+
+		const html = document.body.innerHTML;
+		const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+		const nextButton = allButtons.find((b) => b.includes("Next"));
+		expect(nextButton).toBeDefined();
+		expect(nextButton).toContain("disabled");
 
 		wrapper.unmount();
 	});

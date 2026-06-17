@@ -47,23 +47,69 @@ const priorityVariantMap: Record<TaskCard['priority'], BadgeVariants['variant']>
 interface DailyScheduleProps {
   days?: ScheduleDay[]
   readOnly?: boolean
+  /** Page number for pagination (1-indexed). Renders a pagination bar when > 0 together with totalPages. */
+  page?: number
+  /** Total number of pages. */
+  totalPages?: number
+  /** Date range label shown in the pagination bar. */
+  dateRangeLabel?: string
+}
+
+interface DailyScheduleEmits {
+  "add-task": [date?: string]
+  "edit-task": [task: TaskCard]
+  "delete-task": [taskId: string]
+  "prev-page": []
+  "next-page": []
 }
 
 const props = withDefaults(defineProps<DailyScheduleProps>(), {
   readOnly: false,
+  page: 0,
+  totalPages: 0,
+  dateRangeLabel: '',
 })
 
-const emit = defineEmits<{
-  "add-task": [date?: string]
-  "edit-task": [task: TaskCard]
-  "delete-task": [taskId: string]
-}>()
+const hasPagination = computed(() => props.page > 0 && props.totalPages > 0)
+
+const emit = defineEmits<DailyScheduleEmits>()
 
 const scheduleDays = computed(() => props.days ?? [])
 </script>
 
 <template>
-  <Card>
+  <Card class="relative">
+    <!-- Pagination bar -- sits above the schedule content, visually attached to the top of the card -->
+    <div
+      v-if="hasPagination"
+      class="flex items-center justify-between border-b border-border px-4 py-2"
+    >
+      <span class="text-sm text-muted-foreground">
+        {{ dateRangeLabel || '—' }}
+      </span>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-muted-foreground">
+          Page {{ page }} of {{ totalPages }}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="page <= 1"
+          @click="emit('prev-page')"
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="page >= totalPages"
+          @click="emit('next-page')"
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+
     <CardHeader>
       <CardTitle>Daily Schedule</CardTitle>
     </CardHeader>

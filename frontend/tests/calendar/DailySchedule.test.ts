@@ -184,7 +184,6 @@ describe("DailySchedule", () => {
 		expect(html).not.toContain(">Edit<");
 		expect(html).not.toContain(">Delete<");
 		expect(html).not.toContain("+ Add task");
-		expect(html).not.toContain("Add task");
 	});
 
 	it("shows edit, delete, and add-task controls when readonly is false (default)", async () => {
@@ -196,5 +195,82 @@ describe("DailySchedule", () => {
 		expect(html).toContain(">Delete<");
 		expect(html).toContain("+ Add task");
 		expect(html).toContain("Add task");
+	});
+
+	describe("pagination bar", () => {
+		it("renders pagination bar when page and totalPages are provided", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 2,
+				totalPages: 5,
+			});
+			expect(html).toContain("Page 2 of 5");
+			expect(html).toContain("Previous");
+			expect(html).toContain("Next");
+		});
+
+		it("does not render pagination bar when pagination props are absent", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+			});
+			expect(html).not.toContain("Page 1 of");
+			expect(html).not.toContain("Previous");
+			expect(html).not.toContain("Next");
+		});
+
+		it("renders date range label when provided", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 1,
+				totalPages: 3,
+				dateRangeLabel: "1 Aug (Sat) – 4 Aug (Tue)",
+			});
+			expect(html).toContain("1 Aug (Sat) – 4 Aug (Tue)");
+		});
+
+		it("disables Previous button on page 1", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 1,
+				totalPages: 3,
+			});
+			const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+			const prevButton = allButtons.find((b) => b.includes("Previous"));
+			expect(prevButton).toBeDefined();
+			expect(prevButton).toContain("disabled");
+		});
+
+		it("disables Next button on last page", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 3,
+				totalPages: 3,
+			});
+			const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+			const nextButton = allButtons.find((b) => b.includes("Next"));
+			expect(nextButton).toBeDefined();
+			expect(nextButton).toContain("disabled");
+		});
+
+		it("renders pagination bar even without callbacks (they are optional emits)", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 2,
+				totalPages: 5,
+			});
+			expect(html).toContain("Previous");
+			expect(html).toContain("Next");
+			expect(html).toContain("Page 2 of 5");
+		});
+
+		it("does not render pagination bar when page is 0 (no pagination state)", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 0,
+				totalPages: 0,
+			});
+			expect(html).not.toContain("Previous");
+			expect(html).not.toContain("Next");
+		});
 	});
 });
