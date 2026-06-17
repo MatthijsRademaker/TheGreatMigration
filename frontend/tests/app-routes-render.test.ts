@@ -303,6 +303,13 @@ describe("application route rendering", () => {
 				expect(html).toContain("5 Jul (Sun)");
 				expect(html).toContain("+ Add task");
 				expect(html).not.toContain("plan-day-column");
+
+				// Pagination controls
+				expect(html).toContain("Page 1 of 10");
+				expect(html).toContain("Previous");
+				expect(html).toContain("Next");
+				// Calendar-specific controls still render
+				expect(html).toContain("Add task");
 			}
 
 			if (path === "/rooms") {
@@ -341,6 +348,13 @@ describe("application route rendering", () => {
 				expect(html).not.toContain("+ Add task");
 				// The "Add task" header button should also be absent
 				expect(html).not.toContain("Add task");
+
+				// Pagination controls
+				expect(html).toContain("Page 1 of 10");
+				expect(html).toContain("Previous");
+				expect(html).toContain("Next");
+				// Previous button should be disabled on page 1
+				expect(html).toMatch(/disabled[^>]*><!--\[--> Previous/);
 			}
 
 			if (path === "/people") {

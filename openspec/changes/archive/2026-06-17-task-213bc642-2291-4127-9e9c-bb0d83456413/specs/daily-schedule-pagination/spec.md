@@ -182,11 +182,11 @@ Frontend tests SHALL be extended to cover the composable's pagination parameter 
 - **THEN** it verifies the pagination bar (date range label, page indicator, Previous/Next buttons) is present in the rendered output
 - **AND** it verifies Previous button is disabled when on page 1
 
-## MODIFIED Requirements
+## ADDED Requirements (continued)
 
 ### Requirement: The homepage and calendar route SHALL share the BFF-backed schedule read path with pagination
 
-This requirement extends the existing requirement from `daily-schedule-component/spec.md`. `HomeView.vue` and `CalendarView.vue` SHALL continue to use the same shared daily-schedule read path. Both routes SHALL handle loading, backend-unavailable, empty, and success states explicitly. The success state SHALL now include pagination navigation controls at the route layer. The home dashboard SHALL remain a read-only overview. The `/calendar` route SHALL continue to layer schedule create, update, and delete controls on top of the shared read path.
+`HomeView.vue` and `CalendarView.vue` SHALL continue to use the same shared daily-schedule read path. Both routes SHALL handle loading, backend-unavailable, empty, and success states explicitly. The success state SHALL now include pagination navigation controls at the route layer. The home dashboard SHALL remain a read-only overview. The `/calendar` route SHALL continue to layer schedule create, update, and delete controls on top of the shared read path.
 
 #### Scenario: The home route renders paginated schedule data
 
