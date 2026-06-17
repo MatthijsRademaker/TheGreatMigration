@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
+import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
 import {
   Select,
   SelectContent,
@@ -36,7 +36,7 @@ const formStatus = ref<'backlog' | 'ready' | 'assigned'>('backlog')
 const formAssignedTo = ref<string[]>([])
 
 // ---- Queries ----
-const { data, isLoading, isError, isEmpty, queryKey } = useTaskBacklog()
+const { data, queryKey } = useTaskBacklog()
 const { data: peopleData } = usePeopleAvailability()
 const roomsQuery = useQuery(listRoomsQuery())
 
@@ -156,74 +156,11 @@ watch(() => data.value.tasks, (tasks) => {
 
 <template>
   <section class="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-    <!-- Task panel with management controls -->
-    <Card>
-      <CardHeader>
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <CardTitle>Task backlog</CardTitle>
-            <CardDescription>
-              Capture jobs, priorities, staffing needs, and planning status.
-            </CardDescription>
-          </div>
-          <Button @click="startNewTask">
-            + Add Task
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <!-- Loading -->
-        <p v-if="isLoading" class="text-sm text-muted-foreground">
-          Loading&hellip;
-        </p>
-
-        <!-- Error -->
-        <p v-else-if="isError" class="text-sm text-destructive">
-          Could not load tasks. Please try again.
-        </p>
-
-        <!-- Empty -->
-        <p
-          v-else-if="isEmpty"
-          class="text-sm text-muted-foreground"
-        >
-          No tasks yet. Add one using the button above.
-        </p>
-
-        <!-- List with management controls -->
-        <ul v-else class="divide-y">
-          <li
-            v-for="task in data.tasks"
-            :key="task.id"
-            class="flex items-center justify-between py-2 first:pt-0 last:pb-0"
-          >
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium">{{ task.title }}</p>
-              <p class="text-xs text-muted-foreground">
-                {{ task.room }} &middot; {{ task.priority }} &middot; {{ task.status }} &middot; {{ task.peopleNeeded }} needed
-              </p>
-            </div>
-            <div class="ml-4 flex shrink-0 gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                @click="startEdit(task)"
-              >
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="deletingId === task.id"
-                @click="handleDelete(task.id)"
-              >
-                Delete
-              </Button>
-            </div>
-          </li>
-        </ul>
-      </CardContent>
-    </Card>
+    <TaskManagementPanel
+      @add-task="startNewTask"
+      @edit-task="(task: TaskRow) => startEdit(task)"
+      @delete-task="(id: string) => handleDelete(id)"
+    />
   </section>
 
   <!-- Add/Edit Modal -->

@@ -17,6 +17,8 @@ withDefaults(defineProps<{
 defineEmits<{
   filter: []
   'add-task': []
+  'edit-task': [task: import('../types').TaskRow]
+  'delete-task': [taskId: string]
 }>()
 
 const { data, isLoading, isError, isEmpty } = useTaskBacklog()
@@ -28,7 +30,10 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
   <Card>
     <CardHeader>
       <div class="flex items-center justify-between gap-4">
-        <CardTitle>Task Management</CardTitle>
+        <div class="flex items-center gap-2">
+          <CardTitle>Tasks Backlog</CardTitle>
+          <Badge v-if="data" variant="secondary">{{ data.summary.totalTasks }} tasks</Badge>
+        </div>
         <div v-if="!readOnly" class="flex items-center gap-2">
           <Button variant="outline" @click="$emit('filter')">
             <ListFilterIcon />
@@ -71,7 +76,12 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
               </tr>
             </thead>
             <tbody>
-              <TaskRow v-for="task in data.tasks" :key="task.id" :task="task" />
+              <TaskRow v-for="task in data.tasks" :key="task.id" :task="task">
+                <template v-if="!readOnly" #actions>
+                  <Button variant="outline" size="sm" @click="$emit('edit-task', task)">Edit</Button>
+                  <Button variant="outline" size="sm" @click="$emit('delete-task', task.id)">Delete</Button>
+                </template>
+              </TaskRow>
             </tbody>
           </table>
         </div>

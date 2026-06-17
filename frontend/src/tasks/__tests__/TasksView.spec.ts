@@ -100,7 +100,7 @@ async function mountTasks() {
 }
 
 async function openAddModal(wrapper: ReturnType<typeof mount>) {
-	// The backlog view shows "+ Add Task" button
+	// The backlog view shows "Add Task" button in the panel toolbar
 	const buttons = wrapper.findAll("button");
 	const addBtn = buttons.find((b) => b.text().includes("Add Task"));
 	expect(addBtn).toBeTruthy();
@@ -119,7 +119,7 @@ describe("TasksView – Room Select", () => {
 
 	it("renders without crashing and shows backlog", async () => {
 		const wrapper = mount(TasksView);
-		expect(wrapper.text()).toContain("Task backlog");
+		expect(wrapper.text()).toContain("Tasks Backlog");
 		expect(wrapper.text()).toContain("Pack kitchen");
 		wrapper.unmount();
 	});
