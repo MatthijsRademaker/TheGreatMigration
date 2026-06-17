@@ -70,7 +70,9 @@ describe("useDailySchedule", () => {
 		);
 		const TestComponent = {
 			setup() {
-				const { data, isLoading, isError, isEmpty } = useDailySchedule();
+				const { data, isLoading, isError, isEmpty } = useDailySchedule({
+					start: "2026-07-05",
+				});
 				return { data, isLoading, isError, isEmpty };
 			},
 			template: `<div>
@@ -107,7 +109,7 @@ describe("useDailySchedule", () => {
 		);
 		const TestComponent = {
 			setup() {
-				const { isEmpty } = useDailySchedule();
+				const { isEmpty } = useDailySchedule({ start: "2026-07-05" });
 				return { isEmpty };
 			},
 			template: `<div><span v-if="isEmpty">empty</span></div>`,
@@ -117,21 +119,43 @@ describe("useDailySchedule", () => {
 		expect(html).toContain("empty");
 	});
 
-	it("exposes isLoading, isError, and isEmpty reactive state", async () => {
+	it("exposes all reactive state including pagination properties", async () => {
 		// Verify the composable returns all expected state properties
 		const { useDailySchedule } = await import(
 			"../../src/calendar/composables/useDailySchedule"
 		);
-		const state = useDailySchedule();
+		let state: ReturnType<typeof useDailySchedule> | undefined;
+		const TestComponent = {
+			setup() {
+				state = useDailySchedule({ start: "2026-07-05" });
+				return () => h("div");
+			},
+		};
+
+		await renderComponent(TestComponent);
+		// Core state
 		expect(state).toHaveProperty("data");
 		expect(state).toHaveProperty("isLoading");
 		expect(state).toHaveProperty("isError");
 		expect(state).toHaveProperty("isEmpty");
 		expect(state).toHaveProperty("refresh");
 		expect(state).toHaveProperty("queryKey");
-		expect(typeof state.isLoading.value).toBe("boolean");
-		expect(typeof state.isError.value).toBe("boolean");
-		expect(typeof state.isEmpty.value).toBe("boolean");
+		expect(typeof state!.isLoading.value).toBe("boolean");
+		expect(typeof state!.isError.value).toBe("boolean");
+		expect(typeof state!.isEmpty.value).toBe("boolean");
+		// Pagination properties
+		expect(state).toHaveProperty("page");
+		expect(state).toHaveProperty("totalPages");
+		expect(state).toHaveProperty("daysPerPage");
+		expect(state).toHaveProperty("totalDays");
+		expect(state).toHaveProperty("goToPrevPage");
+		expect(state).toHaveProperty("goToNextPage");
+		expect(typeof state!.page.value).toBe("number");
+		expect(typeof state!.totalPages.value).toBe("number");
+		expect(typeof state!.daysPerPage.value).toBe("number");
+		expect(typeof state!.totalDays.value).toBe("number");
+		expect(typeof state!.goToPrevPage).toBe("function");
+		expect(typeof state!.goToNextPage).toBe("function");
 	});
 
 	it("reports loading state when query is pending (SSR)", async () => {
@@ -162,7 +186,9 @@ describe("useDailySchedule", () => {
 		);
 		const TestComponent = {
 			setup() {
-				const { isLoading, isError, isEmpty } = useDailySchedule();
+				const { isLoading, isError, isEmpty } = useDailySchedule({
+					start: "2026-07-05",
+				});
 				return { isLoading, isError, isEmpty };
 			},
 			template: `<div>
@@ -205,7 +231,7 @@ describe("useDailySchedule", () => {
 		);
 		const TestComponent = {
 			setup() {
-				const { isEmpty } = useDailySchedule();
+				const { isEmpty } = useDailySchedule({ start: "2026-07-05" });
 				return { isEmpty };
 			},
 			template: `<div><span v-if="isEmpty">empty</span></div>`,

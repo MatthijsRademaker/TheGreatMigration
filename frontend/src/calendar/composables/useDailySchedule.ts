@@ -1,9 +1,10 @@
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useQuery } from "@pinia/colada";
 import {
 	getDashboardDailyScheduleQuery,
 	getDashboardDailyScheduleQueryKey,
 } from "@/client/@pinia/colada.gen";
+import { usePlanningWindow } from "@/shared/composables/usePlanningWindow";
 import type {
 	DailyScheduleBody,
 	ScheduleDay as ApiScheduleDay,
@@ -95,8 +96,83 @@ export interface DailyScheduleState {
 	} | null;
 }
 
-export function useDailySchedule() {
-	const query = useQuery(getDashboardDailyScheduleQuery());
+export interface UseDailyScheduleOptions {
+	/** Explicit start date (YYYY-MM-DD). When omitted, the planning window start date is used. */
+	start?: string;
+	/** 1-indexed page for day pagination. Default 1. */
+	page?: number;
+	/** Number of days per page. Default 4. */
+	daysPerPage?: number;
+}
+
+export function useDailySchedule(options?: UseDailyScheduleOptions) {
+	const page = ref(options?.page ?? 1);
+	const daysPerPage = ref(options?.daysPerPage ?? 4);
+
+	// Resolve the planning window.
+	const planningWindow = options?.start ? null : usePlanningWindow();
+
+	// Compute total days from planning window.
+	const totalDays = computed<number>(() => {
+		if (planningWindow?.planWindowDays.value.length) {
+			return planningWindow.planWindowDays.value.length;
+		}
+		// Fall back to daysPerPage when planning window is unavailable.
+		return daysPerPage.value;
+	});
+
+	// Compute total pages.
+	const totalPages = computed<number>(() => {
+		return Math.max(1, Math.ceil(totalDays.value / daysPerPage.value));
+	});
+
+	// Watch for planning window changes and reset page to 1 when the window actually changes
+	// (not on initial load, not on loading→loaded transition).
+	if (planningWindow) {
+		watch(
+			() => planningWindow.planWindowDays.value.map((d) => d.dateString),
+			(_newDates, oldDates) => {
+				if (oldDates && oldDates.length > 0 && page.value > 1) {
+					page.value = 1;
+				}
+			},
+		);
+	}
+
+	// Compute the effective start date: planning window start + (page-1) * daysPerPage.
+	const startParam = computed<string | undefined>(() => {
+		if (options?.start) return options.start;
+		if (planningWindow?.planWindowDays.value.length) {
+			const baseDate = planningWindow.planWindowDays.value[0].dateString;
+			if (page.value > 1) {
+				const d = new Date(baseDate);
+				d.setDate(d.getDate() + (page.value - 1) * daysPerPage.value);
+				return d.toISOString().slice(0, 10);
+			}
+			return baseDate;
+		}
+		return undefined;
+	});
+
+	// Defer the dashboard query until the planning window resolves (when no explicit start).
+	const queryEnabled = computed<boolean>(() => {
+		if (options?.start) return true;
+		return !planningWindow?.isLoading.value && startParam.value != null;
+	});
+
+	const query = useQuery(() => ({
+		...getDashboardDailyScheduleQuery(
+			startParam.value
+				? {
+						query: {
+							start: startParam.value,
+							days: daysPerPage.value,
+						},
+					}
+				: undefined,
+		),
+		enabled: queryEnabled.value,
+	}));
 
 	const data = computed<DailyScheduleState>(() => {
 		const raw = query.data.value;
@@ -120,11 +196,31 @@ export function useDailySchedule() {
 		() => !isLoading.value && !isError.value && data.value.days.length === 0,
 	);
 
+	/** Navigate to the previous page. */
+	function goToPrevPage() {
+		if (page.value > 1) {
+			page.value--;
+		}
+	}
+
+	/** Navigate to the next page. */
+	function goToNextPage() {
+		if (page.value < totalPages.value) {
+			page.value++;
+		}
+	}
+
 	return {
 		data,
 		isLoading,
 		isError,
 		isEmpty,
+		page,
+		totalPages,
+		daysPerPage,
+		totalDays,
+		goToPrevPage,
+		goToNextPage,
 		/** Refresh the underlying daily-schedule query. */
 		refresh: () => query.refetch(),
 		queryKey: getDashboardDailyScheduleQueryKey(),
