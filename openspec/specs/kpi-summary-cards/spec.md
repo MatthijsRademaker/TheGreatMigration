@@ -3,7 +3,9 @@
 ## Purpose
 
 Defines the home-dashboard KPI summary card component layout, copy, iconography, and data wiring for the four summary cards (High priority tasks, People available today, Unassigned jobs, Rooms completed). The KPI cards render in design order: High priority tasks → People available today → Unassigned jobs → Rooms completed. Each card uses a thin left accent border (`border-l-4`) with a compact icon chip in CardHeader, and CardContent for the value and subtitle.
+
 ## Requirements
+
 ### Requirement: The home page SHALL render four KPI cards in design order
 
 The `/` route SHALL render the `KpiCards` component at `frontend/src/home/components/KpiCards.vue`. The component SHALL display four KPI cards in this exact order: **High priority tasks** (first), **People available today** (second), **Unassigned jobs** (third), **Rooms completed** (fourth).
@@ -20,7 +22,7 @@ The `/` route SHALL render the `KpiCards` component at `frontend/src/home/compon
 #### Scenario: KPI cards use Card primitives
 
 - **WHEN** the KpiCards component renders
-- **THEN** each card uses Card, CardHeader, CardContent, CardTitle, and CardDescription from `@/shared/ui/card`
+- **THEN** each card uses Card, CardHeader, and CardContent from `@/shared/ui/card`
 
 ### Requirement: Each KPI card SHALL use a thin left accent border and compact icon chip layout
 
