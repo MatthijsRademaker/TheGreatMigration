@@ -114,7 +114,7 @@ const vTitle: Directive<HTMLElement, string> = {
 
 <template>
   <Sidebar collapsible="icon" variant="inset" class="p-0">
-    <SidebarHeader>
+    <SidebarHeader class="p-3">
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" as-child>
@@ -134,15 +134,15 @@ const vTitle: Directive<HTMLElement, string> = {
     </SidebarHeader>
 
     <SidebarContent>
-      <SidebarGroup>
+      <SidebarGroup class="px-3">
         <SidebarGroupLabel>Plan</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in planNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
+              <SidebarMenuButton :is-active="isActive(item.to)" as-child class="gap-1 p-0">
                 <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
-                  <span>{{ item.title }}</span>
+                  <span class="group-data-[collapsible=icon]:hidden">{{ item.title }}</span>
                 </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -150,17 +150,17 @@ const vTitle: Directive<HTMLElement, string> = {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <SidebarSeparator />
+      <SidebarSeparator class="pointer-events-none my-2" />
 
-      <SidebarGroup>
+      <SidebarGroup class="px-3">
         <SidebarGroupLabel>Organization</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in organizationNavigation" :key="item.to">
-              <SidebarMenuButton :is-active="isActive(item.to)" as-child>
+              <SidebarMenuButton :is-active="isActive(item.to)" as-child class="gap-1 p-0">
                 <a :href="item.to" v-title="item.title" v-click-nav="item.to">
                   <component :is="item.icon" />
-                  <span>{{ item.title }}</span>
+                  <span class="group-data-[collapsible=icon]:hidden">{{ item.title }}</span>
                 </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -170,7 +170,7 @@ const vTitle: Directive<HTMLElement, string> = {
     </SidebarContent>
 
     <SidebarFooter class="p-0">
-      <img src="/images/trail-portrait.png" alt="Trail portrait" class="w-full" />
+      <img src="/images/trail-portrait.png" alt="Trail portrait" class="w-full group-data-[collapsible=icon]:hidden" />
     </SidebarFooter>
     <SidebarRail />
   </Sidebar>
