@@ -221,6 +221,11 @@ func TestDashboardPeopleAvailabilityPaginationLimit(t *testing.T) {
 	if body.Pagination.PerPage != 3 {
 		t.Fatalf("expected pagination.perPage=3, got %d", body.Pagination.PerPage)
 	}
+	// AvailableToday should reflect global count, not page-local count.
+	expectedAvailable := countAvailableForDay(0)
+	if body.Summary.AvailableToday != expectedAvailable {
+		t.Fatalf("expected summary.availableToday=%d (global), got %d", expectedAvailable, body.Summary.AvailableToday)
+	}
 }
 
 func TestDashboardPeopleAvailabilityPaginationOffsetBeyond(t *testing.T) {
@@ -248,6 +253,11 @@ func TestDashboardPeopleAvailabilityPaginationOffsetBeyond(t *testing.T) {
 	}
 	if body.Pagination.Page != 1 {
 		t.Fatalf("expected pagination.page=1, got %d", body.Pagination.Page)
+	}
+	// AvailableToday should reflect global count even when no people are returned.
+	expectedAvailable := countAvailableForDay(0)
+	if body.Summary.AvailableToday != expectedAvailable {
+		t.Fatalf("expected summary.availableToday=%d (global), got %d", expectedAvailable, body.Summary.AvailableToday)
 	}
 }
 
@@ -278,6 +288,11 @@ func TestDashboardPeopleAvailabilityNoPaginationParams(t *testing.T) {
 	}
 	if body.Pagination.PerPage != body.Pagination.TotalPeople {
 		t.Fatalf("expected pagination.perPage=%d to equal totalPeople=%d", body.Pagination.PerPage, body.Pagination.TotalPeople)
+	}
+	// AvailableToday should reflect global count.
+	expectedAvailable := countAvailableForDay(0)
+	if body.Summary.AvailableToday != expectedAvailable {
+		t.Fatalf("expected summary.availableToday=%d (global), got %d", expectedAvailable, body.Summary.AvailableToday)
 	}
 }
 
@@ -1677,9 +1692,9 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 		people = allPeople
 	}
 
-	// Compute availableToday: count people who are "available" on the selected date.
+	// Compute availableToday globally from allPeople (not paginated subset).
 	availableToday := 0
-	for _, p := range people {
+	for _, p := range allPeople {
 		for _, e := range p.Availability {
 			if e.Date == selectedDate && e.Status == "available" {
 				availableToday++

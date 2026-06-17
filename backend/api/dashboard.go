@@ -43,7 +43,7 @@ type Range struct {
 // Summary holds the summary counts for the dashboard card.
 type Summary struct {
 	AvailableToday int `json:"availableToday" doc:"Number of people with status 'available' on selectedDate"`
-	TotalPeople    int `json:"totalPeople" doc:"Total number of people in the response"`
+	TotalPeople    int `json:"totalPeople" doc:"Total number of people regardless of pagination"`
 }
 
 // Person represents one person with their daily availability over the requested window.

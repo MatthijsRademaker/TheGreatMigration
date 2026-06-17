@@ -251,8 +251,9 @@ func (m *mockStore) GetPeopleAvailability(ctx context.Context, startDate time.Ti
 		people = allPeople
 	}
 
+	// Compute availableToday globally from allPeople (not paginated subset).
 	availableToday := 0
-	for _, p := range people {
+	for _, p := range allPeople {
 		for _, e := range p.Availability {
 			if e.Date == selectedDate && e.Status == "available" {
 				availableToday++

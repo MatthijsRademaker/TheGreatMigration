@@ -782,7 +782,7 @@
             "type": "integer"
           },
           "totalPeople": {
-            "description": "Total number of people in the response",
+            "description": "Total number of people regardless of pagination",
             "format": "int64",
             "type": "integer"
           }

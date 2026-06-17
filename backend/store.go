@@ -143,14 +143,12 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 	}
 
 	// Compute summary.
+	// AvailableToday is computed globally from availMap (all people, not just paginated subset).
 	selectedDate := startDate.Format("2006-01-02")
 	availableToday := 0
-	for _, p := range people {
-		for _, e := range p.Availability {
-			if e.Date == selectedDate && e.Status == "available" {
-				availableToday++
-				break
-			}
+	for _, dayMap := range availMap {
+		if dayMap[selectedDate] == "available" {
+			availableToday++
 		}
 	}
 
