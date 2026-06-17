@@ -10,7 +10,10 @@ function createAvailabilityMock(
 	overrides: Partial<{
 		isPending: boolean;
 		error: Error | null;
-		data: { summary: { availableToday: number; totalPeople: number } } | null;
+		data: {
+			summary: { availableToday: number; totalPeople: number };
+			range?: { selectedDate?: string };
+		} | null;
 	}> = {},
 ) {
 	const state = {
@@ -89,10 +92,13 @@ describe("KpiCards", () => {
 		mockBacklog = createBacklogMock();
 	});
 
-	it("renders four cards", () => {
+	it("renders four cards in correct order: High priority, People, Unassigned, Rooms", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
-			data: { summary: { availableToday: 5, totalPeople: 8 } },
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
 		});
 		mockBacklog = createBacklogMock({
 			isPending: false,
@@ -100,9 +106,15 @@ describe("KpiCards", () => {
 		});
 
 		const wrapper = mount(KpiCards);
-		// Grid container plus four Card elements
 		const cards = wrapper.findAll("[data-slot='card']");
 		expect(cards).toHaveLength(4);
+
+		// Verify order: High priority → People → Unassigned → Rooms
+		const cardTexts = cards.map((c) => c.text());
+		expect(cardTexts[0]).toContain("High priority tasks");
+		expect(cardTexts[1]).toContain("People available today");
+		expect(cardTexts[2]).toContain("Unassigned jobs");
+		expect(cardTexts[3]).toContain("Rooms completed");
 		wrapper.unmount();
 	});
 
@@ -115,6 +127,10 @@ describe("KpiCards", () => {
 
 		const wrapper = mount(KpiCards);
 		expect(wrapper.text()).toContain("Loading…");
+		// Loading text appears inside CardContent
+		expect(
+			wrapper.findAll("[data-slot='card-content']").length,
+		).toBeGreaterThan(0);
 		wrapper.unmount();
 	});
 
@@ -144,14 +160,35 @@ describe("KpiCards", () => {
 		});
 
 		const wrapper = mount(KpiCards);
-		// People card shows em-dash; backlog cards show their values
+		// People card shows em-dash (empty); backlog cards show their values
 		expect(wrapper.text()).toContain("—");
 		expect(wrapper.text()).toContain("3");
 		expect(wrapper.text()).toContain("2");
+		// When totalPeople is zero and no selectedDate, subtitle falls back
+		expect(wrapper.text()).toContain("available today");
 		wrapper.unmount();
 	});
 
-	it("shows 'X of Y available' format for the people card", () => {
+	it("shows 'X / Y' fraction format with date subtitle for the people card", () => {
+		mockAvailability = createAvailabilityMock({
+			isPending: false,
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
+		});
+		mockBacklog = createBacklogMock({
+			isPending: false,
+			data: { summary: { highPriorityTasks: 3, unassignedTasks: 2 } },
+		});
+
+		const wrapper = mount(KpiCards);
+		expect(wrapper.text()).toContain("5 / 8");
+		expect(wrapper.text()).toContain("available on Jul 5");
+		wrapper.unmount();
+	});
+
+	it("shows 'available today' fallback subtitle when selectedDate is missing", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
 			data: { summary: { availableToday: 5, totalPeople: 8 } },
@@ -162,15 +199,18 @@ describe("KpiCards", () => {
 		});
 
 		const wrapper = mount(KpiCards);
-		expect(wrapper.text()).toContain("5 of 8");
-		expect(wrapper.text()).toContain("available");
+		expect(wrapper.text()).toContain("5 / 8");
+		expect(wrapper.text()).toContain("available today");
 		wrapper.unmount();
 	});
 
-	it("shows backlog cards with correct values when backlog query succeeds", () => {
+	it("shows backlog cards with correct values and new subtitle copy", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
-			data: { summary: { availableToday: 5, totalPeople: 8 } },
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
 		});
 		mockBacklog = createBacklogMock({
 			isPending: false,
@@ -182,13 +222,19 @@ describe("KpiCards", () => {
 		expect(wrapper.text()).toContain("4");
 		expect(wrapper.text()).toContain("High priority tasks");
 		expect(wrapper.text()).toContain("Unassigned jobs");
+		// New outcome-focused subtitles
+		expect(wrapper.text()).toContain("high priority tasks need attention");
+		expect(wrapper.text()).toContain("jobs that need assignment");
 		wrapper.unmount();
 	});
 
-	it("renders rooms placeholder with data-testid", () => {
+	it("renders rooms placeholder with data-testid and border-success + icon chip", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
-			data: { summary: { availableToday: 5, totalPeople: 8 } },
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
 		});
 		mockBacklog = createBacklogMock({
 			isPending: false,
@@ -200,14 +246,21 @@ describe("KpiCards", () => {
 			"[data-testid='kpi-placeholder-rooms-completed']",
 		);
 		expect(placeholder.exists()).toBe(true);
-		expect(wrapper.text()).toContain("Rooms completed");
+		expect(placeholder.text()).toContain("Rooms completed");
+		expect(placeholder.text()).toContain("—");
+		expect(placeholder.text()).toContain("rooms fully packed and cleared");
+		// Verify border-success left accent
+		expect(placeholder.classes()).toContain("border-success");
 		wrapper.unmount();
 	});
 
-	it("renders two-column layout with left accent column for each card", () => {
+	it("renders thin accent border and compact icon chip layout for each card", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
-			data: { summary: { availableToday: 5, totalPeople: 8 } },
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
 		});
 		mockBacklog = createBacklogMock({
 			isPending: false,
@@ -215,40 +268,53 @@ describe("KpiCards", () => {
 		});
 
 		const wrapper = mount(KpiCards);
-		const firstCard = wrapper.find("[data-slot='card']");
 
-		// The card contains a flex-row container (two-column layout)
-		expect(firstCard.find(".flex.flex-row").exists()).toBe(true);
+		// No w-[72px] accent column should exist
+		expect(wrapper.find(".w-\\[72px\\]").exists()).toBe(false);
 
-		// Left accent column has the expected width and semantic color class
-		const accentCol = firstCard.find(".w-\\[72px\\]");
-		expect(accentCol.exists()).toBe(true);
-		expect(accentCol.classes()).toEqual(
-			expect.arrayContaining(["bg-info-soft", "text-info"]),
+		// First card (high priority) should have border-l-4 and border-destructive
+		const cards = wrapper.findAll("[data-slot='card']");
+		expect(cards[0].classes()).toContain("border-l-4");
+		expect(cards[0].classes()).toContain("border-destructive");
+
+		// Second card (people) should have border-info
+		expect(cards[1].classes()).toContain("border-l-4");
+		expect(cards[1].classes()).toContain("border-info");
+
+		// Check compact icon chip (size-8 rounded-lg) exists with semantic background
+		const iconChip = cards[0].find(".size-8.rounded-lg");
+		expect(iconChip.exists()).toBe(true);
+		expect(iconChip.classes()).toEqual(
+			expect.arrayContaining(["bg-destructive-soft", "text-destructive"]),
 		);
 
-		// Icon renders inside the accent column
-		expect(accentCol.find("svg").exists()).toBe(true);
+		// CardHeader and CardContent primitives are present
+		expect(cards[0].find("[data-slot='card-header']").exists()).toBe(true);
+		expect(cards[0].find("[data-slot='card-content']").exists()).toBe(true);
 
-		// Right content column exists and contains the leaf decoration
-		const contentCol = firstCard.find(".flex-1");
-		expect(contentCol.exists()).toBe(true);
+		// No flex-row two-column wrapper
+		expect(cards[0].find(".flex.flex-row").exists()).toBe(false);
 		wrapper.unmount();
 	});
 
 	it("shows loading state when backlog is pending", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
-			data: { summary: { availableToday: 5, totalPeople: 8 } },
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
 		});
 		mockBacklog = createBacklogMock({ isPending: true });
 
 		const wrapper = mount(KpiCards);
-		// Backlog cards show "Loading…" — should appear at least twice (high-priority + unassigned)
+		// Backlog cards show "Loading…" inside CardContent — appears at least twice (high-priority + unassigned)
 		const loadingMatches = wrapper.text().match(/Loading…/g);
 		expect(loadingMatches).not.toBeNull();
-		// People card shows data (not loading)
-		expect(wrapper.text()).toContain("5 of 8");
+		expect(loadingMatches!.length).toBeGreaterThanOrEqual(2);
+		// People card shows data (not loading) in its CardContent
+		expect(wrapper.text()).toContain("5 / 8");
+		expect(wrapper.text()).toContain("available on Jul 5");
 		wrapper.unmount();
 	});
 });
