@@ -16,8 +16,8 @@ const { formattedRange, isLoading, isError } = usePlanningWindow()
 <template>
   <SidebarProvider class="bg-sidebar">
     <AppSidebar />
-    <SidebarInset class="overflow-hidden">
-      <header class="flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <SidebarInset class="overflow-y-auto">
+      <header class="sticky top-0 z-10 flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70">
         <SidebarTrigger class="md:hidden" />
         <div class="flex min-w-0 flex-1 flex-col gap-1 py-3">
           <div class="flex items-center gap-2">
