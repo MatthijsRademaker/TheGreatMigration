@@ -1,0 +1,111 @@
+<planning_inputs>
+  <summary>
+    <goal>Add unit-level composable tests for useDailySchedule pagination (page derivation, boundary navigation, planning-window-change reset), extending the existing `frontend/tests/calendar/useDailySchedule.test.ts` to cover the 9 scenarios specified in the task spec and flagged as missing by all three reviewers.</goal>
+    <diff_summary>
+The branch (feature/213bc642-2291-4127-9e9c-bb0d83456413, 1 commit on top of People pagination v2 #51) adds pagination to the Daily Schedule feature:
+- `useDailySchedule.ts`: new `UseDailyScheduleOptions` (start, page, daysPerPage), planning-window integration, `page`/`totalPages`/`daysPerPage`/`totalDays` refs+computeds, `goToPrevPage`/`goToNextPage` navigation guards, `watch`-based page reset on planning window change, deferred-query pattern. Pattern is an exact structural duplicate of `usePeopleAvailability`.
+- `HomeView.vue` and `CalendarView.vue`: each now destructures `page`/`totalPages`/`goToPrevPage`/`goToNextPage` from `useDailySchedule()` and renders a pagination bar (date range label, Page X of Y, Previous/Next buttons with `disabled` bound to boundary guards). CalendarView additionally destructures `queryKey`.
+- `DailySchedule.vue`: NOT modified — stays presentational with only `days` and `readOnly` props.
+- Tests: `app-routes-render.test.ts` asserts "Page 1 of 10", "Previous", "Next", and Previous disabled on `/` and `/calendar`. `useDailySchedule.test.ts` got minimal updates — all existing tests now pass `{ start: "2026-07-05" }` to avoid depending on the planning window, and the "exposes state" test uses a setup wrapper. No pagination-specific composable tests exist.
+- Specs: `openspec/specs/daily-schedule-pagination/spec.md` (184 lines, archived) documents all requirements including "Frontend tests SHALL cover page derivation, boundary navigation, and route-level rendering."
+No backend changes. 11 files changed, +798/−14 lines.
+    </diff_summary>
+    <durable_task_comment_status>present</durable_task_comment_status>
+  </summary>
+
+  <review_feedback>
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-reviewer</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>76fba25b-1aa8-4fe5-accb-9f2320640d9b</agent_run_id>
+        <created_at>2026-06-17T09:50:38Z</created_at>
+      </source_metadata>
+      <request>Add composable-level unit tests for page derivation and boundary navigation in useDailySchedule. Tasks.md §4.1 specifies 9 test scenarios: page=1 initialization, goToNextPage advances, goToPrevPage retreats, goToPrevPage doesn't go below 1, goToNextPage doesn't exceed totalPages, totalPages reflects days/daysPerPage, totalPages &gt;= 1, page resets to 1 when planning window changes, page doesn't reset on initial load. Also extend the "exposes state" test (~line 134) to assert new properties: page, totalPages, daysPerPage, totalDays, goToPrevPage, goToNextPage.</request>
+      <impacted_code>frontend/tests/calendar/useDailySchedule.test.ts</impacted_code>
+      <notes>Reviewer classified this as [warning], non-blocking but substantive. The route render tests provide end-to-end validation but do not cover composable-level boundary behavior, planning-window-change reset, or guard logic.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-architect</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>b7d43209-75d0-4f5d-b572-d15c05f978d9</agent_run_id>
+        <created_at>2026-06-17T09:48:58Z</created_at>
+      </source_metadata>
+      <request>No blocking requests. Architecturally approved — DailySchedule.vue correctly untouched, pagination pattern matches usePeopleAvailability, dependency direction clean, no backend changes, no new files. Only structural concern (duplicate usePlanningWindow() calls) is an accepted trade-off mitigated by Pinia Coladas query-key deduplication.</request>
+      <impacted_code>None (structural review only)</impacted_code>
+      <notes>Approved with no requested changes. Context for planner: the reference implementation pattern is already validated.</notes>
+    </item>
+
+    <item>
+      <source>task_comment</source>
+      <source_metadata>
+        <author>swarm-lead-dev</author>
+        <comment_source>agent_run</comment_source>
+        <agent_run_id>31fe96a9-f4f3-422a-800d-20801cc82cae</agent_run_id>
+        <created_at>2026-06-17T09:48:50Z</created_at>
+      </source_metadata>
+      <request>Address the "substantive gap in test coverage that must be addressed before merging." The approach is architecturally sound and follows the established usePeopleAvailability pattern, but tests are insufficient without composable-level coverage.</request>
+      <impacted_code>frontend/tests/calendar/useDailySchedule.test.ts</impacted_code>
+      <notes>Strongest severity — "must be addressed before merging." Consolidates with swarm-reviewer's specific item list.</notes>
+    </item>
+  </review_feedback>
+
+  <relevant_code_areas>
+    <code_area>
+      <path>frontend/tests/calendar/useDailySchedule.test.ts</path>
+      <reason>Primary target — the file that needs composable-level pagination tests added. Currently has 6 tests (API data adaptation, null days, exposes state, SSR loading, empty state) but zero pagination tests. All existing tests use SSR renderToString + explicit start override to bypass planning window. The new pagination tests need client-side mounting (@vue/test-utils + jsdom) to exercise ref mutations, reactive composables, and watch-based reset.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/tests/people/usePeopleAvailability.integration.test.ts</path>
+      <reason>Reference implementation — the exact test pattern to mirror. Uses @vue/test-utils mount in jsdom environment, mocks usePlanningWindow with a reactive ref for planWindowDays array, mocks @pinia/colada.gen and @pinia/colada, and covers all 9 pagination scenarios (page init, goToNext/Prev, boundaries, totalPages computation, totalPages >= 1, planning-window-change reset, no-reset-on-initial-load). The useDailySchedule tests should follow this pattern identically, substituting the daily-schedule client gen mocks.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/calendar/composables/useDailySchedule.ts</path>
+      <reason>Implementation under test. Key behaviors to verify: page ref starts at 1 (or options.page), goToPrevPage/goToNextPage guard against boundaries using page.value and totalPages.value, totalPages computed from totalDays/daysPerPage with Math.max(1,...), watch resets page to 1 when planningWindow.planWindowDays.value changes and oldDates.length > 0 and page.value > 1 (no reset on initial load).</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/shared/composables/usePeopleAvailability.ts</path>
+      <reason>Reference composable — useDailySchedule is a structural duplicate. The page navigation, totalPages, watch-based reset, goToPrevPage/goToNextPage implementations are character-by-character identical. The test pattern from usePeopleAvailability.integration.test.ts is directly portable.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/src/shared/composables/usePlanningWindow.ts</path>
+      <reason>Dependency that needs mocking in tests. The integration test pattern mocks this with a reactive ref containing planWindowDays, isLoading, isError, formattedRange, and queryKey. The same mock must be used for useDailySchedule pagination tests.</reason>
+    </code_area>
+    <code_area>
+      <path>frontend/package.json</path>
+      <reason>Confirms @vue/test-utils (^2.4.6) and jsdom (^25.0.0) are available as dev dependencies — no new dependency installation needed for client-side mounting tests.</reason>
+    </code_area>
+  </relevant_code_areas>
+
+  <planner_constraints>
+    <constraint>Do NOT modify DailySchedule.vue — it must remain presentational with only `days` and `readOnly` props (confirmed architectural requirement).</constraint>
+    <constraint>Do NOT modify useDailySchedule.ts, HomeView.vue, or CalendarView.vue — the implementation is approved; only tests are missing.</constraint>
+    <constraint>New pagination tests must use @vue/test-utils `mount` with jsdom environment (as done in usePeopleAvailability.integration.test.ts), not the SSR renderToString pattern used by existing useDailySchedule tests. The pagination tests require client-side reactivity to exercise ref mutations and watch callbacks.</constraint>
+    <constraint>The existing SSR-based tests in useDailySchedule.test.ts must continue to pass unmodified. Add new `describe` blocks for pagination without altering existing test logic beyond what's necessary (e.g., adding `// @vitest-environment jsdom` directive above the new block, adding necessary imports).</constraint>
+    <constraint>Tests must mock `@/shared/composables/usePlanningWindow`, `@/client/@pinia/colada.gen`, and `@pinia/colada` — follow the exact mock structure from usePeopleAvailability.integration.test.ts but substitute daily-schedule query keys and response shapes (DailyScheduleBody instead of DashboardBody).</constraint>
+    <constraint>After adding tests, run `scripts/precommit-run` (per AGENTS.md) and ensure all checks pass.</constraint>
+  </planner_constraints>
+
+  <assumptions>
+    <assumption>The `useDailySchedule` composable's pagination logic is correct and mirrors `usePeopleAvailability` — the task is purely about test coverage, not bug fixes or logic changes.</assumption>
+    <assumption>The reference test pattern in `usePeopleAvailability.integration.test.ts` is the authoritative example for how to structure these tests. The daily-schedule tests can start as a near-identical copy with the query/key names swapped and response shape adjusted.</assumption>
+    <assumption>The existing "exposes state" test (lines ~124-148) should be extended to assert `page`, `totalPages`, `daysPerPage`, `totalDays`, `goToPrevPage`, and `goToNextPage` exist as properties on the returned state. However, since this test currently uses SSR renderToString with an explicit `start` option (which bypasses usePlanningWindow), the new pagination properties WILL still be present (page, totalPages, etc. are always exposed regardless of options). No special mock needed for the properties-assertion extension.</assumption>
+    <assumption>`makeMultiDayPlanWindow` helper from the people availability integration test can be reused or duplicated in the daily schedule test file.</assumption>
+  </assumptions>
+
+  <open_questions>
+    <question>Should the pagination tests live in the existing `frontend/tests/calendar/useDailySchedule.test.ts` file (consolidated approach), or in a new file like `frontend/tests/calendar/useDailySchedule.integration.test.ts` (matching the people availability dual-file pattern)? The swarm-reviewer's suggestion to "extend the exposes state test" implies modifying the existing file. However, the people availability tests split pagination into a separate `integration.test.ts` file because it requires jsdom while the main tests use SSR. Recommendation: follow the existing pattern and create a new `useDailySchedule.integration.test.ts` for the jsdom-dependent pagination tests, then modify the existing file only to add pagination property assertions to the "exposes state" test.</question>
+    <question>What should the mock `getDashboardDailyScheduleQuery` return shape look like for multi-page scenarios? The current route-render test expects "Page 1 of 10" (40-day window / 4 daysPerPage = 10 pages). The test mock should produce a multi-day planning window (e.g., 40 days) with a mocked API client returning DailyScheduleBody responses for different start/days combos.</question>
+  </open_questions>
+
+  <recommended_validation>
+    <step>Run `cd frontend && npx vitest run tests/calendar/useDailySchedule.test.ts` after changes — all existing tests must pass plus new pagination tests.</step>
+    <step>Run `cd frontend && npx vitest run tests/calendar/` to confirm no regressions in other calendar tests.</step>
+    <step>Run `scripts/precommit-run` from repo root to verify all automated checks pass.</step>
+    <step>Verify that the "exposes state" test asserts at minimum: `page`, `totalPages`, `daysPerPage`, `totalDays`, `goToPrevPage`, `goToNextPage` are present on the composable return value.</step>
+  </recommended_validation>
+</planning_inputs>

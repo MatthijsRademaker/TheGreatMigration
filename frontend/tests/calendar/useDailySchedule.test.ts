@@ -119,7 +119,7 @@ describe("useDailySchedule", () => {
 		expect(html).toContain("empty");
 	});
 
-	it("exposes isLoading, isError, and isEmpty reactive state", async () => {
+	it("exposes all reactive state including pagination properties", async () => {
 		// Verify the composable returns all expected state properties
 		const { useDailySchedule } = await import(
 			"../../src/calendar/composables/useDailySchedule"
@@ -133,6 +133,7 @@ describe("useDailySchedule", () => {
 		};
 
 		await renderComponent(TestComponent);
+		// Core state
 		expect(state).toHaveProperty("data");
 		expect(state).toHaveProperty("isLoading");
 		expect(state).toHaveProperty("isError");
@@ -142,6 +143,19 @@ describe("useDailySchedule", () => {
 		expect(typeof state!.isLoading.value).toBe("boolean");
 		expect(typeof state!.isError.value).toBe("boolean");
 		expect(typeof state!.isEmpty.value).toBe("boolean");
+		// Pagination properties
+		expect(state).toHaveProperty("page");
+		expect(state).toHaveProperty("totalPages");
+		expect(state).toHaveProperty("daysPerPage");
+		expect(state).toHaveProperty("totalDays");
+		expect(state).toHaveProperty("goToPrevPage");
+		expect(state).toHaveProperty("goToNextPage");
+		expect(typeof state!.page.value).toBe("number");
+		expect(typeof state!.totalPages.value).toBe("number");
+		expect(typeof state!.daysPerPage.value).toBe("number");
+		expect(typeof state!.totalDays.value).toBe("number");
+		expect(typeof state!.goToPrevPage).toBe("function");
+		expect(typeof state!.goToNextPage).toBe("function");
 	});
 
 	it("reports loading state when query is pending (SSR)", async () => {
