@@ -70,7 +70,7 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
 <template>
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <!-- People available today -->
-    <Card>
+    <Card class="relative">
       <CardHeader class="flex flex-row items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
           <CardDescription>People available today</CardDescription>
@@ -88,10 +88,11 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
       <CardContent>
         <p class="text-sm text-muted-foreground">Helpers with confirmed availability</p>
       </CardContent>
+      <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
     </Card>
 
     <!-- Task-backlog cards (shared loading / error / value layout) -->
-    <Card v-for="card in backlogCards" :key="card.label">
+    <Card v-for="card in backlogCards" :key="card.label" class="relative">
       <CardHeader class="flex flex-row items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
           <CardDescription>{{ card.label }}</CardDescription>
@@ -108,10 +109,11 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
       <CardContent>
         <p class="text-sm text-muted-foreground">{{ card.description }}</p>
       </CardContent>
+      <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
     </Card>
 
     <!-- Rooms completed (placeholder for future room-progress contract) -->
-    <Card data-testid="kpi-placeholder-rooms-completed">
+    <Card data-testid="kpi-placeholder-rooms-completed" class="relative">
       <CardHeader class="flex flex-row items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
           <CardDescription>Rooms completed</CardDescription>
@@ -124,6 +126,7 @@ const backlogCards = computed<BacklogCardConfig[]>(() => [
       <CardContent>
         <p class="text-sm text-muted-foreground">Rooms fully packed and cleared</p>
       </CardContent>
+      <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
     </Card>
   </div>
 </template>

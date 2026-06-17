@@ -4,11 +4,8 @@ import type { Component } from 'vue'
 import {
   Building2Icon,
   CalendarDaysIcon,
-  CircleHelpIcon,
   ClipboardListIcon,
   HomeIcon,
-  NotebookTabsIcon,
-  PlusIcon,
   SettingsIcon,
   UsersRoundIcon,
 } from '@lucide/vue'
@@ -116,19 +113,13 @@ const vTitle: Directive<HTMLElement, string> = {
 </script>
 
 <template>
-  <Sidebar collapsible="icon" variant="inset">
+  <Sidebar collapsible="icon" variant="inset" class="p-0">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" as-child>
             <a href="/" aria-label="Open moving dashboard" v-click-nav="'/'">
-              <div class="flex aspect-square size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <NotebookTabsIcon />
-              </div>
-              <div class="grid flex-1 text-left leading-tight">
-                <span class="truncate text-sm font-semibold">The Great Migration</span>
-                <span class="truncate text-xs text-muted-foreground">House move planner</span>
-              </div>
+              <img src="/images/logo.png" alt="The Great Migration" class="mx-auto h-9 w-auto" />
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -178,23 +169,8 @@ const vTitle: Directive<HTMLElement, string> = {
       </SidebarGroup>
     </SidebarContent>
 
-    <SidebarFooter>
-      <!-- TODO: Make utility actions interactive when backend wiring is available for
-           creating notes and opening help/support flows. -->
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton>
-            <PlusIcon />
-            <span>Add note</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton>
-            <CircleHelpIcon />
-            <span>Help &amp; Support</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+    <SidebarFooter class="p-0">
+      <img src="/images/trail-portrait.png" alt="Trail portrait" class="w-full" />
     </SidebarFooter>
     <SidebarRail />
   </Sidebar>
