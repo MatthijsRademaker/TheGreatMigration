@@ -49,8 +49,6 @@ interface KpiCardConfig {
   accentClass: string
   status: 'loading' | 'error' | 'ready' | 'empty'
   value: number
-  /** HTML-safe formatted value string rendered via v-html instead of `value` when present. */
-  formattedValue?: string
 }
 
 /** Unified config driving all four KPI cards from one computed. */
@@ -63,7 +61,6 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     accentClass: 'bg-info-soft text-info',
     status: peopleStatus.value,
     value: displayAvailableToday.value,
-    formattedValue: `${displayAvailableToday.value}<span class="text-xl text-muted-foreground"> of ${totalPeople.value}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span>`,
   },
   {
     id: 'high-priority',
@@ -101,10 +98,10 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     <Card
       v-for="card in cardConfigs"
       :key="card.id"
-      size="flush"
-      class="relative"
+      class="!py-0 !gap-0 relative"
       :data-testid="card.id === 'rooms' ? 'kpi-placeholder-rooms-completed' : undefined"
     >
+      <!-- !py-0 !gap-0 overrides Card.vue&#39;s default padding so the left accent column is flush with card edges -->
       <div class="flex flex-row">
         <!-- Left accent column: full-height semantic color band -->
         <div
@@ -126,7 +123,9 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
             <template v-if="card.status === 'loading'">Loading…</template>
             <template v-else-if="card.status === 'error'">Backend unavailable</template>
             <template v-else-if="card.status === 'empty'">—</template>
-            <span v-else-if="card.formattedValue" v-html="card.formattedValue"></span>
+            <template v-else-if="card.id === 'people' && card.status === 'ready'">
+              {{ card.value }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span>
+            </template>
             <template v-else>{{ card.value }}</template>
           </span>
           <span class="text-sm text-muted-foreground">{{ card.description }}</span>

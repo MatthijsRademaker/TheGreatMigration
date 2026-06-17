@@ -204,6 +204,38 @@ describe("KpiCards", () => {
 		wrapper.unmount();
 	});
 
+	it("renders two-column layout with left accent column for each card", () => {
+		mockAvailability = createAvailabilityMock({
+			isPending: false,
+			data: { summary: { availableToday: 5, totalPeople: 8 } },
+		});
+		mockBacklog = createBacklogMock({
+			isPending: false,
+			data: { summary: { highPriorityTasks: 3, unassignedTasks: 2 } },
+		});
+
+		const wrapper = mount(KpiCards);
+		const firstCard = wrapper.find("[data-slot='card']");
+
+		// The card contains a flex-row container (two-column layout)
+		expect(firstCard.find(".flex.flex-row").exists()).toBe(true);
+
+		// Left accent column has the expected width and semantic color class
+		const accentCol = firstCard.find(".w-\\[72px\\]");
+		expect(accentCol.exists()).toBe(true);
+		expect(accentCol.classes()).toEqual(
+			expect.arrayContaining(["bg-info-soft", "text-info"]),
+		);
+
+		// Icon renders inside the accent column
+		expect(accentCol.find("svg").exists()).toBe(true);
+
+		// Right content column exists and contains the leaf decoration
+		const contentCol = firstCard.find(".flex-1");
+		expect(contentCol.exists()).toBe(true);
+		wrapper.unmount();
+	});
+
 	it("shows loading state when backlog is pending", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
