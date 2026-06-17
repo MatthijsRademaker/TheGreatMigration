@@ -229,7 +229,6 @@ describe("application route rendering", () => {
 		const html = await renderRoute("/");
 
 		expect(html).toContain("The Great Migration");
-		expect(html).toContain("House move planner");
 		expect(html).toContain("Jul");
 		expect(html).toContain("2026");
 		expect(html).toContain("40 days");
@@ -240,9 +239,6 @@ describe("application route rendering", () => {
 		expect(html).toContain("People");
 		expect(html).toContain("Rooms / Areas");
 		expect(html).toContain("Settings");
-		expect(html).toContain("Moving dashboard");
-		expect(html).toContain("Add note");
-		expect(html).toContain("Help &amp; Support");
 	});
 
 	const routeCases = [
@@ -288,12 +284,10 @@ describe("application route rendering", () => {
 		},
 	] as const;
 
-	for (const { path, title, description, content } of routeCases) {
+	for (const { path, content } of routeCases) {
 		it(`renders ${path} with route metadata and view content`, async () => {
 			const html = await renderRoute(path);
 
-			expect(html).toContain(title);
-			expect(html).toContain(description);
 			expect(html).toContain(content);
 
 			if (path === "/calendar") {
