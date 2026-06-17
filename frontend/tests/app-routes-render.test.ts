@@ -319,8 +319,8 @@ describe("application route rendering", () => {
 
 				// Verify rendered KPI values from mock data
 				expect(html).toContain("6");
-				expect(html).toContain("of 8");
-				expect(html).toContain("available");
+				expect(html).toContain("6 / 8");
+				expect(html).toContain("available on Jul 5");
 				expect(html).toContain("1");
 
 				// Home renders TaskManagementPanel in readOnly mode

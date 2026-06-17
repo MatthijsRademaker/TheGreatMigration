@@ -3,13 +3,13 @@ import { useQuery } from '@pinia/colada'
 import { computed } from 'vue'
 import type { Component } from 'vue'
 import {
-  Building2Icon,
-  HammerIcon,
-  TriangleAlertIcon,
+  BriefcaseIcon,
+  CheckCircleIcon,
+  FlagIcon,
   UsersRoundIcon,
 } from '@lucide/vue'
 import { getDashboardPeopleAvailabilityQuery, getTasksBacklogQuery } from '@/client/@pinia/colada.gen'
-import { Card } from '@/shared/ui/card'
+import { Card, CardHeader, CardContent } from '@/shared/ui/card'
 
 const availabilityQuery = useQuery(getDashboardPeopleAvailabilityQuery())
 const tasksBacklogQuery = useQuery(getTasksBacklogQuery())
@@ -41,42 +41,63 @@ const backlogStatus = computed(() => {
   return 'ready'
 })
 
+/** Destructure range from the availability response to access selectedDate. */
+const range = computed(() => availabilityQuery.data.value?.range)
+
+/** Format range.selectedDate as "MMM D" (e.g. "Jul 5"). Returns undefined if missing. */
+const formattedSelectedDate = computed(() => {
+  const dateStr = range.value?.selectedDate
+  if (!dateStr) return undefined
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(date)
+})
+
 interface KpiCardConfig {
   id: string
   label: string
   description: string
   icon: Component
-  accentClass: string
+  iconBgClass: string
+  borderClass: string
   status: 'loading' | 'error' | 'ready' | 'empty'
   value: number
 }
 
-/** Unified config driving all four KPI cards from one computed. */
+/**
+ * Unified config driving all four KPI cards. Card order follows the design:
+ * High priority tasks → People available today → Unassigned jobs → Rooms completed.
+ */
 const cardConfigs = computed<KpiCardConfig[]>(() => [
-  {
-    id: 'people',
-    label: 'People available today',
-    description: 'Helpers with confirmed availability',
-    icon: UsersRoundIcon,
-    accentClass: 'bg-info-soft text-info',
-    status: peopleStatus.value,
-    value: displayAvailableToday.value,
-  },
   {
     id: 'high-priority',
     label: 'High priority tasks',
-    description: 'Tasks marked as high priority',
-    icon: TriangleAlertIcon,
-    accentClass: 'bg-destructive-soft text-destructive',
+    description: 'high priority tasks need attention',
+    icon: FlagIcon,
+    iconBgClass: 'bg-destructive-soft text-destructive',
+    borderClass: 'border-destructive',
     status: backlogStatus.value,
     value: highPriorityTasks.value,
   },
   {
+    id: 'people',
+    label: 'People available today',
+    description: formattedSelectedDate.value
+      ? `available on ${formattedSelectedDate.value}`
+      : 'available today',
+    icon: UsersRoundIcon,
+    iconBgClass: 'bg-info-soft text-info',
+    borderClass: 'border-info',
+    status: peopleStatus.value,
+    value: displayAvailableToday.value,
+  },
+  {
     id: 'unassigned',
     label: 'Unassigned jobs',
-    description: 'Tasks with no one assigned yet',
-    icon: HammerIcon,
-    accentClass: 'bg-warning-soft text-warning',
+    description: 'jobs that need assignment',
+    icon: BriefcaseIcon,
+    iconBgClass: 'bg-warning-soft text-warning',
+    borderClass: 'border-warning',
     status: backlogStatus.value,
     value: unassignedTasks.value,
   },
@@ -84,9 +105,10 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
   {
     id: 'rooms',
     label: 'Rooms completed',
-    description: 'Rooms fully packed and cleared',
-    icon: Building2Icon,
-    accentClass: 'bg-success-soft text-success',
+    description: 'rooms fully packed and cleared',
+    icon: CheckCircleIcon,
+    iconBgClass: 'bg-success-soft text-success',
+    borderClass: 'border-success',
     status: 'empty',
     value: 0,
   },
@@ -98,21 +120,25 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     <Card
       v-for="card in cardConfigs"
       :key="card.id"
-      class="!py-0 !gap-0 relative"
+      class="border-l-4 relative"
+      :class="card.borderClass"
       :data-testid="card.id === 'rooms' ? 'kpi-placeholder-rooms-completed' : undefined"
     >
-      <!-- !py-0 !gap-0 overrides Card.vue&#39;s default padding so the left accent column is flush with card edges -->
-      <div class="flex flex-row">
-        <!-- Left accent column: full-height semantic color band -->
-        <div
-          class="flex w-[72px] shrink-0 items-center justify-center self-stretch rounded-l-lg"
-          :class="card.accentClass"
-        >
-          <component :is="card.icon" class="size-8" />
+      <CardHeader class="!pb-0">
+        <div class="flex items-center gap-2">
+          <div
+            class="size-8 rounded-lg flex items-center justify-center shrink-0"
+            :class="card.iconBgClass"
+          >
+            <component :is="card.icon" class="size-4" />
+          </div>
+          <span class="[font-size:var(--text-caption)] [line-height:var(--text-caption--line-height)] text-muted-foreground">
+            {{ card.label }}
+          </span>
         </div>
-        <!-- Right content column: title, KPI value, subtitle stacked -->
-        <div class="flex flex-1 flex-col gap-1 p-panel">
-          <span class="[font-size:var(--text-caption)] [line-height:var(--text-caption--line-height)] text-muted-foreground">{{ card.label }}</span>
+      </CardHeader>
+      <CardContent class="!pt-0">
+        <div class="flex flex-col gap-1">
           <span
             class="text-3xl font-semibold"
             :class="{
@@ -124,13 +150,13 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
             <template v-else-if="card.status === 'error'">Backend unavailable</template>
             <template v-else-if="card.status === 'empty'">—</template>
             <template v-else-if="card.id === 'people' && card.status === 'ready'">
-              {{ card.value }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span>
+              {{ card.value }} / {{ totalPeople }}
             </template>
             <template v-else>{{ card.value }}</template>
           </span>
           <span class="text-sm text-muted-foreground">{{ card.description }}</span>
         </div>
-      </div>
+      </CardContent>
       <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
     </Card>
   </div>

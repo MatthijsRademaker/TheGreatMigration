@@ -59,7 +59,7 @@ The key structural difference: the current implementation uses a **full-height a
 
 ### 6. Subtitle copy: Outcome-focused, scanable text
 
-**What**: 
+**What**:
 - High priority: `high priority tasks need attention`
 - People: `available on <MMM D>` (dynamic, with `available today` fallback)
 - Unassigned: `jobs that need assignment`
