@@ -64,11 +64,11 @@ const props = withDefaults(defineProps<DailyScheduleProps>(), {
   page: 0,
   totalPages: 0,
   dateRangeLabel: '',
-  goToPrevPage: () => {},
-  goToNextPage: () => {},
+  goToPrevPage: undefined,
+  goToNextPage: undefined,
 })
 
-const hasPagination = computed(() => props.page > 0 && props.totalPages > 0)
+const hasPagination = computed(() => props.page > 0 && props.totalPages > 0 && !!props.goToPrevPage && !!props.goToNextPage)
 
 const emit = defineEmits<{
   "add-task": [date?: string]
@@ -97,7 +97,7 @@ const scheduleDays = computed(() => props.days ?? [])
           variant="outline"
           size="sm"
           :disabled="page <= 1"
-          @click="goToPrevPage"
+          @click="goToPrevPage?.()"
         >
           Previous
         </Button>
@@ -105,7 +105,7 @@ const scheduleDays = computed(() => props.days ?? [])
           variant="outline"
           size="sm"
           :disabled="page >= totalPages"
-          @click="goToNextPage"
+          @click="goToNextPage?.()"
         >
           Next
         </Button>

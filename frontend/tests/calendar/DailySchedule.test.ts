@@ -243,7 +243,10 @@ describe("DailySchedule", () => {
 				goToPrevPage: vi.fn(),
 				goToNextPage: vi.fn(),
 			});
-			expect(html).toContain("disabled");
+			const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+			const prevButton = allButtons.find((b) => b.includes("Previous"));
+			expect(prevButton).toBeDefined();
+			expect(prevButton).toContain("disabled");
 		});
 
 		it("disables Next button on last page", async () => {
@@ -254,8 +257,21 @@ describe("DailySchedule", () => {
 				goToPrevPage: vi.fn(),
 				goToNextPage: vi.fn(),
 			});
-			const disabledMatches = html.match(/disabled/g);
-			expect(disabledMatches).toBeTruthy();
+			const allButtons = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+			const nextButton = allButtons.find((b) => b.includes("Next"));
+			expect(nextButton).toBeDefined();
+			expect(nextButton).toContain("disabled");
+		});
+
+		it("does not render pagination bar when page and totalPages are set but callbacks are missing", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 2,
+				totalPages: 5,
+				// no goToPrevPage or goToNextPage provided
+			});
+			expect(html).not.toContain("Previous");
+			expect(html).not.toContain("Next");
 		});
 
 		it("does not render pagination bar when page is 0 (no pagination state)", async () => {
