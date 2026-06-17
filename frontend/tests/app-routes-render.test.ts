@@ -327,7 +327,14 @@ describe("application route rendering", () => {
 				expect(html).toContain("1");
 
 				// Home renders TaskManagementPanel in readOnly mode
-				expect(html).toContain("Task Management");
+				expect(html).toContain("Tasks Backlog");
+				expect(html).toContain("3 tasks");
+				// Column headers from the unified panel
+				expect(html).toContain(">Task<");
+				expect(html).toContain(">Priority<");
+				expect(html).toContain(">People Needed<");
+				expect(html).toContain(">Room / Area<");
+				expect(html).toContain(">Status<");
 				// readOnly mode: no Filter or Add Task buttons
 				expect(html).not.toContain("Filter");
 				expect(html).not.toContain("Add Task");
@@ -366,9 +373,16 @@ describe("application route rendering", () => {
 			}
 
 			if (path === "/tasks") {
-				// TasksView renders its own management controls and backlog-backed task list
+				// TasksView reuses TaskManagementPanel with management controls
 				expect(html).toContain("Add Task");
-				expect(html).toContain("Task backlog");
+				expect(html).toContain("Tasks Backlog");
+				expect(html).toContain("3 tasks");
+				// Column headers from the unified panel
+				expect(html).toContain(">Task<");
+				expect(html).toContain(">Priority<");
+				expect(html).toContain(">People Needed<");
+				expect(html).toContain(">Room / Area<");
+				expect(html).toContain(">Status<");
 				// Backlog-backed task rows from the mock
 				expect(html).toContain("Pack kitchen boxes");
 				expect(html).toContain("Disassemble bed frames");

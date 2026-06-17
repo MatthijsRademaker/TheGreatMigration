@@ -27,5 +27,10 @@ defineProps<{
     <td class="h-12 px-4 py-2">
       <Badge variant="secondary">{{ getTaskDisplayState(task) }}</Badge>
     </td>
+    <td v-if="$slots.actions" class="h-12 px-4 py-2">
+      <div class="flex items-center gap-1">
+        <slot name="actions" />
+      </div>
+    </td>
   </tr>
 </template>

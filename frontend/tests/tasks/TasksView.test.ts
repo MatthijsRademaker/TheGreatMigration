@@ -98,7 +98,7 @@ describe("TasksView SSR regression", () => {
 
 	it("renders Task backlog heading and Add Task button", async () => {
 		const html = await renderComponent(TasksView);
-		expect(html).toContain("Task backlog");
+		expect(html).toContain("Tasks Backlog");
 		expect(html).toContain("Add Task");
 	});
 
@@ -171,7 +171,7 @@ describe("TasksView SSR regression", () => {
 		];
 		const html = await renderComponent(TasksView);
 		// The + Add Task button should render as a plain Button
-		expect(html).toContain("+ Add Task");
+		expect(html).toContain("Add Task");
 	});
 
 	it("includes the AddOperationModal in the template", async () => {
@@ -190,9 +190,9 @@ describe("TasksView SSR regression", () => {
 		// The AddOperationModal is rendered outside the Card in the template.
 		// When modalOpen is false, Reka UI's Dialog does not render portal content.
 		// In SSR, the base section and card render correctly.
-		expect(html).toContain("Task backlog");
+		expect(html).toContain("Tasks Backlog");
 		// Verify the Add Task button renders outside any SheetTrigger wrapper
-		// (the button is a direct child of the CardHeader flex container)
-		expect(html).toContain("+ Add Task");
+		// (the button is inside the TaskManagementPanel toolbar)
+		expect(html).toContain("Add Task");
 	});
 });
