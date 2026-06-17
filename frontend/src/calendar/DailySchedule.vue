@@ -53,10 +53,6 @@ interface DailyScheduleProps {
   totalPages?: number
   /** Date range label shown in the pagination bar. */
   dateRangeLabel?: string
-  /** Navigate to the previous page. */
-  goToPrevPage?: () => void
-  /** Navigate to the next page. */
-  goToNextPage?: () => void
 }
 
 interface DailyScheduleEmits {
@@ -72,9 +68,6 @@ const props = withDefaults(defineProps<DailyScheduleProps>(), {
   page: 0,
   totalPages: 0,
   dateRangeLabel: '',
-  goToPrevPage: undefined,
-  goToNextPage: undefined,
-
 })
 
 const hasPagination = computed(() => props.page > 0 && props.totalPages > 0)
