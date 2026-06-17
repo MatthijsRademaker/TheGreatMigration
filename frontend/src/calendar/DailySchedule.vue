@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Avatar } from '@/shared/ui/avatar'
 import { Badge } from '@/shared/ui/badge'
 import type { BadgeVariants } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Card } from '@/shared/ui/card'
 
 interface AssignedPerson {
   id: string
@@ -78,62 +77,49 @@ const scheduleDays = computed(() => props.days ?? [])
 </script>
 
 <template>
-  <Card class="relative">
-    <!-- Pagination bar -- sits above the schedule content, visually attached to the top of the card -->
-    <div
-      v-if="hasPagination"
-      class="flex items-center justify-between border-b border-border px-4 py-2"
-    >
-      <span class="text-sm text-muted-foreground">
-        {{ dateRangeLabel || '—' }}
-      </span>
-      <div class="flex items-center gap-2">
-        <span class="text-sm text-muted-foreground">
-          Page {{ page }} of {{ totalPages }}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="page <= 1"
-          @click="emit('prev-page')"
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="page >= totalPages"
-          @click="emit('next-page')"
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-
-    <CardHeader>
-      <CardTitle>Daily Schedule</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <!-- Header controls -->
-      <div class="flex items-center justify-between mb-4">
+  <Card class="!gap-0 relative">
+    <!-- Compact header row: title left, controls right -->
+    <div class="flex items-center justify-between border-b border-border px-4 py-3">
+      <h2 class="text-lg font-semibold">Daily Schedule</h2>
+      <div class="flex items-center gap-3">
+        <template v-if="hasPagination">
+          <span class="text-sm text-muted-foreground">{{ dateRangeLabel || '—' }}</span>
+          <span class="text-sm text-muted-foreground">Page {{ page }} of {{ totalPages }}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="page <= 1"
+            @click="emit('prev-page')"
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="page >= totalPages"
+            @click="emit('next-page')"
+          >
+            Next
+          </Button>
+        </template>
         <Button variant="link" size="sm">View by: Day</Button>
         <Button v-if="!readOnly" variant="link" size="sm" @click="emit('add-task')">Add task</Button>
       </div>
+    </div>
 
-      <!-- Day columns -->
+    <!-- Day columns -->
+    <div class="px-4 py-3">
       <div class="overflow-x-auto">
-        <div class="flex gap-4">
+        <div class="flex gap-3">
           <div
             v-for="day in scheduleDays"
             :key="day.date"
-            class="min-w-[280px] shrink-0"
+            class="min-w-[260px] shrink-0"
           >
-            <!-- Day header -->
-            <div class="mb-3">
-              <h3 class="text-sm font-semibold">{{ day.label }}</h3>
-              <p class="text-xs text-muted-foreground">
-                {{ day.availablePeopleCount }} available
-              </p>
+            <!-- Day header: compact horizontal layout -->
+            <div class="flex items-baseline gap-2 mb-3">
+              <span class="text-sm font-semibold">{{ day.label }}</span>
+              <span class="text-xs text-muted-foreground">{{ day.availablePeopleCount }} available</span>
             </div>
 
             <!-- Task cards -->
@@ -146,31 +132,16 @@ const scheduleDays = computed(() => props.days ?? [])
               >
                 <div class="flex items-start justify-between gap-2 mb-2">
                   <span class="text-sm font-medium">{{ task.title }}</span>
-                  <div class="flex items-center gap-1.5">
-                    <Badge v-if="task.taskId" variant="outline" class="text-[10px] px-1.5 py-0">
-                      From backlog
-                    </Badge>
-                    <Badge :variant="priorityVariantMap[task.priority]">
-                      {{ task.priority }}
-                    </Badge>
-                  </div>
+                  <Badge :variant="priorityVariantMap[task.priority]">
+                    {{ task.priority }}
+                  </Badge>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 mb-2">
-                  <span
-                    v-for="person in task.assignedPeople"
-                    :key="person.id"
-                    class="inline-flex items-center gap-1"
-                  >
-                    <Avatar
-                      :name="person.name"
-                      :initials="person.initials"
-                      class="size-5 text-xs"
-                    />
-                    <span class="text-xs text-muted-foreground">
-                      {{ person.name }}
-                    </span>
-                  </span>
-                </div>
+                <p
+                  v-if="task.assignedPeople.length > 0"
+                  class="text-xs text-muted-foreground mb-2"
+                >
+                  {{ task.assignedPeople.map(p => p.initials).join(', ') }}
+                </p>
                 <p class="text-xs text-muted-foreground">
                   {{ task.assignedCount }} / {{ task.peopleNeeded }}
                   <span
@@ -184,7 +155,7 @@ const scheduleDays = computed(() => props.days ?? [])
                 </div>
               </div>
 
-              <!-- Task creation placeholder -->
+              <!-- Task creation placeholder: only when not readOnly -->
               <div
                 v-if="!readOnly"
                 class="rounded-lg border-2 border-dashed border-muted-foreground/25 p-3 text-center"
@@ -195,6 +166,6 @@ const scheduleDays = computed(() => props.days ?? [])
           </div>
         </div>
       </div>
-    </CardContent>
+    </div>
   </Card>
 </template>
