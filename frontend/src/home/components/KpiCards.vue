@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import { computed } from 'vue'
+import type { Component } from 'vue'
 import {
   Building2Icon,
   HammerIcon,
@@ -8,7 +9,7 @@ import {
   UsersRoundIcon,
 } from '@lucide/vue'
 import { getDashboardPeopleAvailabilityQuery, getTasksBacklogQuery } from '@/client/@pinia/colada.gen'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Card } from '@/shared/ui/card'
 
 const availabilityQuery = useQuery(getDashboardPeopleAvailabilityQuery())
 const tasksBacklogQuery = useQuery(getTasksBacklogQuery())
@@ -23,7 +24,7 @@ const totalPeople = computed(() => availabilityQuery.data.value?.summary.totalPe
 const displayAvailableToday = computed(() => Math.min(rawAvailableToday.value, totalPeople.value))
 
 /** Consolidated display status for the People available today card. */
-const availabilityStatus = computed(() => {
+const peopleStatus = computed(() => {
   if (availabilityQuery.isPending.value) return 'loading'
   if (availabilityQuery.error.value != null) return 'error'
   if (totalPeople.value === 0) return 'empty'
@@ -40,92 +41,96 @@ const backlogStatus = computed(() => {
   return 'ready'
 })
 
-/** Shared config for the two cards that consume getTasksBacklogQuery. */
-interface BacklogCardConfig {
+interface KpiCardConfig {
+  id: string
   label: string
-  value: number
   description: string
-  icon: typeof TriangleAlertIcon
-  bgClass: string
+  icon: Component
+  accentClass: string
+  status: 'loading' | 'error' | 'ready' | 'empty'
+  value: number
 }
 
-const backlogCards = computed<BacklogCardConfig[]>(() => [
+/** Unified config driving all four KPI cards from one computed. */
+const cardConfigs = computed<KpiCardConfig[]>(() => [
   {
-    label: 'High priority tasks',
-    value: highPriorityTasks.value,
-    description: 'Tasks marked as high priority',
-    icon: TriangleAlertIcon,
-    bgClass: 'bg-destructive-soft text-destructive',
+    id: 'people',
+    label: 'People available today',
+    description: 'Helpers with confirmed availability',
+    icon: UsersRoundIcon,
+    accentClass: 'bg-info-soft text-info',
+    status: peopleStatus.value,
+    value: displayAvailableToday.value,
   },
   {
+    id: 'high-priority',
+    label: 'High priority tasks',
+    description: 'Tasks marked as high priority',
+    icon: TriangleAlertIcon,
+    accentClass: 'bg-destructive-soft text-destructive',
+    status: backlogStatus.value,
+    value: highPriorityTasks.value,
+  },
+  {
+    id: 'unassigned',
     label: 'Unassigned jobs',
-    value: unassignedTasks.value,
     description: 'Tasks with no one assigned yet',
     icon: HammerIcon,
-    bgClass: 'bg-warning-soft text-warning',
+    accentClass: 'bg-warning-soft text-warning',
+    status: backlogStatus.value,
+    value: unassignedTasks.value,
+  },
+  // Rooms completed — placeholder for future room-progress contract
+  {
+    id: 'rooms',
+    label: 'Rooms completed',
+    description: 'Rooms fully packed and cleared',
+    icon: Building2Icon,
+    accentClass: 'bg-success-soft text-success',
+    status: 'empty',
+    value: 0,
   },
 ])
 </script>
 
 <template>
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    <!-- People available today -->
-    <Card class="relative">
-      <CardHeader class="flex flex-row items-start justify-between gap-3">
-        <div class="flex flex-col gap-1">
-          <CardDescription>People available today</CardDescription>
-          <CardTitle class="text-3xl">
-            <span v-if="availabilityStatus === 'loading'" class="text-muted-foreground">Loading…</span>
-            <span v-else-if="availabilityStatus === 'error'" class="text-destructive">Backend unavailable</span>
-            <span v-else-if="availabilityStatus === 'empty'">—</span>
-            <span v-else>{{ displayAvailableToday }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span></span>
-          </CardTitle>
+    <Card
+      v-for="card in cardConfigs"
+      :key="card.id"
+      class="!py-0 !gap-0 relative"
+      :data-testid="card.id === 'rooms' ? 'kpi-placeholder-rooms-completed' : undefined"
+    >
+      <!-- !py-0 !gap-0 overrides Card.vue&#39;s default padding so the left accent column is flush with card edges -->
+      <div class="flex flex-row">
+        <!-- Left accent column: full-height semantic color band -->
+        <div
+          class="flex w-[72px] shrink-0 items-center justify-center self-stretch rounded-l-lg"
+          :class="card.accentClass"
+        >
+          <component :is="card.icon" class="size-8" />
         </div>
-        <div class="flex size-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-          <UsersRoundIcon />
+        <!-- Right content column: title, KPI value, subtitle stacked -->
+        <div class="flex flex-1 flex-col gap-1 p-panel">
+          <span class="[font-size:var(--text-caption)] [line-height:var(--text-caption--line-height)] text-muted-foreground">{{ card.label }}</span>
+          <span
+            class="text-3xl font-semibold"
+            :class="{
+              'text-muted-foreground': card.status === 'loading',
+              'text-destructive': card.status === 'error',
+            }"
+          >
+            <template v-if="card.status === 'loading'">Loading…</template>
+            <template v-else-if="card.status === 'error'">Backend unavailable</template>
+            <template v-else-if="card.status === 'empty'">—</template>
+            <template v-else-if="card.id === 'people' && card.status === 'ready'">
+              {{ card.value }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span>
+            </template>
+            <template v-else>{{ card.value }}</template>
+          </span>
+          <span class="text-sm text-muted-foreground">{{ card.description }}</span>
         </div>
-      </CardHeader>
-      <CardContent>
-        <p class="text-sm text-muted-foreground">Helpers with confirmed availability</p>
-      </CardContent>
-      <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
-    </Card>
-
-    <!-- Task-backlog cards (shared loading / error / value layout) -->
-    <Card v-for="card in backlogCards" :key="card.label" class="relative">
-      <CardHeader class="flex flex-row items-start justify-between gap-3">
-        <div class="flex flex-col gap-1">
-          <CardDescription>{{ card.label }}</CardDescription>
-          <CardTitle class="text-3xl">
-            <span v-if="backlogStatus === 'loading'" class="text-muted-foreground">Loading…</span>
-            <span v-else-if="backlogStatus === 'error'" class="text-destructive">Backend unavailable</span>
-            <span v-else>{{ card.value }}</span>
-          </CardTitle>
-        </div>
-        <div :class="['flex size-10 items-center justify-center rounded-full', card.bgClass]">
-          <component :is="card.icon" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p class="text-sm text-muted-foreground">{{ card.description }}</p>
-      </CardContent>
-      <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
-    </Card>
-
-    <!-- Rooms completed (placeholder for future room-progress contract) -->
-    <Card data-testid="kpi-placeholder-rooms-completed" class="relative">
-      <CardHeader class="flex flex-row items-start justify-between gap-3">
-        <div class="flex flex-col gap-1">
-          <CardDescription>Rooms completed</CardDescription>
-          <CardTitle class="text-3xl">—</CardTitle>
-        </div>
-        <div class="flex size-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-          <Building2Icon />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p class="text-sm text-muted-foreground">Rooms fully packed and cleared</p>
-      </CardContent>
+      </div>
       <img src="/images/leaf.png" alt="" class="absolute bottom-0 right-0 h-14 w-auto pointer-events-none" />
     </Card>
   </div>
