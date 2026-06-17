@@ -1,7 +1,7 @@
 import { renderToString } from "@vue/server-renderer";
 import { createSSRApp, h } from "vue";
 import type { Component } from "vue";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import DailySchedule from "../../src/calendar/DailySchedule.vue";
 
 interface AssignedPerson {
@@ -196,5 +196,78 @@ describe("DailySchedule", () => {
 		expect(html).toContain(">Delete<");
 		expect(html).toContain("+ Add task");
 		expect(html).toContain("Add task");
+	});
+
+	describe("pagination bar", () => {
+		it("renders pagination bar when pagination props are provided", async () => {
+			const goToPrevPage = vi.fn();
+			const goToNextPage = vi.fn();
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 2,
+				totalPages: 5,
+				goToPrevPage,
+				goToNextPage,
+			});
+			expect(html).toContain("Page 2 of 5");
+			expect(html).toContain("Previous");
+			expect(html).toContain("Next");
+		});
+
+		it("does not render pagination bar when pagination props are absent", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+			});
+			expect(html).not.toContain("Page 1 of");
+			expect(html).not.toContain("Previous");
+			expect(html).not.toContain("Next");
+		});
+
+		it("renders date range label when provided", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 1,
+				totalPages: 3,
+				dateRangeLabel: "1 Aug (Sat) – 4 Aug (Tue)",
+				goToPrevPage: vi.fn(),
+				goToNextPage: vi.fn(),
+			});
+			expect(html).toContain("1 Aug (Sat) – 4 Aug (Tue)");
+		});
+
+		it("disables Previous button on page 1", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 1,
+				totalPages: 3,
+				goToPrevPage: vi.fn(),
+				goToNextPage: vi.fn(),
+			});
+			expect(html).toContain("disabled");
+		});
+
+		it("disables Next button on last page", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 3,
+				totalPages: 3,
+				goToPrevPage: vi.fn(),
+				goToNextPage: vi.fn(),
+			});
+			const disabledMatches = html.match(/disabled/g);
+			expect(disabledMatches).toBeTruthy();
+		});
+
+		it("does not render pagination bar when page is 0 (no pagination state)", async () => {
+			const html = await renderComponent(DailySchedule, {
+				days: sampleDays,
+				page: 0,
+				totalPages: 0,
+				goToPrevPage: vi.fn(),
+				goToNextPage: vi.fn(),
+			});
+			expect(html).not.toContain("Previous");
+			expect(html).not.toContain("Next");
+		});
 	});
 });

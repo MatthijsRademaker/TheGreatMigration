@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import KpiCards from './components/KpiCards.vue'
 import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
@@ -7,6 +6,7 @@ import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
+import { computed } from 'vue'
 
 const { data: availabilityData } = usePeopleAvailability()
 const {
@@ -19,6 +19,14 @@ const {
   goToPrevPage,
   goToNextPage,
 } = useDailySchedule()
+
+const dateRangeLabel = computed(() => {
+  const days = scheduleData.value?.days
+  if (!days || days.length === 0) return '—'
+  const first = days[0]?.label ?? '—'
+  const last = days[days.length - 1]?.label ?? '—'
+  return `${first} – ${last}`
+})
 </script>
 
 <template>
@@ -68,39 +76,15 @@ const {
       </Card>
 
       <template v-else>
-        <!-- Pagination navigation -->
-        <div
-          class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2"
-        >
-          <span class="text-sm text-muted-foreground">
-            {{ scheduleData.days?.[0]?.label ?? '—' }}
-            –
-            {{ scheduleData.days?.[scheduleData.days.length - 1]?.label ?? '—' }}
-          </span>
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-muted-foreground">
-              Page {{ page }} of {{ totalPages }}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="page <= 1"
-              @click="goToPrevPage"
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="page >= totalPages"
-              @click="goToNextPage"
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-
-        <DailySchedule :days="scheduleData.days" read-only />
+        <DailySchedule
+          :days="scheduleData.days"
+          :page="page"
+          :total-pages="totalPages"
+          :date-range-label="dateRangeLabel"
+          :go-to-prev-page="goToPrevPage"
+          :go-to-next-page="goToNextPage"
+          read-only
+        />
       </template>
 
       <Card>

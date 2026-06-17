@@ -38,6 +38,14 @@ const {
   goToNextPage,
   queryKey,
 } = useDailySchedule()
+
+const dateRangeLabel = computed(() => {
+  const days = scheduleData.value?.days
+  if (!days || days.length === 0) return '—'
+  const first = days[0]?.label ?? '—'
+  const last = days[days.length - 1]?.label ?? '—'
+  return `${first} – ${last}`
+})
 const { data: peopleData } = usePeopleAvailability()
 const { data: backlog, isLoading: backlogLoading, isEmpty: backlogEmpty } = useTaskBacklog()
 
@@ -237,40 +245,13 @@ function handleCancel() {
 
     <!-- Success -->
     <template v-else>
-      <!-- Pagination navigation -->
-      <div
-        class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2"
-      >
-        <span class="text-sm text-muted-foreground">
-          {{ scheduleData.days?.[0]?.label ?? '—' }}
-          –
-          {{ scheduleData.days?.[scheduleData.days.length - 1]?.label ?? '—' }}
-        </span>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-muted-foreground">
-            Page {{ page }} of {{ totalPages }}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="page <= 1"
-            @click="goToPrevPage"
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="page >= totalPages"
-            @click="goToNextPage"
-          >
-            Next
-          </Button>
-        </div>
-      </div>
-
       <DailySchedule
         :days="scheduleData.days"
+        :page="page"
+        :total-pages="totalPages"
+        :date-range-label="dateRangeLabel"
+        :go-to-prev-page="goToPrevPage"
+        :go-to-next-page="goToNextPage"
         @add-task="openCreate"
         @edit-task="openEdit"
         @delete-task="handleDelete"
