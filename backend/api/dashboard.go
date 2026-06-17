@@ -14,6 +14,8 @@ import (
 type DashboardInput struct {
 	Start string `query:"start" doc:"Start date in ISO 8601 format (YYYY-MM-DD). Defaults to the planning-window start date."`
 	Days  int    `query:"days" default:"4" minimum:"1" doc:"Number of days inclusive of start date."`
+	Offset int  `query:"offset" default:"0" minimum:"0" doc:"Number of people to skip. Default 0."`
+	Limit  int  `query:"limit" default:"0" minimum:"0" doc:"Maximum number of people to return. 0 means no limit (return all)."`
 }
 
 // DashboardOutput is the combined payload for the dashboard people-availability endpoint.
@@ -23,10 +25,11 @@ type DashboardOutput struct {
 
 // DashboardBody is the top-level response body.
 type DashboardBody struct {
-	Range    Range          `json:"range" doc:"Date range metadata"`
-	Summary  Summary        `json:"summary" doc:"Summary counts"`
-	People   []Person       `json:"people" doc:"People with daily availability"`
-	Statuses []StatusLegend `json:"statuses" doc:"Canonical status legend"`
+	Range      Range          `json:"range" doc:"Date range metadata"`
+	Summary    Summary        `json:"summary" doc:"Summary counts"`
+	People     []Person       `json:"people" doc:"People with daily availability"`
+	Pagination Pagination     `json:"pagination" doc:"Pagination metadata"`
+	Statuses   []StatusLegend `json:"statuses" doc:"Canonical status legend"`
 }
 
 // Range holds date-range metadata.
@@ -40,7 +43,7 @@ type Range struct {
 // Summary holds the summary counts for the dashboard card.
 type Summary struct {
 	AvailableToday int `json:"availableToday" doc:"Number of people with status 'available' on selectedDate"`
-	TotalPeople    int `json:"totalPeople" doc:"Total number of people in the response"`
+	TotalPeople    int `json:"totalPeople" doc:"Total number of people regardless of pagination"`
 }
 
 // Person represents one person with their daily availability over the requested window.
@@ -55,6 +58,13 @@ type Person struct {
 type AvailabilityEntry struct {
 	Date   string `json:"date" doc:"Date in ISO 8601 format (YYYY-MM-DD)"`
 	Status string `json:"status" doc:"One of: available, busy, partial, off"`
+}
+
+// Pagination holds pagination metadata for the response.
+type Pagination struct {
+	TotalPeople int `json:"totalPeople" doc:"Total number of people regardless of pagination"`
+	Page        int `json:"page" doc:"1-indexed current page number"`
+	PerPage     int `json:"perPage" doc:"Number of people per page (equals limit when paginating, total when no limit)"`
 }
 
 // StatusLegend is a canonical status definition from the design system.
@@ -108,9 +118,28 @@ func registerDashboardPeopleAvailability(api huma.API, store Store) {
 
 		days := input.Days
 
-		body, err := store.GetPeopleAvailability(ctx, startDate, days)
+		offset := input.Offset
+		limit := input.Limit
+
+		body, err := store.GetPeopleAvailability(ctx, startDate, days, offset, limit)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to retrieve availability data", err)
+		}
+
+		// Compute pagination metadata.
+		totalPeople := body.Summary.TotalPeople
+		page := 1
+		perPage := totalPeople
+		if limit > 0 {
+			if offset < totalPeople {
+				page = (offset / limit) + 1
+			}
+			perPage = limit
+		}
+		body.Pagination = Pagination{
+			TotalPeople: totalPeople,
+			Page:        page,
+			PerPage:     perPage,
 		}
 
 		return &DashboardOutput{

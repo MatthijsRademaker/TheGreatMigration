@@ -67,10 +67,25 @@ func (s *PgStore) UpdatePlanningWindow(ctx context.Context, startDate, endDate t
 	}, nil
 }
 
-// GetPeopleAvailability returns people and availability data for the given date range.
-func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*api.DashboardBody, error) {
-	// Fetch all people.
-	peopleRows, err := s.queries.GetAllPeople(ctx)
+// GetPeopleAvailability returns people and availability data for the given date range,
+// with optional pagination. When limit <= 0, all people are returned.
+func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*api.DashboardBody, error) {
+	// Get total count regardless of pagination.
+	totalCount, err := s.queries.CountPeople(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch people — paginated or all.
+	var peopleRows []db.Person
+	if limit > 0 {
+		peopleRows, err = s.queries.GetPeoplePaginated(ctx, db.GetPeoplePaginatedParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+	} else {
+		peopleRows, err = s.queries.GetAllPeople(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +143,12 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 	}
 
 	// Compute summary.
+	// AvailableToday is computed globally from availMap (all people, not just paginated subset).
 	selectedDate := startDate.Format("2006-01-02")
 	availableToday := 0
-	for _, p := range people {
-		for _, e := range p.Availability {
-			if e.Date == selectedDate && e.Status == "available" {
-				availableToday++
-				break
-			}
+	for _, dayMap := range availMap {
+		if dayMap[selectedDate] == "available" {
+			availableToday++
 		}
 	}
 
@@ -148,8 +161,9 @@ func (s *PgStore) GetPeopleAvailability(ctx context.Context, startDate time.Time
 		},
 		Summary: api.Summary{
 			AvailableToday: availableToday,
-			TotalPeople:    len(people),
+			TotalPeople:    int(totalCount),
 		},
+		// Pagination is computed by the handler from offset/limit/totalCount.
 		People:   people,
 		Statuses: api.StatusLegendData,
 	}, nil

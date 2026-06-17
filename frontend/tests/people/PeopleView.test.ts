@@ -89,6 +89,12 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 		isLoading: ref(false),
 		isError: ref(false),
 		isEmpty: ref(false),
+		page: ref(1),
+		totalPages: ref(3),
+		daysPerPage: ref(7),
+		totalDays: ref(20),
+		goToPrevPage: vi.fn(),
+		goToNextPage: vi.fn(),
 		refresh: vi.fn(),
 		queryKey: [],
 	}),
@@ -216,6 +222,20 @@ describe("PeopleView loading state wiring", () => {
 		expect(matrix.props("editable")).toBe(true);
 
 		wrapper.unmount();
+	});
+	it("renders pagination navigation controls", async () => {
+		const html = await renderPeopleView();
+
+		// Date range label
+		expect(html).toContain("Sun 5 Jul");
+		expect(html).toContain("Mon 6 Jul");
+
+		// Page indicator
+		expect(html).toContain("Page 1 of 3");
+
+		// Navigation buttons (SSR wraps text with whitespace)
+		expect(html).toContain("Previous");
+		expect(html).toContain("Next");
 	});
 });
 

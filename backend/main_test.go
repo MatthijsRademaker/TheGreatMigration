@@ -187,6 +187,115 @@ func TestDashboardPeopleAvailabilityExplicitStart(t *testing.T) {
 	}
 }
 
+func TestDashboardPeopleAvailabilityPaginationLimit(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability?offset=0&limit=3", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var body backendapi.DashboardBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	// Should return exactly 3 people (limit=3).
+	if len(body.People) != 3 {
+		t.Fatalf("expected 3 people with limit=3, got %d", len(body.People))
+	}
+	// Summary total should reflect total count, not just returned count.
+	if body.Summary.TotalPeople < 8 {
+		t.Fatalf("expected summary.totalPeople >= 8, got %d", body.Summary.TotalPeople)
+	}
+	// Pagination metadata.
+	if body.Pagination.TotalPeople != body.Summary.TotalPeople {
+		t.Fatalf("pagination.totalPeople=%d != summary.totalPeople=%d", body.Pagination.TotalPeople, body.Summary.TotalPeople)
+	}
+	if body.Pagination.Page != 1 {
+		t.Fatalf("expected pagination.page=1, got %d", body.Pagination.Page)
+	}
+	if body.Pagination.PerPage != 3 {
+		t.Fatalf("expected pagination.perPage=3, got %d", body.Pagination.PerPage)
+	}
+	// AvailableToday should reflect global count, not page-local count.
+	expectedAvailable := countAvailableForDay(0)
+	if body.Summary.AvailableToday != expectedAvailable {
+		t.Fatalf("expected summary.availableToday=%d (global), got %d", expectedAvailable, body.Summary.AvailableToday)
+	}
+}
+
+func TestDashboardPeopleAvailabilityPaginationOffsetBeyond(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// offset beyond total count should return empty people array.
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability?offset=100&limit=3", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var body backendapi.DashboardBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if len(body.People) != 0 {
+		t.Fatalf("expected 0 people when offset exceeds total, got %d", len(body.People))
+	}
+	if body.Summary.TotalPeople < 8 {
+		t.Fatalf("expected summary.totalPeople >= 8, got %d", body.Summary.TotalPeople)
+	}
+	if body.Pagination.Page != 1 {
+		t.Fatalf("expected pagination.page=1, got %d", body.Pagination.Page)
+	}
+	// AvailableToday should reflect global count even when no people are returned.
+	expectedAvailable := countAvailableForDay(0)
+	if body.Summary.AvailableToday != expectedAvailable {
+		t.Fatalf("expected summary.availableToday=%d (global), got %d", expectedAvailable, body.Summary.AvailableToday)
+	}
+}
+
+func TestDashboardPeopleAvailabilityNoPaginationParams(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// No pagination params should return all people.
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/people-availability", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var body backendapi.DashboardBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal response: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	// Should return all people.
+	if len(body.People) < 8 {
+		t.Fatalf("expected at least 8 people with no pagination, got %d", len(body.People))
+	}
+	// Pagination metadata with no limit: page=1, perPage=total.
+	if body.Pagination.Page != 1 {
+		t.Fatalf("expected pagination.page=1, got %d", body.Pagination.Page)
+	}
+	if body.Pagination.PerPage != body.Pagination.TotalPeople {
+		t.Fatalf("expected pagination.perPage=%d to equal totalPeople=%d", body.Pagination.PerPage, body.Pagination.TotalPeople)
+	}
+	// AvailableToday should reflect global count.
+	expectedAvailable := countAvailableForDay(0)
+	if body.Summary.AvailableToday != expectedAvailable {
+		t.Fatalf("expected summary.availableToday=%d (global), got %d", expectedAvailable, body.Summary.AvailableToday)
+	}
+}
+
 // nilPlanningWindowStore returns nil for GetPlanningWindow (no window configured).
 type nilPlanningWindowStore struct{}
 
@@ -198,7 +307,7 @@ func (n *nilPlanningWindowStore) UpdatePlanningWindow(ctx context.Context, start
 	return nil, nil
 }
 
-func (n *nilPlanningWindowStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
+func (n *nilPlanningWindowStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*backendapi.DashboardBody, error) {
 	return nil, errTestFailure
 }
 
@@ -857,7 +966,7 @@ func (f *failingStore) UpdatePlanningWindow(ctx context.Context, startDate, endD
 	return nil, errTestFailure
 }
 
-func (f *failingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
+func (f *failingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*backendapi.DashboardBody, error) {
 	return nil, errTestFailure
 }
 
@@ -1007,7 +1116,7 @@ func (f *partialFailingStore) UpdatePlanningWindow(ctx context.Context, startDat
 	}, nil
 }
 
-func (f *partialFailingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
+func (f *partialFailingStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*backendapi.DashboardBody, error) {
 	return nil, errTestFailure
 }
 
@@ -1535,9 +1644,9 @@ func (s *peopleTestStore) DeleteAvailability(ctx context.Context, personID strin
 }
 
 // Override GetPeopleAvailability to use the CRUD-backed data.
-func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int) (*backendapi.DashboardBody, error) {
-	// Build from in-memory people + availability.
-	people := make([]backendapi.Person, 0, len(s.people))
+func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate time.Time, days int, offset int, limit int) (*backendapi.DashboardBody, error) {
+	// Build from in-memory people + availability (all people, then slice for pagination).
+	allPeople := make([]backendapi.Person, 0, len(s.people))
 	endDate := startDate.AddDate(0, 0, days-1)
 	selectedDate := startDate.Format("2006-01-02")
 
@@ -1557,7 +1666,7 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 				Status: status,
 			}
 		}
-		people = append(people, backendapi.Person{
+		allPeople = append(allPeople, backendapi.Person{
 			ID:           id,
 			Name:         tp.Name,
 			Initials:     tp.Initials,
@@ -1565,9 +1674,27 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 		})
 	}
 
-	// Compute availableToday: count people who are "available" on the selected date.
+	total := len(allPeople)
+
+	// Apply pagination slicing.
+	var people []backendapi.Person
+	if limit > 0 {
+		start := offset
+		if start > total {
+			start = total
+		}
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		people = allPeople[start:end]
+	} else {
+		people = allPeople
+	}
+
+	// Compute availableToday globally from allPeople (not paginated subset).
 	availableToday := 0
-	for _, p := range people {
+	for _, p := range allPeople {
 		for _, e := range p.Availability {
 			if e.Date == selectedDate && e.Status == "available" {
 				availableToday++
@@ -1585,7 +1712,7 @@ func (s *peopleTestStore) GetPeopleAvailability(ctx context.Context, startDate t
 		},
 		Summary: backendapi.Summary{
 			AvailableToday: availableToday,
-			TotalPeople:    len(people),
+			TotalPeople:    total,
 		},
 		People:   people,
 		Statuses: backendapi.StatusLegendData,

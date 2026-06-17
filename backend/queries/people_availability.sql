@@ -52,3 +52,12 @@ SELECT EXISTS (
 SELECT EXISTS (
     SELECT 1 FROM schedule_task_assignments WHERE person_id = $1
 ) AS has_refs;
+
+-- name: GetPeoplePaginated :many
+SELECT id, name, initials, created_at
+FROM people
+ORDER BY id
+LIMIT $1 OFFSET $2;
+
+-- name: CountPeople :one
+SELECT COUNT(*) FROM people;
