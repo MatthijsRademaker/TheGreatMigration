@@ -49,6 +49,8 @@ interface KpiCardConfig {
   accentClass: string
   status: 'loading' | 'error' | 'ready' | 'empty'
   value: number
+  /** HTML-safe formatted value string rendered via v-html instead of `value` when present. */
+  formattedValue?: string
 }
 
 /** Unified config driving all four KPI cards from one computed. */
@@ -61,6 +63,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     accentClass: 'bg-info-soft text-info',
     status: peopleStatus.value,
     value: displayAvailableToday.value,
+    formattedValue: `${displayAvailableToday.value}<span class="text-xl text-muted-foreground"> of ${totalPeople.value}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span>`,
   },
   {
     id: 'high-priority',
@@ -98,10 +101,10 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     <Card
       v-for="card in cardConfigs"
       :key="card.id"
-      class="relative !py-0 !gap-0"
+      size="flush"
+      class="relative"
       :data-testid="card.id === 'rooms' ? 'kpi-placeholder-rooms-completed' : undefined"
     >
-      <!-- !py-0 !gap-0 override: flush accent column needs Card padding/gap removed -->
       <div class="flex flex-row">
         <!-- Left accent column: full-height semantic color band -->
         <div
@@ -112,7 +115,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
         </div>
         <!-- Right content column: title, KPI value, subtitle stacked -->
         <div class="flex flex-1 flex-col gap-1 p-panel">
-          <span class="[font-size:var(--text-caption)] text-muted-foreground">{{ card.label }}</span>
+          <span class="[font-size:var(--text-caption)] [line-height:var(--text-caption--line-height)] text-muted-foreground">{{ card.label }}</span>
           <span
             class="text-3xl font-semibold"
             :class="{
@@ -123,9 +126,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
             <template v-if="card.status === 'loading'">Loading…</template>
             <template v-else-if="card.status === 'error'">Backend unavailable</template>
             <template v-else-if="card.status === 'empty'">—</template>
-            <template v-else-if="card.id === 'people'">
-              {{ displayAvailableToday }}<span class="text-xl text-muted-foreground"> of {{ totalPeople }}</span>&nbsp;<span class="text-xl text-muted-foreground">available</span>
-            </template>
+            <span v-else-if="card.formattedValue" v-html="card.formattedValue"></span>
             <template v-else>{{ card.value }}</template>
           </span>
           <span class="text-sm text-muted-foreground">{{ card.description }}</span>
