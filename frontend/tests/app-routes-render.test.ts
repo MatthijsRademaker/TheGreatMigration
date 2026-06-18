@@ -231,7 +231,7 @@ describe("application route rendering", () => {
 		expect(html).toContain("The Great Migration");
 		expect(html).toContain("Jul");
 		expect(html).toContain("2026");
-		expect(html).toContain("40 days");
+		expect(html).toContain("Today");
 		expect(html).not.toContain("Planning mode");
 		expect(html).toContain("Dashboard");
 		expect(html).toContain("Tasks");
@@ -353,12 +353,14 @@ describe("application route rendering", () => {
 				// The "Add task" header button should also be absent
 				expect(html).not.toContain("Add task");
 
-				// Pagination controls
-				expect(html).toContain("Page 1 of 10");
-				expect(html).toContain("Previous");
-				expect(html).toContain("Next");
-				// Previous button should be disabled on page 1
-				expect(html).toMatch(/disabled[^>]*><!--\[--> Previous/);
+				// Global header pagination: in-card pagination is suppressed on home
+				expect(html).not.toContain("Page 1 of 10");
+				expect(html).not.toContain(">Previous<");
+				expect(html).not.toContain(">Next<");
+				// The Today button and chevron icons render in the global header
+				expect(html).toContain("Today");
+				expect(html).toMatch(/lucide-chevron-left/);
+				expect(html).toMatch(/lucide-chevron-right/);
 			}
 
 			if (path === "/people") {
