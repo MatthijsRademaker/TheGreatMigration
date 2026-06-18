@@ -1,11 +1,8 @@
 # people-availability-design-alignment Specification
 
 ## Purpose
-
-This specification defines the text-only design-alignment requirements for the shared `PeopleAvailability` Vue component. It translates visual intent from `designs/home-page.png` and `designs/components.png` into concrete, testable frontend requirements, governed by the `docs/design-system-v2.md` token and semantics contract. The spec follows the established pattern from `task-management-design-alignment` and `daily-schedule-design-alignment`.
-
-## ADDED Requirements
-
+TBD - created by archiving change task-15d3e474-3338-45a3-a7ff-51246d719e92. Update Purpose after archive.
+## Requirements
 ### Requirement: PeopleAvailability card SHALL render a title-only CardHeader
 
 The `CardHeader` in `PeopleAvailability.vue` SHALL contain only a `CardTitle` element. The `CardDescription` element SHALL be removed. The panel SHALL render the title text "People availability" (lowercase 'a'). This heading SHALL render identically in both read-only (home dashboard) and editable (`/people`) variants.

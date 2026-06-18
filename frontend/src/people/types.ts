@@ -30,7 +30,6 @@ export interface CellChangePayload {
 
 export interface PeopleAvailabilityProps {
 	title?: string;
-	description?: string;
 	days?: string[];
 	people?: PersonAvailability[];
 	legend?: StatusLegendItem[];
