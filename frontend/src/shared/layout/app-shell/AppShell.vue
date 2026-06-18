@@ -26,6 +26,7 @@ const homePagination = useHomePagination()
         <!-- Homepage: centralized timeline toolbar -->
         <template v-if="isHomeRoute">
           <div v-if="homePagination.isLoading.value" class="h-3 w-32 animate-pulse rounded bg-muted" />
+          <span v-else-if="homePagination.isError.value" class="text-sm text-muted-foreground">&mdash;</span>
           <AppShellTimelineToolbar
             v-else
             :range-label="homePagination.rangeLabel.value"

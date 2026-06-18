@@ -29,25 +29,17 @@ function formatPageRangeLabel(startISO: string, endISO: string): string {
 	return `${startPart} – ${endDayMonth}, ${endYear}`;
 }
 
+/** Module-scoped shared state so all callers share the same page/daysPerPage refs. */
+const page = ref<number>(1);
+const daysPerPage = ref<number>(4);
+
 export function useHomePagination() {
 	const planningWindow = usePlanningWindow();
-
-	const page = ref<number>(1);
-	const daysPerPage = ref<number>(4);
 
 	const totalPages = computed<number>(() => {
 		const count = planningWindow.planWindowDays.value.length;
 		if (count === 0) return 1;
 		return Math.max(1, Math.ceil(count / daysPerPage.value));
-	});
-
-	/** ISO date string for the first day of the current page window. */
-	const start = computed<string>(() => {
-		const days = planningWindow.planWindowDays.value;
-		if (days.length === 0) return "";
-		const idx = (page.value - 1) * daysPerPage.value;
-		const day = days[idx] ?? days[0];
-		return day.dateString;
 	});
 
 	/** Human-readable date range label for the current page, e.g. "2 Jul – 5 Jul, 2024". */
@@ -106,7 +98,6 @@ export function useHomePagination() {
 		page,
 		daysPerPage,
 		totalPages,
-		start,
 		rangeLabel,
 		isLoading,
 		isError,

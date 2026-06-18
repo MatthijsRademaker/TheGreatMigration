@@ -28,9 +28,9 @@ try {
 
 // ---------------------------------------------------------------------------
 import { mount } from "@vue/test-utils";
-import { defineComponent, nextTick } from "vue";
+import { computed, defineComponent, nextTick, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import AppShell from "../src/shared/layout/app-shell/AppShell.vue";
 
 // Stub the planning window composable with a known value
@@ -42,19 +42,30 @@ vi.mock("@/shared/composables/usePlanningWindow", () => ({
 	}),
 }));
 
-// Stub the home pagination composable
+// Mutable mock state for useHomePagination — tests can flip these refs to
+// exercise loading, error, and normal states.
+const mockHomePage = ref(1);
+const mockHomeDaysPerPage = ref(4);
+const mockHomeTotalPages = ref(10);
+const mockHomeRangeLabel = ref("5 Jul – 8 Jul, 2026");
+const mockHomeIsLoading = ref(false);
+const mockHomeIsError = ref(false);
+
+const mockHomeGoPrev = vi.fn();
+const mockHomeGoNext = vi.fn();
+const mockHomeGoToday = vi.fn();
+
 vi.mock("@/shared/composables/useHomePagination", () => ({
 	useHomePagination: () => ({
-		page: { value: 1 },
-		daysPerPage: { value: 4 },
-		totalPages: { value: 10 },
-		start: { value: "2026-07-05" },
-		rangeLabel: { value: "5 Jul – 8 Jul, 2026" },
-		isLoading: { value: false },
-		isError: { value: false },
-		goPrev: vi.fn(),
-		goNext: vi.fn(),
-		goToday: vi.fn(),
+		page: mockHomePage,
+		daysPerPage: mockHomeDaysPerPage,
+		totalPages: computed(() => mockHomeTotalPages.value),
+		rangeLabel: computed(() => mockHomeRangeLabel.value),
+		isLoading: computed(() => mockHomeIsLoading.value),
+		isError: computed(() => mockHomeIsError.value),
+		goPrev: mockHomeGoPrev,
+		goNext: mockHomeGoNext,
+		goToday: mockHomeGoToday,
 	}),
 }));
 
@@ -92,6 +103,18 @@ async function mountAppShell() {
 // Tests — scrolling and sticky-header layout verification
 // ---------------------------------------------------------------------------
 describe("AppShell scroll and sticky header layout", () => {
+	beforeEach(() => {
+		mockHomePage.value = 1;
+		mockHomeDaysPerPage.value = 4;
+		mockHomeTotalPages.value = 10;
+		mockHomeRangeLabel.value = "5 Jul – 8 Jul, 2026";
+		mockHomeIsLoading.value = false;
+		mockHomeIsError.value = false;
+		mockHomeGoPrev.mockClear();
+		mockHomeGoNext.mockClear();
+		mockHomeGoToday.mockClear();
+	});
+
 	it("renders the SidebarInset with overflow-y-auto class for vertical scrolling", async () => {
 		const { wrapper } = await mountAppShell();
 
@@ -178,6 +201,26 @@ describe("AppShell scroll and sticky header layout", () => {
 		// On non-home routes, the static planning-window range is shown
 		expect(header.text()).toContain("Jul 5–8");
 		// The Today button should not be present on non-home routes
+		expect(header.text()).not.toContain("Today");
+	});
+
+	it("renders loading skeleton on home route when pagination isLoading is true", async () => {
+		mockHomeIsLoading.value = true;
+
+		const { wrapper } = await mountAppShell();
+
+		const header = wrapper.find("header");
+		expect(header.find(".animate-pulse").exists()).toBe(true);
+		expect(header.text()).not.toContain("Today");
+	});
+
+	it("renders dash fallback on home route when pagination isError is true", async () => {
+		mockHomeIsError.value = true;
+
+		const { wrapper } = await mountAppShell();
+
+		const header = wrapper.find("header");
+		expect(header.text()).toContain("—");
 		expect(header.text()).not.toContain("Today");
 	});
 });
