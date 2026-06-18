@@ -1,4 +1,4 @@
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import { useQuery } from "@pinia/colada";
 import {
 	getDashboardPeopleAvailabilityQuery,
@@ -118,11 +118,21 @@ interface UsePeopleAvailabilityOptions {
 	offset?: number;
 	/** Maximum people to return. 0 means no limit. Default 0. */
 	limit?: number;
+	/**
+	 * Reactive ref for page, owned externally. When provided, the composable uses
+	 * this ref directly instead of creating its own internal ref.
+	 */
+	pageRef?: Ref<number>;
+	/**
+	 * Reactive ref for daysPerPage, owned externally. When provided, the composable uses
+	 * this ref directly instead of creating its own internal ref.
+	 */
+	daysPerPageRef?: Ref<number>;
 }
 
 export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
-	const page = ref(options?.page ?? 1);
-	const daysPerPage = ref(options?.daysPerPage ?? 7);
+	const page = options?.pageRef ?? ref(options?.page ?? 1);
+	const daysPerPage = options?.daysPerPageRef ?? ref(options?.daysPerPage ?? 7);
 	const offset = ref(options?.offset ?? 0);
 	const limit = ref(options?.limit ?? 0);
 
@@ -145,7 +155,8 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 
 	// Watch for planning window changes and reset page to 1 when the window actually changes
 	// (not on initial load, not on loading→loaded transition).
-	if (planningWindow) {
+	// Skip when page is externally owned (pageRef provided) — the external owner handles resets.
+	if (planningWindow && !options?.pageRef) {
 		watch(
 			() => planningWindow.planWindowDays.value.map((d) => d.dateString),
 			(_newDates, oldDates) => {

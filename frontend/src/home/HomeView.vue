@@ -6,20 +6,23 @@ import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
+import { useHomePagination } from '@/shared/composables/useHomePagination'
 
+const homePagination = useHomePagination()
 
-const { data: availabilityData } = usePeopleAvailability()
+const { data: availabilityData } = usePeopleAvailability({
+  pageRef: homePagination.page,
+  daysPerPageRef: homePagination.daysPerPage,
+})
 const {
   data: scheduleData,
   isLoading: scheduleLoading,
   isError: scheduleError,
   isEmpty: scheduleEmpty,
-  page,
-  totalPages,
-  goToPrevPage,
-  goToNextPage,
-  dateRangeLabel,
-} = useDailySchedule()
+} = useDailySchedule({
+  pageRef: homePagination.page,
+  daysPerPageRef: homePagination.daysPerPage,
+})
 </script>
 
 <template>
@@ -71,11 +74,7 @@ const {
       <template v-else>
         <DailySchedule
           :days="scheduleData.days"
-          :page="page"
-          :total-pages="totalPages"
-          :date-range-label="dateRangeLabel"
-          @prev-page="goToPrevPage"
-          @next-page="goToNextPage"
+          hide-pagination
           read-only
         />
       </template>

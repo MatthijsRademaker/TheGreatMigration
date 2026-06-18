@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import AppSidebar from '@/shared/layout/app-sidebar/AppSidebar.vue'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/shared/ui/sidebar'
 import { usePlanningWindow } from '@/shared/composables/usePlanningWindow'
+import { useHomePagination } from '@/shared/composables/useHomePagination'
+import AppShellTimelineToolbar from './AppShellTimelineToolbar.vue'
+
+const route = useRoute()
+const isHomeRoute = computed(() => route.path === '/')
 
 const { formattedRange, isLoading, isError } = usePlanningWindow()
+const homePagination = useHomePagination()
 </script>
 
 <template>
@@ -15,9 +22,27 @@ const { formattedRange, isLoading, isError } = usePlanningWindow()
         <SidebarTrigger class="md:hidden" />
         <span class="text-sm font-semibold tracking-tight">The Great Migration</span>
         <img src="/images/birds.png" alt="" class="h-5 w-auto" />
-        <span v-if="formattedRange" class="text-sm text-muted-foreground">{{ formattedRange }}</span>
-        <div v-else-if="isLoading" class="h-3 w-32 animate-pulse rounded bg-muted" />
-        <span v-else-if="isError" class="text-sm text-muted-foreground">&mdash;</span>
+
+        <!-- Homepage: centralized timeline toolbar -->
+        <template v-if="isHomeRoute">
+          <div v-if="homePagination.isLoading.value" class="h-3 w-32 animate-pulse rounded bg-muted" />
+          <AppShellTimelineToolbar
+            v-else
+            :range-label="homePagination.rangeLabel.value"
+            :can-go-prev="homePagination.page.value > 1"
+            :can-go-next="homePagination.page.value < homePagination.totalPages.value"
+            @today="homePagination.goToday"
+            @prev="homePagination.goPrev"
+            @next="homePagination.goNext"
+          />
+        </template>
+
+        <!-- Other routes: static planning window range -->
+        <template v-else>
+          <span v-if="formattedRange" class="text-sm text-muted-foreground">{{ formattedRange }}</span>
+          <div v-else-if="isLoading" class="h-3 w-32 animate-pulse rounded bg-muted" />
+          <span v-else-if="isError" class="text-sm text-muted-foreground">&mdash;</span>
+        </template>
       </header>
 
       <RouterView />

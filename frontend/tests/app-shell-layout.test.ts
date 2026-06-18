@@ -42,6 +42,22 @@ vi.mock("@/shared/composables/usePlanningWindow", () => ({
 	}),
 }));
 
+// Stub the home pagination composable
+vi.mock("@/shared/composables/useHomePagination", () => ({
+	useHomePagination: () => ({
+		page: { value: 1 },
+		daysPerPage: { value: 4 },
+		totalPages: { value: 10 },
+		start: { value: "2026-07-05" },
+		rangeLabel: { value: "5 Jul – 8 Jul, 2026" },
+		isLoading: { value: false },
+		isError: { value: false },
+		goPrev: vi.fn(),
+		goNext: vi.fn(),
+		goToday: vi.fn(),
+	}),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -117,5 +133,51 @@ describe("AppShell scroll and sticky header layout", () => {
 		const header = wrapper.find("header");
 		const trigger = header.find('[data-sidebar="trigger"]');
 		expect(trigger.exists()).toBe(true);
+	});
+
+	it("renders the timeline toolbar on the home route", async () => {
+		const { wrapper } = await mountAppShell();
+
+		const header = wrapper.find("header");
+		expect(header.text()).toContain("Today");
+		expect(header.text()).toContain("5 Jul – 8 Jul, 2026");
+	});
+
+	it("renders the static planning window range on non-home routes", async () => {
+		const router = createRouter({
+			history: createMemoryHistory(),
+			routes: [
+				{
+					path: "/",
+					name: "dashboard",
+					component: defineComponent({
+						template: '<div class="dashboard-page">Dashboard</div>',
+					}),
+				},
+				{
+					path: "/calendar",
+					name: "calendar",
+					component: defineComponent({
+						template: '<div class="calendar-page">Calendar</div>',
+					}),
+				},
+			],
+		});
+		await router.push("/calendar");
+		await router.isReady();
+
+		const wrapper = mount(AppShell, {
+			global: { plugins: [router] },
+		});
+
+		await nextTick();
+		await nextTick();
+		await nextTick();
+
+		const header = wrapper.find("header");
+		// On non-home routes, the static planning-window range is shown
+		expect(header.text()).toContain("Jul 5–8");
+		// The Today button should not be present on non-home routes
+		expect(header.text()).not.toContain("Today");
 	});
 });

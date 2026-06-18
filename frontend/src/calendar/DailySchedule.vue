@@ -52,6 +52,8 @@ interface DailyScheduleProps {
   totalPages?: number
   /** Date range label shown in the pagination bar. */
   dateRangeLabel?: string
+  /** When true, suppress the pagination bar regardless of page/totalPages values. */
+  hidePagination?: boolean
 }
 
 interface DailyScheduleEmits {
@@ -67,9 +69,10 @@ const props = withDefaults(defineProps<DailyScheduleProps>(), {
   page: 0,
   totalPages: 0,
   dateRangeLabel: '',
+  hidePagination: false,
 })
 
-const hasPagination = computed(() => props.page > 0 && props.totalPages > 0)
+const hasPagination = computed(() => !props.hidePagination && props.page > 0 && props.totalPages > 0)
 
 const emit = defineEmits<DailyScheduleEmits>()
 
