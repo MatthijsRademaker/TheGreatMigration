@@ -41,8 +41,6 @@ function adaptToComponentProps(data: DashboardBody | undefined): AdaptedResult {
 			props: {
 				people: [],
 				days: [],
-				availableToday: 0,
-				totalPeople: 0,
 				legend: [],
 			},
 			daysISO: [],
@@ -101,12 +99,9 @@ function adaptToComponentProps(data: DashboardBody | undefined): AdaptedResult {
 	return {
 		props: {
 			title: "People availability",
-			description: "Track who is available and where each person can help.",
 			days,
 			people,
 			legend,
-			availableToday: data.summary?.availableToday ?? 0,
-			totalPeople: data.summary?.totalPeople ?? 0,
 		},
 		daysISO,
 	};
@@ -216,7 +211,10 @@ export function usePeopleAvailability(options?: UsePeopleAvailabilityOptions) {
 	const isError = computed<boolean>(() => query.error.value != null);
 
 	const isEmpty = computed<boolean>(
-		() => !isLoading.value && !isError.value && data.value.totalPeople === 0,
+		() =>
+			!isLoading.value &&
+			!isError.value &&
+			(data.value.people ?? []).length === 0,
 	);
 
 	/** Navigate to the previous page. */

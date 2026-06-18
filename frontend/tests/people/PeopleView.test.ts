@@ -62,7 +62,6 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 	usePeopleAvailability: () => ({
 		data: ref({
 			title: "People availability",
-			description: "Test desc",
 			days: ["Sun 5 Jul", "Mon 6 Jul"],
 			people: mockPeople,
 			legend: [

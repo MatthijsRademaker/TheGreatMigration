@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Avatar } from '@/shared/ui/avatar'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
 import { Separator } from '@/shared/ui/separator'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/shared/ui/dialog'
@@ -11,8 +11,7 @@ import type { AvailabilityStatus, CellChangePayload, PeopleAvailabilityProps } f
 
 withDefaults(defineProps<PeopleAvailabilityProps>(), {
   title: 'People availability',
-  description: 'Track who is available and where each person can help.',
-  days: () => ['Mon', 'Tue', 'Wed', 'Thu'],
+  days: () => [],
   people: () => [
     {
       id: 'alex',
@@ -82,15 +81,9 @@ const confirmDeletePersonId = ref<string | null>(null)
   <Card>
     <CardHeader>
       <CardTitle>{{ title }}</CardTitle>
-      <CardDescription>{{ description }}</CardDescription>
     </CardHeader>
     <CardContent>
       <div class="overflow-x-auto">
-        <!-- Summary row -->
-        <p class="mb-4 text-sm text-muted-foreground">
-          {{ availableToday }} of {{ totalPeople }} available today
-        </p>
-
         <!-- Matrix -->
         <table class="w-full border-collapse">
           <caption class="sr-only">
@@ -98,9 +91,6 @@ const confirmDeletePersonId = ref<string | null>(null)
           </caption>
           <thead>
             <tr>
-              <th scope="col" class="px-2 py-1 text-left text-sm font-medium text-muted-foreground">
-                Person
-              </th>
               <th
                 v-for="day in days"
                 :key="day"
@@ -229,6 +219,7 @@ const confirmDeletePersonId = ref<string | null>(null)
             </tr>
           </tbody>
         </table>
+      </div>
 
         <!-- Legend -->
         <div class="mt-4 flex flex-wrap items-center gap-3">
@@ -240,7 +231,6 @@ const confirmDeletePersonId = ref<string | null>(null)
             {{ item.label }}
           </Badge>
         </div>
-      </div>
     </CardContent>
   </Card>
 </template>

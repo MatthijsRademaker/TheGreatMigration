@@ -266,7 +266,7 @@ describe("application route rendering", () => {
 			path: "/people",
 			title: "People availability",
 			description: "Track who is available and where each person can help.",
-			content: "6 of 8 available today",
+			content: "Actions",
 		},
 		{
 			path: "/rooms",

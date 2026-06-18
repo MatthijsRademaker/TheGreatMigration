@@ -26,7 +26,8 @@ describe("PeopleAvailability", () => {
 
 	it("renders four day labels", async () => {
 		const app = createSSRApp({
-			render: () => h(PeopleAvailability),
+			render: () =>
+				h(PeopleAvailability, { days: ["Mon", "Tue", "Wed", "Thu"] }),
 		});
 		const html = await renderToString(app);
 		expect(html).toContain(">Mon<");
@@ -58,12 +59,12 @@ describe("PeopleAvailability", () => {
 		expect(html).toContain('data-variant="off"');
 	});
 
-	it("renders the summary row with availability count", async () => {
+	it("does not render the summary row", async () => {
 		const app = createSSRApp({
 			render: () => h(PeopleAvailability),
 		});
 		const html = await renderToString(app);
-		expect(html).toContain("1 of 4 available today");
+		expect(html).not.toContain("available today");
 	});
 
 	it("renders person avatars with initials fallback", async () => {
@@ -75,6 +76,14 @@ describe("PeopleAvailability", () => {
 		expect(html).toContain(">M<");
 		expect(html).toContain(">S<");
 		expect(html).toContain(">R<");
+	});
+
+	it("does not render the Person column header", async () => {
+		const app = createSSRApp({
+			render: () => h(PeopleAvailability),
+		});
+		const html = await renderToString(app);
+		expect(html).not.toContain(">Person<");
 	});
 
 	it("renders a Card shell with card-title", async () => {
@@ -119,7 +128,7 @@ describe("PeopleAvailability", () => {
 		expect(html).toContain(">Day 1<");
 		expect(html).toContain(">Day 2<");
 		expect(html).toContain("Test");
-		expect(html).toContain("1 of 1 available today");
+		expect(html).not.toContain("available today");
 	});
 
 	// --- Backend-shaped props tests ---
@@ -127,7 +136,6 @@ describe("PeopleAvailability", () => {
 	it("renders backend-shaped props with ISO-to-label conversion", async () => {
 		const props: PeopleAvailabilityProps = {
 			title: "People availability",
-			description: "Test description",
 			days: ["Sun 5 Jul", "Mon 6 Jul"],
 			people: [
 				{
@@ -163,7 +171,7 @@ describe("PeopleAvailability", () => {
 		const html = await renderToString(app);
 		expect(html).toContain("Sophia Chen");
 		expect(html).toContain("Amara Diallo");
-		expect(html).toContain("1 of 2 available today");
+		expect(html).not.toContain("available today");
 		expect(html).toContain('data-variant="available"');
 		expect(html).toContain('data-variant="busy"');
 		expect(html).toContain('data-variant="off"');
@@ -182,7 +190,7 @@ describe("PeopleAvailability", () => {
 			render: () => h(PeopleAvailability, props),
 		});
 		const html = await renderToString(app);
-		expect(html).toContain("0 of 0 available today");
+		expect(html).not.toContain("available today");
 		expect(html).toContain("People availability");
 	});
 
