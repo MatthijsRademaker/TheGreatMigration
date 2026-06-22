@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -52,6 +53,15 @@ func TestDBBackedEndpoints(t *testing.T) {
 	if err := goose.Up(sqlDB, "migrations"); err != nil {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
+
+	// Apply the demo seed dataset explicitly (mirrors main.go's DB_SEED pass)
+	// under its own version table so the seeded-count assertions below hold.
+	goose.SetBaseFS(seedFS)
+	goose.SetTableName("goose_seed_version")
+	if err := goose.Up(sqlDB, "seed"); err != nil {
+		t.Fatalf("failed to run seed dataset: %v", err)
+	}
+	goose.SetTableName("goose_db_version")
 
 	store := NewPgStore(pool)
 	router, api := newTestAPI(store)
@@ -131,6 +141,17 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 		if getBody.Days != 11 {
 			t.Fatalf("expected days=11, got %d", getBody.Days)
+		}
+
+		// Restore the seeded planning window so later subtests that rely on the
+		// default window (e.g. DailySchedule) see the seeded 2026-07-05 start.
+		restoreJSON := `{"startDate": "2026-07-05", "endDate": "2026-08-13"}`
+		restoreReq := httptest.NewRequest(http.MethodPut, "/api/planning-window", strings.NewReader(restoreJSON))
+		restoreReq.Header.Set("Content-Type", "application/json")
+		restoreRec := httptest.NewRecorder()
+		router.ServeHTTP(restoreRec, restoreReq)
+		if restoreRec.Code != http.StatusOK {
+			t.Fatalf("failed to restore planning window: status %d", restoreRec.Code)
 		}
 	})
 
@@ -687,4 +708,187 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 		t.Logf("OpenAPI snapshot written to %s (%d bytes)", snapshotPath, len(openapiBytes))
 	})
+}
+
+// TestSchemaOnlyStartup verifies that applying the schema migrations WITHOUT the
+// seed dataset leaves all domain tables empty and the server still serves HTTP.
+func TestSchemaOnlyStartup(t *testing.T) {
+	baseDSN := os.Getenv("DATABASE_URL")
+	if baseDSN == "" {
+		t.Fatal("DATABASE_URL must be set (run via scripts/test-integration)")
+	}
+
+	ctx := context.Background()
+	dsn := provisionFreshDB(t, baseDSN)
+	applySchema(t, dsn) // schema only — no seed pass
+
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		t.Fatalf("failed to parse DSN: %v", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		t.Fatalf("failed to create pool: %v", err)
+	}
+	defer pool.Close()
+
+	// Domain tables must be empty when no seed is applied.
+	for _, table := range []string{"people", "backlog_tasks", "rooms_areas", "schedule_task_cards"} {
+		var count int
+		if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
+			t.Fatalf("failed to count %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Fatalf("expected %s to be empty without seed, got %d rows", table, count)
+		}
+	}
+
+	// The server starts and serves HTTP against the schema-only database.
+	store := NewPgStore(pool)
+	router, _ := newTestAPI(store)
+	req := httptest.NewRequest(http.MethodGet, "/api/hello", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected hello 200 on schema-only DB, got %d", rec.Code)
+	}
+}
+
+// TestSeedAdvancesSequences verifies the seed dataset advances the ID sequences
+// past the seeded maximum so newly created entities get non-colliding IDs.
+func TestSeedAdvancesSequences(t *testing.T) {
+	baseDSN := os.Getenv("DATABASE_URL")
+	if baseDSN == "" {
+		t.Fatal("DATABASE_URL must be set (run via scripts/test-integration)")
+	}
+
+	ctx := context.Background()
+	dsn := provisionFreshDB(t, baseDSN)
+	applySchema(t, dsn)
+	applySeed(t, dsn)
+
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		t.Fatalf("failed to parse DSN: %v", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		t.Fatalf("failed to create pool: %v", err)
+	}
+	defer pool.Close()
+	store := NewPgStore(pool)
+
+	personID, err := store.CreatePerson(ctx, "New Person", "NP")
+	if err != nil {
+		t.Fatalf("CreatePerson failed: %v", err)
+	}
+	if personID != "p9" {
+		t.Fatalf("expected new person id 'p9', got %q", personID)
+	}
+
+	room, err := store.CreateRoom(ctx, backendapi.CreateRoomInput{Name: "New Room", Type: "room"})
+	if err != nil {
+		t.Fatalf("CreateRoom failed: %v", err)
+	}
+	if room.ID != "room-9" {
+		t.Fatalf("expected new room id 'room-9', got %q", room.ID)
+	}
+
+	task, err := store.CreateTask(ctx, backendapi.CreateTaskInput{
+		Title:        "New Task",
+		Priority:     "high",
+		PeopleNeeded: 1,
+		Room:         "Kitchen",
+		Status:       "backlog",
+	})
+	if err != nil {
+		t.Fatalf("CreateTask failed: %v", err)
+	}
+	if task.ID != "task-12" {
+		t.Fatalf("expected new task id 'task-12', got %q", task.ID)
+	}
+}
+
+// provisionFreshDB creates a brand-new empty database on the same Postgres
+// server as baseDSN and returns a DSN pointing at it. The database is dropped
+// via t.Cleanup. Tests use this when they need an isolated empty database, since
+// the shared sidecar DB is mutated by TestDBBackedEndpoints.
+func provisionFreshDB(t *testing.T, baseDSN string) string {
+	t.Helper()
+
+	u, err := url.Parse(baseDSN)
+	if err != nil {
+		t.Fatalf("failed to parse DATABASE_URL: %v", err)
+	}
+	dbName := "tgm_test_" + sanitizeDBName(t.Name())
+
+	admin, err := sql.Open("pgx", baseDSN)
+	if err != nil {
+		t.Fatalf("failed to open admin connection: %v", err)
+	}
+	defer admin.Close()
+
+	ctx := context.Background()
+	if _, err := admin.ExecContext(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)"); err != nil {
+		t.Fatalf("failed to drop pre-existing test database %s: %v", dbName, err)
+	}
+	if _, err := admin.ExecContext(ctx, "CREATE DATABASE "+dbName); err != nil {
+		t.Fatalf("failed to create test database %s: %v", dbName, err)
+	}
+	t.Cleanup(func() {
+		cleanup, err := sql.Open("pgx", baseDSN)
+		if err != nil {
+			return
+		}
+		defer cleanup.Close()
+		_, _ = cleanup.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
+	})
+
+	u.Path = "/" + dbName
+	return u.String()
+}
+
+// sanitizeDBName turns a test name into a valid lowercase Postgres identifier.
+func sanitizeDBName(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
+}
+
+// applySchema runs the schema migrations (only) against the given DSN.
+func applySchema(t *testing.T, dsn string) {
+	t.Helper()
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("failed to open database for schema migrations: %v", err)
+	}
+	defer sqlDB.Close()
+	goose.SetBaseFS(migrationsFS)
+	goose.SetTableName("goose_db_version")
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		t.Fatalf("failed to run schema migrations: %v", err)
+	}
+}
+
+// applySeed runs the demo seed dataset against the given DSN under its own
+// version table, then restores the default table name.
+func applySeed(t *testing.T, dsn string) {
+	t.Helper()
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("failed to open database for seed dataset: %v", err)
+	}
+	defer sqlDB.Close()
+	goose.SetBaseFS(seedFS)
+	goose.SetTableName("goose_seed_version")
+	if err := goose.Up(sqlDB, "seed"); err != nil {
+		t.Fatalf("failed to run seed dataset: %v", err)
+	}
+	goose.SetTableName("goose_db_version")
 }

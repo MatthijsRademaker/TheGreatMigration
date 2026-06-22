@@ -25,6 +25,9 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
+//go:embed seed/*.sql
+var seedFS embed.FS
+
 func main() {
 	// Initialize database connection pool.
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -57,6 +60,20 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("Database migrations applied successfully")
+
+		// Conditionally apply the demo seed dataset (gated by DB_SEED).
+		// It is a separate goose dataset tracked in its own version table so
+		// it stays independent of the schema chain and idempotent on restart.
+		if shouldSeed() {
+			goose.SetBaseFS(seedFS)
+			goose.SetTableName("goose_seed_version")
+			if err := goose.Up(sqlDB, "seed"); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to run seed dataset: %v\n", err)
+				os.Exit(1)
+			}
+			goose.SetTableName("goose_db_version")
+			fmt.Println("Demo seed dataset applied successfully")
+		}
 	}
 
 	store := NewPgStore(pool)
@@ -127,4 +144,11 @@ func connectDB(dsn string) (*pgxpool.Pool, error) {
 func shouldAutoMigrate() bool {
 	v := strings.ToLower(os.Getenv("DB_AUTO_MIGRATE"))
 	return v != "false"
+}
+
+// shouldSeed returns true only if DB_SEED is explicitly set to "true".
+// Seed data is opt-in (defaults to false), the inverse of auto-migrate.
+func shouldSeed() bool {
+	v := strings.ToLower(os.Getenv("DB_SEED"))
+	return v == "true"
 }

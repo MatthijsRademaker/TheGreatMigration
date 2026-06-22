@@ -30,19 +30,22 @@ INSERT INTO backlog_task_assignments (task_id, person_id, sort_order) VALUES
 
 -- Schedule task cards (8 rows, matching seedTasksForDay groups 0-3).
 -- SERIAL ids will be 1-8 in insertion order.
-INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, day_group, sort_order) VALUES
-    -- day_group 0
-    ('Kitchen deep clean', 'high', 'Kitchen', 2, 0, 0),
-    ('Window washing', 'medium', 'Living Room', 2, 0, 1),
-    -- day_group 1
-    ('Furniture assembly', 'high', 'Bedroom', 1, 1, 0),
-    ('Packing supplies inventory', 'low', 'Storage', 3, 1, 1),
-    -- day_group 2
-    ('Electronics setup', 'medium', 'Office', 2, 2, 0),
-    ('Declutter garage', 'low', 'Garage', 1, 2, 1),
-    -- day_group 3
-    ('Box labeling', 'medium', 'Storage', 2, 3, 0),
-    ('Curtain removal', 'high', 'Living Room', 2, 3, 1);
+-- This seed runs after all schema migrations, so the post-009 schema applies:
+-- the dropped day_group column is replaced by scheduled_date, mapped from the
+-- planning-window start (2026-07-05): day_group N -> 2026-07-05 + N days.
+INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order) VALUES
+    -- day_group 0 -> 2026-07-05
+    ('Kitchen deep clean', 'high', 'Kitchen', 2, '2026-07-05', 0),
+    ('Window washing', 'medium', 'Living Room', 2, '2026-07-05', 1),
+    -- day_group 1 -> 2026-07-06
+    ('Furniture assembly', 'high', 'Bedroom', 1, '2026-07-06', 0),
+    ('Packing supplies inventory', 'low', 'Storage', 3, '2026-07-06', 1),
+    -- day_group 2 -> 2026-07-07
+    ('Electronics setup', 'medium', 'Office', 2, '2026-07-07', 0),
+    ('Declutter garage', 'low', 'Garage', 1, '2026-07-07', 1),
+    -- day_group 3 -> 2026-07-08
+    ('Box labeling', 'medium', 'Storage', 2, '2026-07-08', 0),
+    ('Curtain removal', 'high', 'Living Room', 2, '2026-07-08', 1);
 
 -- Schedule task assignments (matching seedTasksForDay assigneeIds).
 -- Card ids: 1=Kitchen deep clean, 2=Window washing, 3=Furniture assembly,
