@@ -61,6 +61,14 @@ func main() {
 		}
 		fmt.Println("Database migrations applied successfully")
 
+		// Always bootstrap the singleton planning-window row if missing.
+		// This is essential config, not demo data — the app cannot function
+		// without it. Uses a 30-day default window starting today.
+		if err := bootstrapPlanningWindow(sqlDB); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to bootstrap planning window: %v\n", err)
+			os.Exit(1)
+		}
+
 		// Conditionally apply the demo seed dataset (gated by DB_SEED).
 		// It is a separate goose dataset tracked in its own version table so
 		// it stays independent of the schema chain and idempotent on restart.
@@ -138,6 +146,34 @@ func connectDB(dsn string) (*pgxpool.Pool, error) {
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// bootstrapPlanningWindow inserts a default 30-day planning window (today → today+29)
+// only when the planning_windows table is empty. This ensures the app never starts
+// without a valid planning window, regardless of whether demo seed was applied.
+func bootstrapPlanningWindow(db *sql.DB) error {
+	var count int
+	if err := db.QueryRow("SELECT count(*) FROM planning_windows").Scan(&count); err != nil {
+		return fmt.Errorf("checking planning_windows: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+
+	today := time.Now().Truncate(24 * time.Hour)
+	end := today.AddDate(0, 0, 29)
+	_, err := db.Exec(
+		"INSERT INTO planning_windows (id, start_date, end_date) VALUES (1, $1, $2)",
+		today.Format("2006-01-02"),
+		end.Format("2006-01-02"),
+	)
+	if err != nil {
+		return fmt.Errorf("inserting default planning window: %w", err)
+	}
+
+	fmt.Printf("Bootstrapped default planning window: %s → %s\n",
+		today.Format("2006-01-02"), end.Format("2006-01-02"))
+	return nil
 }
 
 // shouldAutoMigrate returns true if DB_AUTO_MIGRATE is not explicitly set to "false".

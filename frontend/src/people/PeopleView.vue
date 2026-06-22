@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { PlusIcon } from '@lucide/vue'
 import { useMutation, useQueryCache } from '@pinia/colada'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -193,20 +194,7 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
       </CardContent>
     </Card>
 
-    <!-- Empty state -->
-    <Card v-else-if="isEmpty">
-      <CardHeader>
-        <CardTitle>People availability</CardTitle>
-        <CardDescription>No people found</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p class="text-sm text-muted-foreground">
-          There are currently no people with availability data.
-        </p>
-      </CardContent>
-    </Card>
-
-    <!-- Success: create form + editable matrix -->
+    <!-- Loaded state -->
     <template v-else>
       <!-- Create person form -->
       <Card>
@@ -242,58 +230,73 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
               :disabled="isMutationLoading(createMutation)"
               @click="handleCreate"
             >
-              {{ isMutationLoading(createMutation) ? 'Creating…' : 'Create' }}
+              <PlusIcon />
+              {{ isMutationLoading(createMutation) ? 'Creating…' : 'Add' }}
             </Button>
           </div>
           <p v-if="createError" class="mt-2 text-sm text-destructive">{{ createError }}</p>
         </CardContent>
       </Card>
 
-      <!-- Mutation error display -->
-      <p v-if="deleteError" class="text-sm text-destructive">{{ deleteError }}</p>
-      <p v-if="updateError" class="text-sm text-destructive">{{ updateError }}</p>
+      <Card v-if="isEmpty">
+        <CardHeader>
+          <CardTitle>People availability</CardTitle>
+          <CardDescription>No people found</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-sm text-muted-foreground">
+            There are currently no people with availability data.
+          </p>
+        </CardContent>
+      </Card>
 
-      <!-- Day pagination navigation -->
-      <div
-        class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2"
-      >
-        <span class="text-sm text-muted-foreground">
-          {{ availabilityData.days?.[0] ?? '—' }}
-          –
-          {{ availabilityData.days?.[availabilityData.days.length - 1] ?? '—' }}
-        </span>
-        <div class="flex items-center gap-2">
+      <template v-else>
+        <!-- Mutation error display -->
+        <p v-if="deleteError" class="text-sm text-destructive">{{ deleteError }}</p>
+        <p v-if="updateError" class="text-sm text-destructive">{{ updateError }}</p>
+
+        <!-- Day pagination navigation -->
+        <div
+          class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2"
+        >
           <span class="text-sm text-muted-foreground">
-            Page {{ page }} of {{ totalPages }}
+            {{ availabilityData.days?.[0] ?? '—' }}
+            –
+            {{ availabilityData.days?.[availabilityData.days.length - 1] ?? '—' }}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="page <= 1"
-            @click="goToPrevPage"
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="page >= totalPages"
-            @click="goToNextPage"
-          >
-            Next
-          </Button>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-muted-foreground">
+              Page {{ page }} of {{ totalPages }}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="page <= 1"
+              @click="goToPrevPage"
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="page >= totalPages"
+              @click="goToNextPage"
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <!-- People availability matrix (editable) -->
-      <PeopleAvailability
-        v-bind="availabilityData"
-        :editable="true"
-        :deleting-person-id="deletingId"
-        :updating="isMutationLoading(upsertMutation) || isMutationLoading(deleteAvailabilityMutation)"
-        @update-cell="handleCellUpdate"
-        @delete-person="handleDelete"
-      />
+        <!-- People availability matrix (editable) -->
+        <PeopleAvailability
+          v-bind="availabilityData"
+          :editable="true"
+          :deleting-person-id="deletingId"
+          :updating="isMutationLoading(upsertMutation) || isMutationLoading(deleteAvailabilityMutation)"
+          @update-cell="handleCellUpdate"
+          @delete-person="handleDelete"
+        />
+      </template>
     </template>
   </section>
 </template>

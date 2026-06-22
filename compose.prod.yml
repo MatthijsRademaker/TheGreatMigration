@@ -43,6 +43,24 @@ services:
     networks:
       - app-network
 
+  seed:
+    image: alpine:3.20
+    profiles:
+      - ops
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./scripts:/scripts:ro
+    command:
+      [
+        "/bin/sh",
+        "-lc",
+        "apk add --no-cache bash curl jq && BASE_URL=http://backend:8080 bash /scripts/seed_great_migration_from_handdrawn.sh",
+      ]
+
   frontend:
     build:
       context: ./frontend

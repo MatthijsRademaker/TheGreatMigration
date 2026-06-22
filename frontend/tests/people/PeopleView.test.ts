@@ -58,6 +58,35 @@ const mockPeople = [
 	},
 ];
 
+function resetMockPeople() {
+	mockPeople.splice(
+		0,
+		mockPeople.length,
+		{
+			id: "p1",
+			name: "Sophia Chen",
+			availability: [
+				{ date: "Sun 5 Jul", status: "available" as const },
+				{ date: "Mon 6 Jul", status: "busy" as const },
+			],
+		},
+		{
+			id: "p2",
+			name: "Marcus Rivera",
+			availability: [
+				{ date: "Sun 5 Jul", status: "off" as const },
+				{ date: "Mon 6 Jul", status: "available" as const },
+			],
+		},
+	);
+}
+
+resetMockPeople();
+
+beforeEach(() => {
+	resetMockPeople();
+});
+
 vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 	usePeopleAvailability: () => ({
 		data: ref({
@@ -87,7 +116,7 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 		}),
 		isLoading: ref(false),
 		isError: ref(false),
-		isEmpty: ref(false),
+		isEmpty: ref(mockPeople.length === 0),
 		page: ref(1),
 		totalPages: ref(3),
 		daysPerPage: ref(7),
@@ -109,14 +138,14 @@ async function renderPeopleView() {
 }
 
 describe("PeopleView management controls", () => {
-	it("renders the create person form with input fields and submit button", async () => {
+	it("renders the add person form with input fields and add button", async () => {
 		const html = await renderPeopleView();
 
 		expect(html).toContain("Add a person");
 		expect(html).toContain(
 			"Create a new person. The ID is assigned server-side.",
 		);
-		expect(html).toContain(">Create<");
+		expect(html).toMatch(/data-variant="default"[\s\S]*Add[\s\S]*<\/button>/);
 		// Input fields with placeholders
 		expect(html).toContain("Full name");
 		expect(html).toContain("e.g. JS");
@@ -180,6 +209,16 @@ describe("PeopleView management controls", () => {
 		expect(html).not.toContain("Loading availability data");
 		expect(html).not.toContain("Backend unavailable");
 		expect(html).not.toContain("No people found");
+	});
+
+	it("still shows add form when no people exist", async () => {
+		mockPeople.splice(0, mockPeople.length);
+
+		const html = await renderPeopleView();
+
+		expect(html).toContain("Add a person");
+		expect(html).toMatch(/data-variant="default"[\s\S]*Add[\s\S]*<\/button>/);
+		expect(html).toContain("No people found");
 	});
 });
 

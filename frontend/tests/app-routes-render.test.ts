@@ -386,6 +386,9 @@ describe("application route rendering", () => {
 
 			if (path === "/people") {
 				expect(html).toContain("Add a person");
+				expect(html).toMatch(
+					/data-variant="default"[\s\S]*Add[\s\S]*<\/button>/,
+				);
 				expect(html).toContain("Actions");
 				expect(html).toContain('data-variant="available"');
 				expect(html).toContain('data-variant="busy"');
