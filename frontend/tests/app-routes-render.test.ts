@@ -266,7 +266,7 @@ describe("application route rendering", () => {
 			title: "Moving dashboard",
 			description:
 				"Today’s priorities, staffing gaps, and move notes at a glance.",
-			content: "Move notes",
+			content: "Moving dolly",
 		},
 		{
 			path: "/tasks",
@@ -365,7 +365,7 @@ describe("application route rendering", () => {
 
 				expect(html).toContain("People availability");
 				expect(html).toContain("Daily Schedule");
-				expect(html).toContain("Move notes");
+				expect(html).toContain("Moving dolly");
 
 				// Daily Schedule is read-only on home: no edit, delete, or create controls
 				expect(html).not.toContain(">Edit<");

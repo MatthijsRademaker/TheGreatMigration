@@ -4,6 +4,7 @@ import KpiCards from './components/KpiCards.vue'
 import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
 import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
+import ToolsPanel from '@/tools/components/ToolsPanel.vue'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 import { useHomePagination } from '@/shared/composables/useHomePagination'
@@ -79,18 +80,7 @@ const {
         />
       </template>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Move notes</CardTitle>
-          <CardDescription>Keep reminders visible without turning the app into heavy project management.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div class="flex flex-col gap-3 text-sm text-muted-foreground">
-            <p>Check building access times before assigning early morning jobs.</p>
-            <p>Keep tea, chargers, tape, markers, and bin bags in the first-day essentials box.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <ToolsPanel />
     </div>
   </section>
 </template>
