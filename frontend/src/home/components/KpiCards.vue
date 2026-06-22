@@ -7,12 +7,14 @@ import {
   CheckCircleIcon,
   FlagIcon,
   UsersRoundIcon,
+  WrenchIcon,
 } from '@lucide/vue'
-import { getDashboardPeopleAvailabilityQuery, getTasksBacklogQuery } from '@/client/@pinia/colada.gen'
+import { getDashboardPeopleAvailabilityQuery, getTasksBacklogQuery, getToolsQuery } from '@/client/@pinia/colada.gen'
 import { Card, CardHeader, CardContent } from '@/shared/ui/card'
 
 const availabilityQuery = useQuery(getDashboardPeopleAvailabilityQuery())
 const tasksBacklogQuery = useQuery(getTasksBacklogQuery())
+const toolsQuery = useQuery(getToolsQuery())
 
 const rawAvailableToday = computed(() => availabilityQuery.data.value?.summary.availableToday ?? 0)
 const totalPeople = computed(() => availabilityQuery.data.value?.summary.totalPeople ?? 0)
@@ -41,6 +43,16 @@ const backlogStatus = computed(() => {
   return 'ready'
 })
 
+const toolsClaimed = computed(() => toolsQuery.data.value?.summary.claimed ?? 0)
+const toolsTotal = computed(() => toolsQuery.data.value?.summary.total ?? 0)
+
+/** Consolidated display status for the Tools covered KPI card. */
+const toolsStatus = computed(() => {
+  if (toolsQuery.isPending.value) return 'loading'
+  if (toolsQuery.error.value != null) return 'error'
+  return 'ready'
+})
+
 /** Destructure range from the availability response to access selectedDate. */
 const range = computed(() => availabilityQuery.data.value?.range)
 
@@ -65,8 +77,8 @@ interface KpiCardConfig {
 }
 
 /**
- * Unified config driving all four KPI cards. Card order follows the design:
- * High priority tasks → People available today → Unassigned jobs → Rooms completed.
+ * Unified config driving all five KPI cards. Card order follows the design:
+ * High priority tasks → People available today → Unassigned jobs → Rooms completed → Tools covered.
  */
 const cardConfigs = computed<KpiCardConfig[]>(() => [
   {
@@ -112,11 +124,21 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     status: 'empty',
     value: 0,
   },
+  {
+    id: 'tools',
+    label: 'Tools covered',
+    description: 'tools claimed by a helper',
+    icon: WrenchIcon,
+    iconBgClass: 'bg-info-soft text-info',
+    borderClass: 'border-info',
+    status: toolsStatus.value,
+    value: toolsClaimed.value,
+  },
 ])
 </script>
 
 <template>
-  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
     <Card
       v-for="card in cardConfigs"
       :key="card.id"
@@ -151,6 +173,9 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
             <template v-else-if="card.status === 'empty'">—</template>
             <template v-else-if="card.id === 'people' && card.status === 'ready'">
               {{ card.value }} / {{ totalPeople }}
+            </template>
+            <template v-else-if="card.id === 'tools' && card.status === 'ready'">
+              {{ toolsClaimed }} / {{ toolsTotal }}
             </template>
             <template v-else>{{ card.value }}</template>
           </span>

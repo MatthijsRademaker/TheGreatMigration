@@ -147,6 +147,9 @@ type mockStore struct {
 	scheduleDates    map[string]string // card ID -> scheduledDate string
 	scheduleTaskRefs map[string]string // card ID -> referenced task ID
 	nextScheduleID   int
+	tools            map[string]api.Tool
+	toolSort         map[string]int // tool ID -> sort order
+	nextToolID       int
 }
 
 func newMockStore() *mockStore {
@@ -177,7 +180,24 @@ func newMockStore() *mockStore {
 		scheduleDates:    make(map[string]string),
 		scheduleTaskRefs: make(map[string]string),
 		nextScheduleID:   1,
+		// Seed tools mirroring migration 012: two claimed, three open.
+		tools: map[string]api.Tool{
+			"tool-1": {ID: "tool-1", Name: "Ladder", BroughtBy: nil},
+			"tool-2": {ID: "tool-2", Name: "Power drill", BroughtBy: strPtr("p1")},
+			"tool-3": {ID: "tool-3", Name: "Moving dolly", BroughtBy: nil},
+			"tool-4": {ID: "tool-4", Name: "Tarps", BroughtBy: nil},
+			"tool-5": {ID: "tool-5", Name: "Toolbox", BroughtBy: strPtr("p3")},
+		},
+		toolSort: map[string]int{
+			"tool-1": 1, "tool-2": 2, "tool-3": 3, "tool-4": 4, "tool-5": 5,
+		},
+		nextToolID: 6,
 	}
+}
+
+// strPtr returns a pointer to s, for seeding optional bringer references.
+func strPtr(s string) *string {
+	return &s
 }
 
 func (m *mockStore) GetPlanningWindow(ctx context.Context) (*api.PlanningWindowBody, error) {
@@ -356,6 +376,13 @@ func (m *mockStore) UpdatePerson(ctx context.Context, id, name, initials string)
 }
 
 func (m *mockStore) DeletePerson(ctx context.Context, id string) error {
+	// Mirror the tools FK ON DELETE SET NULL: revert any claimed tools to open.
+	for tid, t := range m.tools {
+		if t.BroughtBy != nil && *t.BroughtBy == id {
+			t.BroughtBy = nil
+			m.tools[tid] = t
+		}
+	}
 	return nil
 }
 
@@ -647,4 +674,97 @@ func (m *mockStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, 
 		}
 	}
 	return false, nil
+}
+
+// ---------- Tool CRUD (mockStore) ----------
+
+func (m *mockStore) GetTools(ctx context.Context) (*api.ToolsBody, error) {
+	tools := make([]api.Tool, 0, len(m.tools))
+	for _, t := range m.tools {
+		tools = append(tools, t)
+	}
+	// Order by sort order for deterministic output.
+	sort.Slice(tools, func(i, j int) bool {
+		return m.toolSort[tools[i].ID] < m.toolSort[tools[j].ID]
+	})
+
+	claimed := 0
+	for _, t := range tools {
+		if t.BroughtBy != nil {
+			claimed++
+		}
+	}
+	total := len(tools)
+
+	return &api.ToolsBody{
+		Summary: api.ToolSummary{
+			Total:   total,
+			Claimed: claimed,
+			Open:    total - claimed,
+		},
+		Tools: tools,
+	}, nil
+}
+
+func (m *mockStore) CreateTool(ctx context.Context, input api.CreateToolInput) (*api.Tool, error) {
+	id := fmt.Sprintf("tool-%d", m.nextToolID)
+	m.nextToolID++
+
+	maxSort := 0
+	for _, s := range m.toolSort {
+		if s > maxSort {
+			maxSort = s
+		}
+	}
+
+	tool := api.Tool{ID: id, Name: input.Name, BroughtBy: nil}
+	m.tools[id] = tool
+	m.toolSort[id] = maxSort + 1
+	return &tool, nil
+}
+
+func (m *mockStore) UpdateTool(ctx context.Context, id string, input api.UpdateToolInput) (*api.Tool, error) {
+	t, ok := m.tools[id]
+	if !ok {
+		return nil, api.ErrToolNotFound
+	}
+	t.Name = input.Name
+	m.tools[id] = t
+	m.toolSort[id] = input.SortOrder
+	return &t, nil
+}
+
+func (m *mockStore) DeleteTool(ctx context.Context, id string) error {
+	if _, ok := m.tools[id]; !ok {
+		return api.ErrToolNotFound
+	}
+	delete(m.tools, id)
+	delete(m.toolSort, id)
+	return nil
+}
+
+func (m *mockStore) ToolExists(ctx context.Context, id string) (bool, error) {
+	_, ok := m.tools[id]
+	return ok, nil
+}
+
+func (m *mockStore) SetToolBringer(ctx context.Context, id, personID string) (*api.Tool, error) {
+	t, ok := m.tools[id]
+	if !ok {
+		return nil, api.ErrToolNotFound
+	}
+	pid := personID
+	t.BroughtBy = &pid
+	m.tools[id] = t
+	return &t, nil
+}
+
+func (m *mockStore) ClearToolBringer(ctx context.Context, id string) error {
+	t, ok := m.tools[id]
+	if !ok {
+		return api.ErrToolNotFound
+	}
+	t.BroughtBy = nil
+	m.tools[id] = t
+	return nil
 }

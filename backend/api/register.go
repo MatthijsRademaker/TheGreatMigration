@@ -19,4 +19,5 @@ func RegisterAll(api huma.API, store Store) {
 	registerScheduleCardEndpoints(api, store)
 	registerPeopleEndpoints(api, store)
 	registerRoomsAreas(api, store)
+	registerToolsEndpoints(api, store)
 }

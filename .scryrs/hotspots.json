@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "hotspots",
+  "repositoryPath": "/Users/matthijsrademaker/repos/personal/TheGreatMigration",
+  "storePath": "/Users/matthijsrademaker/repos/personal/TheGreatMigration/.scryrs/scryrs.db",
+  "runMetadata": {
+    "storeSchemaVersion": 1,
+    "analyzedEventCount": 0,
+    "analyzedSubjectCount": 0,
+    "firstEventId": 0,
+    "lastEventId": 0
+  },
+  "generatedAt": "2026-06-22T08:33:37Z",
+  "entries": []
+}

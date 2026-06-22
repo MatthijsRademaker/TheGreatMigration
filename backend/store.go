@@ -932,6 +932,136 @@ func (s *PgStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, er
 	return s.queries.TaskHasScheduleCards(ctx, id)
 }
 
+// ---------- Tool CRUD ----------
+
+// GetTools returns all tools ordered by sort order plus a derived coverage summary.
+func (s *PgStore) GetTools(ctx context.Context) (*api.ToolsBody, error) {
+	rows, err := s.queries.GetTools(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tools := make([]api.Tool, len(rows))
+	claimed := 0
+	for i, r := range rows {
+		tools[i] = dbToolToAPI(r)
+		if tools[i].BroughtBy != nil {
+			claimed++
+		}
+	}
+
+	total := len(tools)
+	return &api.ToolsBody{
+		Summary: api.ToolSummary{
+			Total:   total,
+			Claimed: claimed,
+			Open:    total - claimed,
+		},
+		Tools: tools,
+	}, nil
+}
+
+// CreateTool creates a new tool with a server-assigned ID and append sort order, no bringer.
+func (s *PgStore) CreateTool(ctx context.Context, input api.CreateToolInput) (*api.Tool, error) {
+	maxSort, err := s.queries.GetMaxToolSortOrder(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get max tool sort order: %w", err)
+	}
+	row, err := s.queries.CreateTool(ctx, db.CreateToolParams{
+		Name:      input.Name,
+		SortOrder: maxSort + 1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create tool: %w", err)
+	}
+	tool := dbToolToAPI(row)
+	return &tool, nil
+}
+
+// UpdateTool updates a tool's name and sort order.
+func (s *PgStore) UpdateTool(ctx context.Context, id string, input api.UpdateToolInput) (*api.Tool, error) {
+	row, err := s.queries.UpdateTool(ctx, db.UpdateToolParams{
+		ID:        id,
+		Name:      input.Name,
+		SortOrder: int32(input.SortOrder),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrToolNotFound
+		}
+		return nil, fmt.Errorf("update tool: %w", err)
+	}
+	tool := dbToolToAPI(row)
+	return &tool, nil
+}
+
+// DeleteTool removes a tool by ID.
+func (s *PgStore) DeleteTool(ctx context.Context, id string) error {
+	_, err := s.queries.DeleteTool(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.ErrToolNotFound
+		}
+		return fmt.Errorf("delete tool: %w", err)
+	}
+	return nil
+}
+
+// ToolExists checks whether a tool with the given ID exists.
+func (s *PgStore) ToolExists(ctx context.Context, id string) (bool, error) {
+	_, err := s.queries.GetToolByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// SetToolBringer sets a tool's bringer, replacing any existing one.
+func (s *PgStore) SetToolBringer(ctx context.Context, id, personID string) (*api.Tool, error) {
+	row, err := s.queries.SetToolBringer(ctx, db.SetToolBringerParams{
+		ID:        id,
+		BroughtBy: pgtype.Text{String: personID, Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, api.ErrToolNotFound
+		}
+		return nil, fmt.Errorf("set tool bringer: %w", err)
+	}
+	tool := dbToolToAPI(row)
+	return &tool, nil
+}
+
+// ClearToolBringer clears a tool's bringer, returning it to open. Idempotent
+// with respect to an already-open tool, but returns ErrToolNotFound when the
+// tool does not exist.
+func (s *PgStore) ClearToolBringer(ctx context.Context, id string) error {
+	_, err := s.queries.ClearToolBringer(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.ErrToolNotFound
+		}
+		return fmt.Errorf("clear tool bringer: %w", err)
+	}
+	return nil
+}
+
+// dbToolToAPI converts a db.Tool to the API-facing Tool.
+func dbToolToAPI(t db.Tool) api.Tool {
+	var broughtBy *string
+	if t.BroughtBy.Valid {
+		broughtBy = &t.BroughtBy.String
+	}
+	return api.Tool{
+		ID:        t.ID,
+		Name:      t.Name,
+		BroughtBy: broughtBy,
+	}
+}
+
 // dbRoomToAPI converts a db.RoomsArea to the API-facing Room.
 func dbRoomToAPI(r db.RoomsArea) api.Room {
 	createdAt := ""

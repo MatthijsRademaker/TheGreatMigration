@@ -41,4 +41,13 @@ type Store interface {
 	CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error)
 	UpdateRoom(ctx context.Context, id string, input UpdateRoomInput) (*Room, error)
 	DeleteRoom(ctx context.Context, id string) error
+
+	// Tool CRUD + bringer
+	GetTools(ctx context.Context) (*ToolsBody, error)
+	CreateTool(ctx context.Context, input CreateToolInput) (*Tool, error)
+	UpdateTool(ctx context.Context, id string, input UpdateToolInput) (*Tool, error)
+	DeleteTool(ctx context.Context, id string) error
+	ToolExists(ctx context.Context, id string) (bool, error)
+	SetToolBringer(ctx context.Context, id, personID string) (*Tool, error)
+	ClearToolBringer(ctx context.Context, id string) error
 }

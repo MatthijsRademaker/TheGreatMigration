@@ -172,6 +172,24 @@ async function renderRoute(path: string) {
 					},
 				);
 			}
+			if (url.includes("/api/tools")) {
+				return new Response(
+					JSON.stringify({
+						summary: { total: 5, claimed: 2, open: 3 },
+						tools: [
+							{ id: "tool-1", name: "Ladder", broughtBy: null },
+							{ id: "tool-2", name: "Power drill", broughtBy: "p1" },
+							{ id: "tool-3", name: "Moving dolly", broughtBy: null },
+							{ id: "tool-4", name: "Tarps", broughtBy: null },
+							{ id: "tool-5", name: "Toolbox", broughtBy: "p3" },
+						],
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
 			if (url.includes("/api/dashboard/daily-schedule")) {
 				return new Response(
 					JSON.stringify({
@@ -237,6 +255,7 @@ describe("application route rendering", () => {
 		expect(html).toContain("Tasks");
 		expect(html).toContain("Schedule");
 		expect(html).toContain("People");
+		expect(html).toContain("Tools");
 		expect(html).toContain("Rooms / Areas");
 		expect(html).toContain("Settings");
 	});
@@ -319,6 +338,8 @@ describe("application route rendering", () => {
 				expect(html).toContain("High priority tasks");
 				expect(html).toContain("Unassigned jobs");
 				expect(html).toContain("Rooms completed");
+				expect(html).toContain("Tools covered");
+				expect(html).toContain("2 / 5");
 
 				// Verify rendered KPI values from mock data
 				expect(html).toContain("6");

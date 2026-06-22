@@ -72,3 +72,10 @@ type ScheduleTaskCard struct {
 	CreatedAt     pgtype.Timestamptz
 	ScheduledDate pgtype.Date
 }
+
+type Tool struct {
+	ID        string
+	Name      string
+	BroughtBy pgtype.Text
+	SortOrder int32
+}

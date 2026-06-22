@@ -8,6 +8,7 @@ import {
   HomeIcon,
   SettingsIcon,
   UsersRoundIcon,
+  WrenchIcon,
 } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -53,6 +54,7 @@ const planNavigation: NavigationItem[] = [
   { title: 'Tasks', to: '/tasks', icon: ClipboardListIcon },
   { title: 'Schedule', to: '/calendar', icon: CalendarDaysIcon },
   { title: 'People', to: '/people', icon: UsersRoundIcon },
+  { title: 'Tools', to: '/tools', icon: WrenchIcon },
 ]
 
 const organizationNavigation: NavigationItem[] = [

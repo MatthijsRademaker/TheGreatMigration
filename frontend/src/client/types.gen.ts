@@ -126,6 +126,17 @@ export type CreateTaskRequestBody = {
     title: string;
 };
 
+export type CreateToolRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Human-readable tool name
+     */
+    name: string;
+};
+
 export type DailyScheduleBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -401,6 +412,17 @@ export type ScheduleRange = {
     startDate: string;
 };
 
+export type SetToolBringerInputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * ID of the person bringing the tool
+     */
+    personId: string;
+};
+
 export type StatusLegend = {
     /**
      * Design system color intent
@@ -422,7 +444,7 @@ export type Summary = {
      */
     availableToday: number;
     /**
-     * Total number of people in the response
+     * Total number of people regardless of pagination
      */
     totalPeople: number;
 };
@@ -562,6 +584,55 @@ export type TaskSummary = {
     understaffedTasks: number;
 };
 
+export type Tool = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Bringer's person ID, or null when the tool is open
+     */
+    broughtBy: string | null;
+    /**
+     * Stable tool identifier, prefixed 'tool-'
+     */
+    id: string;
+    /**
+     * Human-readable tool name
+     */
+    name: string;
+};
+
+export type ToolSummary = {
+    /**
+     * Count of tools with a bringer (crossed off)
+     */
+    claimed: number;
+    /**
+     * Count of tools without a bringer
+     */
+    open: number;
+    /**
+     * Total number of tools
+     */
+    total: number;
+};
+
+export type ToolsBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Derived coverage summary
+     */
+    summary: ToolSummary;
+    /**
+     * Tool rows ordered by sort order
+     */
+    tools: Array<Tool> | null;
+};
+
 export type UpdatePersonInputBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -605,6 +676,21 @@ export type UpdateRoomRequestBody = {
      * One of: room, area
      */
     type: 'room' | 'area';
+};
+
+export type UpdateToolRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Updated tool name
+     */
+    name: string;
+    /**
+     * Stable sort order
+     */
+    sortOrder: number;
 };
 
 export type UpsertAvailabilityInputBody = {
@@ -704,6 +790,13 @@ export type CreateTaskRequestBodyWritable = {
      * Human-readable task description
      */
     title: string;
+};
+
+export type CreateToolRequestBodyWritable = {
+    /**
+     * Human-readable tool name
+     */
+    name: string;
 };
 
 export type DailyScheduleBodyWritable = {
@@ -862,6 +955,13 @@ export type ScheduleDayWritable = {
     tasks: Array<TaskCardWritable> | null;
 };
 
+export type SetToolBringerInputBodyWritable = {
+    /**
+     * ID of the person bringing the tool
+     */
+    personId: string;
+};
+
 export type TaskBacklogBodyWritable = {
     /**
      * Canonical priority legend
@@ -951,6 +1051,32 @@ export type TaskRowWritable = {
     title: string;
 };
 
+export type ToolWritable = {
+    /**
+     * Bringer's person ID, or null when the tool is open
+     */
+    broughtBy: string | null;
+    /**
+     * Stable tool identifier, prefixed 'tool-'
+     */
+    id: string;
+    /**
+     * Human-readable tool name
+     */
+    name: string;
+};
+
+export type ToolsBodyWritable = {
+    /**
+     * Derived coverage summary
+     */
+    summary: ToolSummary;
+    /**
+     * Tool rows ordered by sort order
+     */
+    tools: Array<ToolWritable> | null;
+};
+
 export type UpdatePersonInputBodyWritable = {
     /**
      * Initials
@@ -982,6 +1108,17 @@ export type UpdateRoomRequestBodyWritable = {
      * One of: room, area
      */
     type: 'room' | 'area';
+};
+
+export type UpdateToolRequestBodyWritable = {
+    /**
+     * Updated tool name
+     */
+    name: string;
+    /**
+     * Stable sort order
+     */
+    sortOrder: number;
 };
 
 export type UpsertAvailabilityInputBodyWritable = {
@@ -1607,3 +1744,173 @@ export type UpdateTaskResponses = {
 };
 
 export type UpdateTaskResponse = UpdateTaskResponses[keyof UpdateTaskResponses];
+
+export type GetToolsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/tools';
+};
+
+export type GetToolsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetToolsError = GetToolsErrors[keyof GetToolsErrors];
+
+export type GetToolsResponses = {
+    /**
+     * OK
+     */
+    200: ToolsBody;
+};
+
+export type GetToolsResponse = GetToolsResponses[keyof GetToolsResponses];
+
+export type CreateToolData = {
+    body: CreateToolRequestBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/tools';
+};
+
+export type CreateToolErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateToolError = CreateToolErrors[keyof CreateToolErrors];
+
+export type CreateToolResponses = {
+    /**
+     * Created
+     */
+    201: Tool;
+};
+
+export type CreateToolResponse = CreateToolResponses[keyof CreateToolResponses];
+
+export type DeleteToolData = {
+    body?: never;
+    path: {
+        /**
+         * Tool identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/tools/{id}';
+};
+
+export type DeleteToolErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteToolError = DeleteToolErrors[keyof DeleteToolErrors];
+
+export type DeleteToolResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteToolResponse = DeleteToolResponses[keyof DeleteToolResponses];
+
+export type UpdateToolData = {
+    body: UpdateToolRequestBodyWritable;
+    path: {
+        /**
+         * Tool identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/tools/{id}';
+};
+
+export type UpdateToolErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateToolError = UpdateToolErrors[keyof UpdateToolErrors];
+
+export type UpdateToolResponses = {
+    /**
+     * OK
+     */
+    200: Tool;
+};
+
+export type UpdateToolResponse = UpdateToolResponses[keyof UpdateToolResponses];
+
+export type ClearToolBringerData = {
+    body?: never;
+    path: {
+        /**
+         * Tool identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/tools/{id}/bringer';
+};
+
+export type ClearToolBringerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ClearToolBringerError = ClearToolBringerErrors[keyof ClearToolBringerErrors];
+
+export type ClearToolBringerResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ClearToolBringerResponse = ClearToolBringerResponses[keyof ClearToolBringerResponses];
+
+export type SetToolBringerData = {
+    body: SetToolBringerInputBodyWritable;
+    path: {
+        /**
+         * Tool identifier
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/tools/{id}/bringer';
+};
+
+export type SetToolBringerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetToolBringerError = SetToolBringerErrors[keyof SetToolBringerErrors];
+
+export type SetToolBringerResponses = {
+    /**
+     * OK
+     */
+    200: Tool;
+};
+
+export type SetToolBringerResponse = SetToolBringerResponses[keyof SetToolBringerResponses];

@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions, type UseMutationOptions } from '@p
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { createPerson, createRoom, createScheduleCard, createTask, deletePerson, deletePersonAvailability, deleteRoom, deleteScheduleCard, deleteTask, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, listRooms, type Options, putPlanningWindow, updatePerson, updateRoom, updateScheduleCard, updateTask, upsertPersonAvailability } from '../sdk.gen';
-import type { CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateScheduleCardData, CreateScheduleCardError, CreateScheduleCardResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteScheduleCardData, DeleteScheduleCardError, DeleteScheduleCardResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateScheduleCardData, UpdateScheduleCardError, UpdateScheduleCardResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
+import { clearToolBringer, createPerson, createRoom, createScheduleCard, createTask, createTool, deletePerson, deletePersonAvailability, deleteRoom, deleteScheduleCard, deleteTask, deleteTool, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, getTools, listRooms, type Options, putPlanningWindow, setToolBringer, updatePerson, updateRoom, updateScheduleCard, updateTask, updateTool, upsertPersonAvailability } from '../sdk.gen';
+import type { ClearToolBringerData, ClearToolBringerError, ClearToolBringerResponse, CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateScheduleCardData, CreateScheduleCardError, CreateScheduleCardResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateToolData, CreateToolError, CreateToolResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteScheduleCardData, DeleteScheduleCardError, DeleteScheduleCardResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, DeleteToolData, DeleteToolError, DeleteToolResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, GetToolsData, GetToolsError, GetToolsResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, SetToolBringerData, SetToolBringerError, SetToolBringerResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateScheduleCardData, UpdateScheduleCardError, UpdateScheduleCardResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateToolData, UpdateToolError, UpdateToolResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -388,6 +388,105 @@ export const deleteTaskMutation = (options?: Partial<Options<DeleteTaskData>>): 
 export const updateTaskMutation = (options?: Partial<Options<UpdateTaskData>>): UseMutationOptions<UpdateTaskResponse, Options<UpdateTaskData>, UpdateTaskError> => ({
     mutation: async (vars) => {
         const { data } = await updateTask({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+export const getToolsQueryKey = (options?: Options<GetToolsData>) => createQueryKey('getTools', options);
+
+/**
+ * Tool list with coverage summary
+ *
+ * Returns all tools ordered by sort order plus a derived coverage summary (total, claimed, open). A tool is claimed (crossed off) when it has a bringer and open when it has none.
+ */
+export const getToolsQuery = defineQueryOptions<Options<GetToolsData>, GetToolsResponse, GetToolsError>((options?: Options<GetToolsData>) => ({
+    key: getToolsQueryKey(options),
+    query: async (context) => {
+        const { data } = await getTools({
+            ...options,
+            ...context,
+            throwOnError: true
+        });
+        return data;
+    }
+}));
+
+/**
+ * Create a tool
+ *
+ * Creates a new tool with a server-assigned tool-* ID and append sort order, with no bringer. Returns 400 for an empty name.
+ */
+export const createToolMutation = (options?: Partial<Options<CreateToolData>>): UseMutationOptions<CreateToolResponse, Options<CreateToolData>, CreateToolError> => ({
+    mutation: async (vars) => {
+        const { data } = await createTool({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Delete a tool
+ *
+ * Deletes a tool. Returns 404 if the tool ID is unknown.
+ */
+export const deleteToolMutation = (options?: Partial<Options<DeleteToolData>>): UseMutationOptions<DeleteToolResponse, Options<DeleteToolData>, DeleteToolError> => ({
+    mutation: async (vars) => {
+        const { data } = await deleteTool({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Update a tool
+ *
+ * Updates a tool's name and sort order. Returns 400 for an empty name, 404 if the tool ID is unknown.
+ */
+export const updateToolMutation = (options?: Partial<Options<UpdateToolData>>): UseMutationOptions<UpdateToolResponse, Options<UpdateToolData>, UpdateToolError> => ({
+    mutation: async (vars) => {
+        const { data } = await updateTool({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Unclaim a tool
+ *
+ * Clears the tool's bringer, returning it to open. Idempotent: clearing an already-open tool succeeds. Returns 404 for an unknown tool.
+ */
+export const clearToolBringerMutation = (options?: Partial<Options<ClearToolBringerData>>): UseMutationOptions<ClearToolBringerResponse, Options<ClearToolBringerData>, ClearToolBringerError> => ({
+    mutation: async (vars) => {
+        const { data } = await clearToolBringer({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Claim a tool
+ *
+ * Sets the tool's bringer, replacing any existing one. Claiming does not depend on the person's availability. Returns 404 for an unknown tool and 400 for an unknown person.
+ */
+export const setToolBringerMutation = (options?: Partial<Options<SetToolBringerData>>): UseMutationOptions<SetToolBringerResponse, Options<SetToolBringerData>, SetToolBringerError> => ({
+    mutation: async (vars) => {
+        const { data } = await setToolBringer({
             ...options,
             ...vars,
             throwOnError: true

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateScheduleCardData, CreateScheduleCardErrors, CreateScheduleCardResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteScheduleCardData, DeleteScheduleCardErrors, DeleteScheduleCardResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateScheduleCardData, UpdateScheduleCardErrors, UpdateScheduleCardResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
+import type { ClearToolBringerData, ClearToolBringerErrors, ClearToolBringerResponses, CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateScheduleCardData, CreateScheduleCardErrors, CreateScheduleCardResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, CreateToolData, CreateToolErrors, CreateToolResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteScheduleCardData, DeleteScheduleCardErrors, DeleteScheduleCardResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, DeleteToolData, DeleteToolErrors, DeleteToolResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, GetToolsData, GetToolsErrors, GetToolsResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, SetToolBringerData, SetToolBringerErrors, SetToolBringerResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateScheduleCardData, UpdateScheduleCardErrors, UpdateScheduleCardResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpdateToolData, UpdateToolErrors, UpdateToolResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -228,6 +228,69 @@ export const deleteTask = <ThrowOnError extends boolean = false>(options: Option
  */
 export const updateTask = <ThrowOnError extends boolean = false>(options: Options<UpdateTaskData, ThrowOnError>): RequestResult<UpdateTaskResponses, UpdateTaskErrors, ThrowOnError> => (options.client ?? client).put<UpdateTaskResponses, UpdateTaskErrors, ThrowOnError>({
     url: '/api/tasks/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Tool list with coverage summary
+ *
+ * Returns all tools ordered by sort order plus a derived coverage summary (total, claimed, open). A tool is claimed (crossed off) when it has a bringer and open when it has none.
+ */
+export const getTools = <ThrowOnError extends boolean = false>(options?: Options<GetToolsData, ThrowOnError>): RequestResult<GetToolsResponses, GetToolsErrors, ThrowOnError> => (options?.client ?? client).get<GetToolsResponses, GetToolsErrors, ThrowOnError>({ url: '/api/tools', ...options });
+
+/**
+ * Create a tool
+ *
+ * Creates a new tool with a server-assigned tool-* ID and append sort order, with no bringer. Returns 400 for an empty name.
+ */
+export const createTool = <ThrowOnError extends boolean = false>(options: Options<CreateToolData, ThrowOnError>): RequestResult<CreateToolResponses, CreateToolErrors, ThrowOnError> => (options.client ?? client).post<CreateToolResponses, CreateToolErrors, ThrowOnError>({
+    url: '/api/tools',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a tool
+ *
+ * Deletes a tool. Returns 404 if the tool ID is unknown.
+ */
+export const deleteTool = <ThrowOnError extends boolean = false>(options: Options<DeleteToolData, ThrowOnError>): RequestResult<DeleteToolResponses, DeleteToolErrors, ThrowOnError> => (options.client ?? client).delete<DeleteToolResponses, DeleteToolErrors, ThrowOnError>({ url: '/api/tools/{id}', ...options });
+
+/**
+ * Update a tool
+ *
+ * Updates a tool's name and sort order. Returns 400 for an empty name, 404 if the tool ID is unknown.
+ */
+export const updateTool = <ThrowOnError extends boolean = false>(options: Options<UpdateToolData, ThrowOnError>): RequestResult<UpdateToolResponses, UpdateToolErrors, ThrowOnError> => (options.client ?? client).put<UpdateToolResponses, UpdateToolErrors, ThrowOnError>({
+    url: '/api/tools/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Unclaim a tool
+ *
+ * Clears the tool's bringer, returning it to open. Idempotent: clearing an already-open tool succeeds. Returns 404 for an unknown tool.
+ */
+export const clearToolBringer = <ThrowOnError extends boolean = false>(options: Options<ClearToolBringerData, ThrowOnError>): RequestResult<ClearToolBringerResponses, ClearToolBringerErrors, ThrowOnError> => (options.client ?? client).delete<ClearToolBringerResponses, ClearToolBringerErrors, ThrowOnError>({ url: '/api/tools/{id}/bringer', ...options });
+
+/**
+ * Claim a tool
+ *
+ * Sets the tool's bringer, replacing any existing one. Claiming does not depend on the person's availability. Returns 404 for an unknown tool and 400 for an unknown person.
+ */
+export const setToolBringer = <ThrowOnError extends boolean = false>(options: Options<SetToolBringerData, ThrowOnError>): RequestResult<SetToolBringerResponses, SetToolBringerErrors, ThrowOnError> => (options.client ?? client).put<SetToolBringerResponses, SetToolBringerErrors, ThrowOnError>({
+    url: '/api/tools/{id}/bringer',
     ...options,
     headers: {
         'Content-Type': 'application/json',

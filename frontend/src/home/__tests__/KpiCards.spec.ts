@@ -49,10 +49,32 @@ function createBacklogMock(
 	};
 }
 
+function createToolsMock(
+	overrides: Partial<{
+		isPending: boolean;
+		error: Error | null;
+		data: {
+			summary: { total: number; claimed: number; open: number };
+		} | null;
+	}> = {},
+) {
+	const state = {
+		isPending: overrides.isPending ?? false,
+		error: overrides.error ?? null,
+		data: overrides.data ?? null,
+	};
+	return {
+		isPending: ref(state.isPending),
+		error: ref(state.error),
+		data: ref(state.data),
+	};
+}
+
 // ── Module mocks ────────────────────────────────────────────────────────────
 
 let mockAvailability = createAvailabilityMock();
 let mockBacklog = createBacklogMock();
+let mockTools = createToolsMock();
 
 vi.mock("@pinia/colada", () => ({
 	useQuery: vi.fn((options: { key: { _id: string }[] }) => {
@@ -63,6 +85,9 @@ vi.mock("@pinia/colada", () => ({
 		}
 		if (id === "getTasksBacklog") {
 			return mockBacklog;
+		}
+		if (id === "getTools") {
+			return mockTools;
 		}
 		return createAvailabilityMock();
 	}),
@@ -82,6 +107,10 @@ vi.mock("@/client/@pinia/colada.gen", () => ({
 		key: [{ _id: "getTasksBacklog", baseUrl: "http://localhost:3000" }],
 		query: vi.fn(),
 	})),
+	getToolsQuery: vi.fn(() => ({
+		key: [{ _id: "getTools", baseUrl: "http://localhost:3000" }],
+		query: vi.fn(),
+	})),
 }));
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -90,9 +119,10 @@ describe("KpiCards", () => {
 	beforeEach(() => {
 		mockAvailability = createAvailabilityMock();
 		mockBacklog = createBacklogMock();
+		mockTools = createToolsMock();
 	});
 
-	it("renders four cards in correct order: High priority, People, Unassigned, Rooms", () => {
+	it("renders five cards in correct order: High priority, People, Unassigned, Rooms, Tools", () => {
 		mockAvailability = createAvailabilityMock({
 			isPending: false,
 			data: {
@@ -104,17 +134,57 @@ describe("KpiCards", () => {
 			isPending: false,
 			data: { summary: { highPriorityTasks: 3, unassignedTasks: 2 } },
 		});
+		mockTools = createToolsMock({
+			isPending: false,
+			data: { summary: { total: 7, claimed: 4, open: 3 } },
+		});
 
 		const wrapper = mount(KpiCards);
 		const cards = wrapper.findAll("[data-slot='card']");
-		expect(cards).toHaveLength(4);
+		expect(cards).toHaveLength(5);
 
-		// Verify order: High priority → People → Unassigned → Rooms
+		// Verify order: High priority → People → Unassigned → Rooms → Tools
 		const cardTexts = cards.map((c) => c.text());
 		expect(cardTexts[0]).toContain("High priority tasks");
 		expect(cardTexts[1]).toContain("People available today");
 		expect(cardTexts[2]).toContain("Unassigned jobs");
 		expect(cardTexts[3]).toContain("Rooms completed");
+		expect(cardTexts[4]).toContain("Tools covered");
+		wrapper.unmount();
+	});
+
+	it("shows the Tools covered card with a claimed-over-total fraction and border-info + WrenchIcon chip", () => {
+		mockAvailability = createAvailabilityMock({
+			isPending: false,
+			data: {
+				summary: { availableToday: 5, totalPeople: 8 },
+				range: { selectedDate: "2026-07-05" },
+			},
+		});
+		mockBacklog = createBacklogMock({
+			isPending: false,
+			data: { summary: { highPriorityTasks: 3, unassignedTasks: 2 } },
+		});
+		mockTools = createToolsMock({
+			isPending: false,
+			data: { summary: { total: 7, claimed: 4, open: 3 } },
+		});
+
+		const wrapper = mount(KpiCards);
+		const cards = wrapper.findAll("[data-slot='card']");
+		const toolsCard = cards[4];
+
+		expect(toolsCard.text()).toContain("Tools covered");
+		expect(toolsCard.text()).toContain("4 / 7");
+		expect(toolsCard.text()).toContain("tools claimed by a helper");
+		expect(toolsCard.classes()).toContain("border-l-4");
+		expect(toolsCard.classes()).toContain("border-info");
+
+		const iconChip = toolsCard.find(".size-8.rounded-lg");
+		expect(iconChip.exists()).toBe(true);
+		expect(iconChip.classes()).toEqual(
+			expect.arrayContaining(["bg-info-soft", "text-info"]),
+		);
 		wrapper.unmount();
 	});
 

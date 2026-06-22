@@ -395,6 +395,34 @@ func (n *nilPlanningWindowStore) DeleteRoom(ctx context.Context, id string) erro
 	return errTestFailure
 }
 
+func (n *nilPlanningWindowStore) GetTools(ctx context.Context) (*backendapi.ToolsBody, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) CreateTool(ctx context.Context, input backendapi.CreateToolInput) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) UpdateTool(ctx context.Context, id string, input backendapi.UpdateToolInput) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) DeleteTool(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (n *nilPlanningWindowStore) ToolExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) SetToolBringer(ctx context.Context, id, personID string) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (n *nilPlanningWindowStore) ClearToolBringer(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
 func TestDashboardPeopleAvailabilityNoPlanningWindow(t *testing.T) {
 	router, _ := newTestAPI(&nilPlanningWindowStore{})
 
@@ -1054,6 +1082,34 @@ func (f *failingStore) TaskHasScheduleCards(ctx context.Context, id string) (boo
 	return false, errTestFailure
 }
 
+func (f *failingStore) GetTools(ctx context.Context) (*backendapi.ToolsBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) CreateTool(ctx context.Context, input backendapi.CreateToolInput) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) UpdateTool(ctx context.Context, id string, input backendapi.UpdateToolInput) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) DeleteTool(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *failingStore) ToolExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *failingStore) SetToolBringer(ctx context.Context, id, personID string) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (f *failingStore) ClearToolBringer(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
 // errTestFailure is a sentinel error used by failingStore.
 var errTestFailure = errors.New("test-induced store failure")
 
@@ -1202,6 +1258,34 @@ func (f *partialFailingStore) TaskExists(ctx context.Context, id string) (bool, 
 
 func (f *partialFailingStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
 	return false, errTestFailure
+}
+
+func (f *partialFailingStore) GetTools(ctx context.Context) (*backendapi.ToolsBody, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) CreateTool(ctx context.Context, input backendapi.CreateToolInput) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) UpdateTool(ctx context.Context, id string, input backendapi.UpdateToolInput) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) DeleteTool(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) ToolExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
+func (f *partialFailingStore) SetToolBringer(ctx context.Context, id, personID string) (*backendapi.Tool, error) {
+	return nil, errTestFailure
+}
+
+func (f *partialFailingStore) ClearToolBringer(ctx context.Context, id string) error {
+	return errTestFailure
 }
 
 // ---------- Task CRUD tests ----------
@@ -2869,5 +2953,272 @@ func TestDeleteScheduleCardStoreFailure(t *testing.T) {
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// ---------- Tool list tests ----------
+
+func TestGetToolsSummary(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/tools", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	var body backendapi.ToolsBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	// Seed: 5 tools, 2 claimed (tool-2, tool-5), 3 open.
+	if body.Summary.Total != 5 || body.Summary.Claimed != 2 || body.Summary.Open != 3 {
+		t.Fatalf("unexpected summary: %+v", body.Summary)
+	}
+	if len(body.Tools) != 5 {
+		t.Fatalf("expected 5 tools, got %d", len(body.Tools))
+	}
+	// Ordered by sort order: tool-1 first.
+	if body.Tools[0].ID != "tool-1" {
+		t.Fatalf("expected first tool tool-1, got %q", body.Tools[0].ID)
+	}
+	// tool-1 is open (null bringer); tool-2 is claimed by p1.
+	if body.Tools[0].BroughtBy != nil {
+		t.Fatalf("expected tool-1 open, got bringer %v", *body.Tools[0].BroughtBy)
+	}
+	if body.Tools[1].BroughtBy == nil || *body.Tools[1].BroughtBy != "p1" {
+		t.Fatalf("expected tool-2 brought by p1, got %v", body.Tools[1].BroughtBy)
+	}
+}
+
+func TestCreateTool(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/tools", strings.NewReader(`{"name":"Crowbar"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+	var tool backendapi.Tool
+	if err := json.Unmarshal(rec.Body.Bytes(), &tool); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if tool.Name != "Crowbar" {
+		t.Fatalf("expected name 'Crowbar', got %q", tool.Name)
+	}
+	if tool.ID == "" || tool.ID[:5] != "tool-" {
+		t.Fatalf("expected tool- prefixed ID, got %q", tool.ID)
+	}
+	if tool.BroughtBy != nil {
+		t.Fatalf("expected new tool to be open, got bringer %v", *tool.BroughtBy)
+	}
+}
+
+func TestCreateToolEmptyName(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/tools", strings.NewReader(`{"name":""}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateToolNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodPut, "/api/tools/tool-999", strings.NewReader(`{"name":"Ghost","sortOrder":1}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteTool(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/tools/tool-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	// A subsequent read no longer lists it.
+	req = httptest.NewRequest(http.MethodGet, "/api/tools", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	var body backendapi.ToolsBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	for _, tool := range body.Tools {
+		if tool.ID == "tool-1" {
+			t.Fatalf("expected tool-1 to be removed, still present")
+		}
+	}
+}
+
+func TestDeleteToolNotFound(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/tools/tool-999", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestClaimOpenTool(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodPut, "/api/tools/tool-1/bringer", strings.NewReader(`{"personId":"p2"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+	var tool backendapi.Tool
+	if err := json.Unmarshal(rec.Body.Bytes(), &tool); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if tool.BroughtBy == nil || *tool.BroughtBy != "p2" {
+		t.Fatalf("expected tool-1 brought by p2, got %v", tool.BroughtBy)
+	}
+}
+
+func TestClaimToolIgnoresAvailability(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// p8 cycles through statuses including 'off' — claiming must still succeed.
+	req := httptest.NewRequest(http.MethodPut, "/api/tools/tool-1/bringer", strings.NewReader(`{"personId":"p8"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestClaimToolUnknownPerson(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodPut, "/api/tools/tool-1/bringer", strings.NewReader(`{"personId":"p-ghost"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestClaimUnknownTool(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodPut, "/api/tools/tool-999/bringer", strings.NewReader(`{"personId":"p1"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestReclaimReplacesBringer(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// tool-2 is already claimed by p1; re-claim with p2 replaces it.
+	req := httptest.NewRequest(http.MethodPut, "/api/tools/tool-2/bringer", strings.NewReader(`{"personId":"p2"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+	var tool backendapi.Tool
+	if err := json.Unmarshal(rec.Body.Bytes(), &tool); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	if tool.BroughtBy == nil || *tool.BroughtBy != "p2" {
+		t.Fatalf("expected tool-2 bringer replaced with p2, got %v", tool.BroughtBy)
+	}
+}
+
+func TestUnclaimTool(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/tools/tool-2/bringer", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/tools", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	var body backendapi.ToolsBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	for _, tool := range body.Tools {
+		if tool.ID == "tool-2" && tool.BroughtBy != nil {
+			t.Fatalf("expected tool-2 open after unclaim, got bringer %v", *tool.BroughtBy)
+		}
+	}
+}
+
+func TestUnclaimIsIdempotent(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// tool-1 has no bringer; clearing it should still succeed.
+	req := httptest.NewRequest(http.MethodDelete, "/api/tools/tool-1/bringer", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeletePersonRevertsClaimedTools(t *testing.T) {
+	router, _ := newTestAPI(newMockStore())
+
+	// p1 is the bringer of tool-2. Deleting p1 must revert tool-2 to open.
+	req := httptest.NewRequest(http.MethodDelete, "/api/people/p1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d\nbody: %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/tools", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	var body backendapi.ToolsBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+	for _, tool := range body.Tools {
+		if tool.ID == "tool-2" && tool.BroughtBy != nil {
+			t.Fatalf("expected tool-2 reverted to open after deleting p1, got bringer %v", *tool.BroughtBy)
+		}
 	}
 }

@@ -38,6 +38,16 @@ export const routes = [
 		},
 	},
 	{
+		path: "/tools",
+		name: "tools",
+		component: () => import("@/tools/ToolsView.vue"),
+		meta: {
+			title: "Tools",
+			description:
+				"Track required tools and who is bringing each item on move day.",
+		},
+	},
+	{
 		path: "/rooms",
 		name: "rooms",
 		component: () => import("@/rooms/RoomsView.vue"),
