@@ -15,7 +15,7 @@ function days() {
 					id: "card-1",
 					title: "Pack kitchen",
 					priority: "high" as const,
-					roomArea: "Kitchen",
+					area: { id: "room-1", name: "Kitchen" },
 					assignedPeople: [{ id: "p2", name: "Jordan Lee", initials: "JL" }],
 					peopleNeeded: 2,
 					assignedCount: 0,

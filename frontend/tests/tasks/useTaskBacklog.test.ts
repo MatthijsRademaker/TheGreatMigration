@@ -22,7 +22,7 @@ vi.mock("@/tasks/composables/useTaskBacklog", () => ({
 				title: `Task ${i + 1}`,
 				priority: i < mockPriorityCount.value ? "high" : "low",
 				peopleNeeded: 2,
-				room: "Kitchen",
+				area: { id: "room-1", name: "Kitchen" },
 				status: "backlog",
 				assignedTo: [],
 			})),

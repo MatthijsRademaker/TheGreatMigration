@@ -9,6 +9,19 @@ import (
 	"context"
 )
 
+const areaExists = `-- name: AreaExists :one
+SELECT EXISTS (
+  SELECT 1 FROM rooms_areas WHERE id = $1
+)
+`
+
+func (q *Queries) AreaExists(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, areaExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createRoom = `-- name: CreateRoom :one
 INSERT INTO rooms_areas (id, name, type)
 VALUES ('room-' || nextval('rooms_areas_id_seq'), $1, $2)

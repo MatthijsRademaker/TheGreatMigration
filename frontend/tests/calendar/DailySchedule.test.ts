@@ -14,7 +14,7 @@ interface TaskCard {
 	id: string;
 	title: string;
 	priority: "high" | "medium" | "low";
-	roomArea: string;
+	area: { id: string; name: string };
 	assignedPeople: AssignedPerson[];
 	peopleNeeded: number;
 	assignedCount: number;
@@ -39,7 +39,7 @@ const sampleDays: ScheduleDay[] = [
 				id: "c1",
 				title: "Custom task",
 				priority: "low",
-				roomArea: "Test Room",
+				area: { id: "room-1", name: "Test Room" },
 				assignedPeople: [{ id: "x1", name: "Taylor", initials: "T" }],
 				peopleNeeded: 1,
 				assignedCount: 1,
@@ -50,7 +50,7 @@ const sampleDays: ScheduleDay[] = [
 				id: "c2",
 				title: "Urgent fix",
 				priority: "high",
-				roomArea: "Main Hall",
+				area: { id: "room-1", name: "Main Hall" },
 				assignedPeople: [
 					{ id: "x2", name: "Alex", initials: "A" },
 					{ id: "x3", name: "Morgan", initials: "M" },
@@ -71,7 +71,7 @@ const sampleDays: ScheduleDay[] = [
 				id: "c3",
 				title: "Medium work",
 				priority: "medium",
-				roomArea: "Office",
+				area: { id: "room-1", name: "Office" },
 				assignedPeople: [{ id: "x4", name: "Sam", initials: "S" }],
 				peopleNeeded: 1,
 				assignedCount: 1,
@@ -351,7 +351,7 @@ describe("DailySchedule", () => {
 							id: "c1",
 							title: "Unassigned task",
 							priority: "medium" as const,
-							roomArea: "Room",
+							area: { id: "room-1", name: "Room" },
 							assignedPeople: [],
 							peopleNeeded: 2,
 							assignedCount: 0,
@@ -382,7 +382,7 @@ describe("DailySchedule", () => {
 							id: "c1",
 							title: "Linked task",
 							priority: "high" as const,
-							roomArea: "Room",
+							area: { id: "room-1", name: "Room" },
 							assignedPeople: [{ id: "x1", name: "Taylor", initials: "T" }],
 							peopleNeeded: 1,
 							assignedCount: 1,

@@ -42,7 +42,7 @@ function buildUpdateBody(
 	return {
 		title: card.title,
 		priority: card.priority,
-		roomArea: card.roomArea,
+		areaId: card.area.id,
 		peopleNeeded: card.peopleNeeded,
 		scheduledDate,
 		assignedTo,

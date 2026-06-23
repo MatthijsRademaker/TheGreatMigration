@@ -29,7 +29,7 @@ const mutationError = ref<string | null>(null)
 const formTitle = ref('')
 const formPriority = ref<'high' | 'medium' | 'low'>('medium')
 const formPeopleNeeded = ref(2)
-const formRoom = ref('')
+const formAreaId = ref('')
 const formStatus = ref<'backlog' | 'ready' | 'assigned'>('backlog')
 const formAssignedTo = ref<string[]>([])
 
@@ -58,7 +58,7 @@ function startNewTask() {
   formTitle.value = ''
   formPriority.value = 'medium'
   formPeopleNeeded.value = 2
-  formRoom.value = ''
+  formAreaId.value = ''
   formStatus.value = 'backlog'
   formAssignedTo.value = []
   modalOpen.value = true
@@ -69,7 +69,7 @@ function startEdit(task: TaskRow) {
   formTitle.value = task.title
   formPriority.value = task.priority as 'high' | 'medium' | 'low'
   formPeopleNeeded.value = task.peopleNeeded
-  formRoom.value = task.room
+  formAreaId.value = task.area.id
   formStatus.value = task.status as 'backlog' | 'ready' | 'assigned'
   formAssignedTo.value = task.assignedTo ? [...task.assignedTo] : []
   modalOpen.value = true
@@ -80,14 +80,14 @@ function cancelEdit() {
   formTitle.value = ''
   formPriority.value = 'medium'
   formPeopleNeeded.value = 2
-  formRoom.value = ''
+  formAreaId.value = ''
   formStatus.value = 'backlog'
   formAssignedTo.value = []
   modalOpen.value = false
 }
 
 async function handleSubmit() {
-  if (!formTitle.value.trim() || !formRoom.value.trim()) return
+  if (!formTitle.value.trim() || !formAreaId.value) return
   mutationError.value = null
 
   try {
@@ -98,7 +98,7 @@ async function handleSubmit() {
           title: formTitle.value.trim(),
           priority: formPriority.value,
           peopleNeeded: formPeopleNeeded.value,
-          room: formRoom.value.trim(),
+          areaId: formAreaId.value,
           status: formStatus.value,
           assignedTo: [...formAssignedTo.value],
         },
@@ -110,7 +110,7 @@ async function handleSubmit() {
           title: formTitle.value.trim(),
           priority: formPriority.value,
           peopleNeeded: formPeopleNeeded.value,
-          room: formRoom.value.trim(),
+          areaId: formAreaId.value,
           status: formStatus.value,
           assignedTo: [...formAssignedTo.value],
         },
@@ -194,7 +194,7 @@ watch(() => data.value.tasks, (tasks) => {
           </div>
           <Select
             v-else
-            v-model="formRoom"
+            v-model="formAreaId"
           >
             <SelectTrigger>
               <SelectValue placeholder="Select a room…" />
@@ -203,7 +203,7 @@ watch(() => data.value.tasks, (tasks) => {
               <SelectItem
                 v-for="room in roomsQuery.data.value?.rooms ?? []"
                 :key="room.id"
-                :value="room.name"
+                :value="room.id"
               >
                 {{ room.name }}
               </SelectItem>

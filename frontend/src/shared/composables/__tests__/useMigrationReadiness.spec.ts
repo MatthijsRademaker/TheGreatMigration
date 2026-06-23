@@ -23,7 +23,7 @@ function dayWith(assigned: number, needed: number): ScheduleDay {
 				id: "c1",
 				title: "Pack",
 				priority: "high",
-				roomArea: "Kitchen",
+				area: { id: "room-1", name: "Kitchen" },
 				assignedPeople: [],
 				peopleNeeded: needed,
 				assignedCount: assigned,

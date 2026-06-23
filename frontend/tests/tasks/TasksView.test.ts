@@ -10,7 +10,7 @@ let mockTasks: Array<{
 	title: string;
 	priority: string;
 	peopleNeeded: number;
-	room: string;
+	area: { id: string; name: string };
 	status: string;
 	assignedTo: string[];
 }> = [];
@@ -109,7 +109,7 @@ describe("TasksView SSR regression", () => {
 				title: "Pack boxes",
 				priority: "high",
 				peopleNeeded: 2,
-				room: "Kitchen",
+				area: { id: "room-1", name: "Kitchen" },
 				status: "backlog",
 				assignedTo: [],
 			},
@@ -118,7 +118,7 @@ describe("TasksView SSR regression", () => {
 				title: "Move furniture",
 				priority: "medium",
 				peopleNeeded: 3,
-				room: "Living Room",
+				area: { id: "room-1", name: "Living Room" },
 				status: "ready",
 				assignedTo: ["p1"],
 			},
@@ -143,7 +143,7 @@ describe("TasksView SSR regression", () => {
 				title: "Test",
 				priority: "medium",
 				peopleNeeded: 1,
-				room: "Test",
+				area: { id: "room-1", name: "Test" },
 				status: "backlog",
 				assignedTo: [],
 			},
@@ -164,7 +164,7 @@ describe("TasksView SSR regression", () => {
 				title: "Test",
 				priority: "medium",
 				peopleNeeded: 1,
-				room: "Test",
+				area: { id: "room-1", name: "Test" },
 				status: "backlog",
 				assignedTo: [],
 			},
@@ -181,7 +181,7 @@ describe("TasksView SSR regression", () => {
 				title: "Test",
 				priority: "medium",
 				peopleNeeded: 1,
-				room: "Test",
+				area: { id: "room-1", name: "Test" },
 				status: "backlog",
 				assignedTo: [],
 			},

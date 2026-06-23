@@ -197,7 +197,7 @@ func (s *PgStore) GetTaskBacklog(ctx context.Context) (*api.TaskBacklogBody, err
 			Title:        tr.Title,
 			Priority:     tr.Priority,
 			PeopleNeeded: int(tr.PeopleNeeded),
-			Room:         tr.Room,
+			Area:         api.Area{ID: tr.AreaID, Name: tr.AreaName},
 			Status:       tr.Status,
 			AssignedTo:   assigned,
 		}
@@ -319,7 +319,7 @@ func (s *PgStore) GetDailySchedule(ctx context.Context, startDate time.Time, day
 				ID:             fmt.Sprintf("sched-%d", cr.ID),
 				Title:          cr.Title,
 				Priority:       cr.Priority,
-				RoomArea:       cr.RoomArea,
+				Area:           api.Area{ID: cr.AreaID, Name: cr.AreaName},
 				AssignedPeople: assignedPeople,
 				PeopleNeeded:   int(cr.PeopleNeeded),
 				AssignedCount:  assignedCount,
@@ -373,6 +373,11 @@ func (s *PgStore) DeletePerson(ctx context.Context, id string) error {
 // PersonExists checks whether a person with the given id exists.
 func (s *PgStore) PersonExists(ctx context.Context, id string) (bool, error) {
 	return s.queries.PersonExists(ctx, id)
+}
+
+// AreaExists checks whether a room/area with the given id exists.
+func (s *PgStore) AreaExists(ctx context.Context, id string) (bool, error) {
+	return s.queries.AreaExists(ctx, id)
 }
 
 // PersonHasReferences checks whether a person is referenced by backlog or schedule assignments.
@@ -493,7 +498,7 @@ func (s *PgStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (*a
 		Title:        input.Title,
 		Priority:     input.Priority,
 		PeopleNeeded: int32(input.PeopleNeeded),
-		Room:         input.Room,
+		AreaID:       input.AreaID,
 		Status:       input.Status,
 		SortOrder:    maxSort + 1,
 	})
@@ -525,7 +530,7 @@ func (s *PgStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (*a
 		Title:        taskRow.Title,
 		Priority:     taskRow.Priority,
 		PeopleNeeded: int(taskRow.PeopleNeeded),
-		Room:         taskRow.Room,
+		Area:         api.Area{ID: taskRow.AreaID, Name: taskRow.AreaName},
 		Status:       taskRow.Status,
 		AssignedTo:   assigned,
 	}, nil
@@ -570,7 +575,7 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 		Title:        input.Title,
 		Priority:     input.Priority,
 		PeopleNeeded: int32(input.PeopleNeeded),
-		Room:         input.Room,
+		AreaID:       input.AreaID,
 		Status:       input.Status,
 	})
 	if err != nil {
@@ -594,7 +599,7 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 		Title:        taskRow.Title,
 		Priority:     taskRow.Priority,
 		PeopleNeeded: int(taskRow.PeopleNeeded),
-		Room:         taskRow.Room,
+		Area:         api.Area{ID: taskRow.AreaID, Name: taskRow.AreaName},
 		Status:       taskRow.Status,
 		AssignedTo:   assigned,
 	}, nil
@@ -667,7 +672,7 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 	// Resolve inherited fields from referenced backlog task (inside the transaction).
 	title := input.Title
 	priority := input.Priority
-	roomArea := input.RoomArea
+	areaID := input.AreaId
 	peopleNeeded := input.PeopleNeeded
 
 	if input.TaskId != "" {
@@ -686,8 +691,8 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 		if priority == "" {
 			priority = refTask.Priority
 		}
-		if roomArea == "" {
-			roomArea = refTask.Room
+		if areaID == "" {
+			areaID = refTask.AreaID
 		}
 		if peopleNeeded < 1 {
 			peopleNeeded = int(refTask.PeopleNeeded)
@@ -702,7 +707,7 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 	cardRow, err := tx.CreateScheduleCard(ctx, db.CreateScheduleCardParams{
 		Title:         title,
 		Priority:      priority,
-		RoomArea:      roomArea,
+		AreaID:        areaID,
 		PeopleNeeded:  int32(peopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
 		SortOrder:     maxSort + 1,
@@ -726,7 +731,7 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return s.buildTaskCardResponse(cardRow.ID, title, priority, roomArea, peopleNeeded, input.AssignedTo, cardRow.TaskID, cardRow.Completed, ctx)
+	return s.buildTaskCardResponse(cardRow.ID, title, priority, cardRow.AreaID, cardRow.AreaName, peopleNeeded, input.AssignedTo, cardRow.TaskID, cardRow.Completed, ctx)
 }
 
 // UpdateScheduleCard updates a schedule card and replaces assignments transactionally.
@@ -770,7 +775,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 	// Resolve inherited fields from referenced backlog task (inside the transaction).
 	title := input.Title
 	priority := input.Priority
-	roomArea := input.RoomArea
+	areaID := input.AreaId
 	peopleNeeded := input.PeopleNeeded
 
 	if effectiveTaskID != "" {
@@ -789,8 +794,8 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		if priority == "" {
 			priority = refTask.Priority
 		}
-		if roomArea == "" {
-			roomArea = refTask.Room
+		if areaID == "" {
+			areaID = refTask.AreaID
 		}
 		if peopleNeeded < 1 {
 			peopleNeeded = int(refTask.PeopleNeeded)
@@ -816,7 +821,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		ID:            id,
 		Title:         title,
 		Priority:      priority,
-		RoomArea:      roomArea,
+		AreaID:        areaID,
 		PeopleNeeded:  int32(peopleNeeded),
 		ScheduledDate: pgtype.Date{Time: scheduledDate, Valid: true},
 		SortOrder:     existing.SortOrder, // Preserve existing sort order.
@@ -833,7 +838,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, cardRow.TaskID, cardRow.Completed, ctx)
+	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.AreaID, cardRow.AreaName, int(cardRow.PeopleNeeded), input.AssignedTo, cardRow.TaskID, cardRow.Completed, ctx)
 }
 
 // DeleteScheduleCard removes a schedule card and its assignments in a single transaction.
@@ -913,7 +918,7 @@ func (s *PgStore) SetScheduleCardCompleted(ctx context.Context, idStr string, co
 }
 
 // buildTaskCardResponse resolves assignee identities and constructs the API TaskCard.
-func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, taskID pgtype.Text, completed bool, ctx context.Context) (*api.TaskCard, error) {
+func (s *PgStore) buildTaskCardResponse(id int32, title, priority, areaID, areaName string, peopleNeeded int, assigneeIDs []string, taskID pgtype.Text, completed bool, ctx context.Context) (*api.TaskCard, error) {
 	// Fetch all people once and build a lookup map.
 	peopleRows, err := s.queries.GetAllPeople(ctx)
 	if err != nil {
@@ -949,7 +954,7 @@ func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea stri
 		ID:             fmt.Sprintf("sched-%d", id),
 		Title:          title,
 		Priority:       priority,
-		RoomArea:       roomArea,
+		Area:           api.Area{ID: areaID, Name: areaName},
 		AssignedPeople: assignees,
 		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,

@@ -3,6 +3,7 @@ import { UsersRoundIcon } from '@lucide/vue'
 import type { TaskRow } from '../types'
 import { getTaskDisplayState, priorityBadgeVariant, priorityLabels } from '../helpers'
 import { Badge } from '@/shared/ui/badge'
+import { areaColor } from '@/shared/lib/areaColor'
 
 defineProps<{
   task: TaskRow
@@ -23,7 +24,17 @@ defineProps<{
         {{ task.peopleNeeded }}
       </span>
     </td>
-    <td class="h-12 px-4 py-2 text-sm text-muted-foreground">{{ task.room }}</td>
+    <td class="h-12 px-4 py-2 text-sm text-muted-foreground">
+      <span class="inline-flex items-center gap-1.5" data-testid="area-chip">
+        <span
+          v-if="task.area.name"
+          class="inline-block size-2 shrink-0 rounded-full"
+          :style="{ backgroundColor: areaColor(task.area.id) }"
+          aria-hidden="true"
+        />
+        {{ task.area.name }}
+      </span>
+    </td>
     <td class="h-12 px-4 py-2">
       <Badge variant="secondary">{{ getTaskDisplayState(task) }}</Badge>
     </td>

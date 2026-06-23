@@ -28,15 +28,20 @@ func (q *Queries) CreateScheduleAssignment(ctx context.Context, arg CreateSchedu
 }
 
 const createScheduleCard = `-- name: CreateScheduleCard :one
-INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order, task_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
+WITH inserted AS (
+    INSERT INTO schedule_task_cards (title, priority, area_id, people_needed, scheduled_date, sort_order, task_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING id, title, priority, area_id, people_needed, scheduled_date, sort_order, created_at, task_id, completed
+)
+SELECT i.id, i.title, i.priority, i.area_id, ra.name AS area_name, i.people_needed, i.scheduled_date, i.sort_order, i.created_at, i.task_id, i.completed
+FROM inserted i
+JOIN rooms_areas ra ON ra.id = i.area_id
 `
 
 type CreateScheduleCardParams struct {
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaID        string
 	PeopleNeeded  int32
 	ScheduledDate pgtype.Date
 	SortOrder     int32
@@ -47,7 +52,8 @@ type CreateScheduleCardRow struct {
 	ID            int32
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaID        string
+	AreaName      string
 	PeopleNeeded  int32
 	ScheduledDate pgtype.Date
 	SortOrder     int32
@@ -60,7 +66,7 @@ func (q *Queries) CreateScheduleCard(ctx context.Context, arg CreateScheduleCard
 	row := q.db.QueryRow(ctx, createScheduleCard,
 		arg.Title,
 		arg.Priority,
-		arg.RoomArea,
+		arg.AreaID,
 		arg.PeopleNeeded,
 		arg.ScheduledDate,
 		arg.SortOrder,
@@ -71,7 +77,8 @@ func (q *Queries) CreateScheduleCard(ctx context.Context, arg CreateScheduleCard
 		&i.ID,
 		&i.Title,
 		&i.Priority,
-		&i.RoomArea,
+		&i.AreaID,
+		&i.AreaName,
 		&i.PeopleNeeded,
 		&i.ScheduledDate,
 		&i.SortOrder,
@@ -174,11 +181,12 @@ func (q *Queries) GetDailyScheduleAssignments(ctx context.Context) ([]GetDailySc
 }
 
 const getDailyScheduleTaskCards = `-- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
-FROM schedule_task_cards
-WHERE scheduled_date >= $1::date
-  AND scheduled_date < ($1::date + $2::int * interval '1 day')
-ORDER BY scheduled_date, sort_order
+SELECT sc.id, sc.title, sc.priority, sc.area_id, ra.name AS area_name, sc.people_needed, sc.scheduled_date, sc.sort_order, sc.created_at, sc.task_id, sc.completed
+FROM schedule_task_cards sc
+JOIN rooms_areas ra ON ra.id = sc.area_id
+WHERE sc.scheduled_date >= $1::date
+  AND sc.scheduled_date < ($1::date + $2::int * interval '1 day')
+ORDER BY sc.scheduled_date, sc.sort_order
 `
 
 type GetDailyScheduleTaskCardsParams struct {
@@ -190,7 +198,8 @@ type GetDailyScheduleTaskCardsRow struct {
 	ID            int32
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaID        string
+	AreaName      string
 	PeopleNeeded  int32
 	ScheduledDate pgtype.Date
 	SortOrder     int32
@@ -212,7 +221,8 @@ func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context, arg GetDailySch
 			&i.ID,
 			&i.Title,
 			&i.Priority,
-			&i.RoomArea,
+			&i.AreaID,
+			&i.AreaName,
 			&i.PeopleNeeded,
 			&i.ScheduledDate,
 			&i.SortOrder,
@@ -243,16 +253,18 @@ func (q *Queries) GetMaxScheduleSortOrder(ctx context.Context) (int32, error) {
 }
 
 const getScheduleCardByID = `-- name: GetScheduleCardByID :one
-SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
-FROM schedule_task_cards
-WHERE id = $1
+SELECT sc.id, sc.title, sc.priority, sc.area_id, ra.name AS area_name, sc.people_needed, sc.scheduled_date, sc.sort_order, sc.created_at, sc.task_id, sc.completed
+FROM schedule_task_cards sc
+JOIN rooms_areas ra ON ra.id = sc.area_id
+WHERE sc.id = $1
 `
 
 type GetScheduleCardByIDRow struct {
 	ID            int32
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaID        string
+	AreaName      string
 	PeopleNeeded  int32
 	ScheduledDate pgtype.Date
 	SortOrder     int32
@@ -268,7 +280,8 @@ func (q *Queries) GetScheduleCardByID(ctx context.Context, id int32) (GetSchedul
 		&i.ID,
 		&i.Title,
 		&i.Priority,
-		&i.RoomArea,
+		&i.AreaID,
+		&i.AreaName,
 		&i.PeopleNeeded,
 		&i.ScheduledDate,
 		&i.SortOrder,
@@ -280,9 +293,10 @@ func (q *Queries) GetScheduleCardByID(ctx context.Context, id int32) (GetSchedul
 }
 
 const getTaskByIDForRef = `-- name: GetTaskByIDForRef :one
-SELECT id, title, priority, people_needed, room
-FROM backlog_tasks
-WHERE id = $1
+SELECT bt.id, bt.title, bt.priority, bt.people_needed, bt.area_id, ra.name AS area_name
+FROM backlog_tasks bt
+JOIN rooms_areas ra ON ra.id = bt.area_id
+WHERE bt.id = $1
 `
 
 type GetTaskByIDForRefRow struct {
@@ -290,7 +304,8 @@ type GetTaskByIDForRefRow struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
+	AreaName     string
 }
 
 func (q *Queries) GetTaskByIDForRef(ctx context.Context, id string) (GetTaskByIDForRefRow, error) {
@@ -301,7 +316,8 @@ func (q *Queries) GetTaskByIDForRef(ctx context.Context, id string) (GetTaskByID
 		&i.Title,
 		&i.Priority,
 		&i.PeopleNeeded,
-		&i.Room,
+		&i.AreaID,
+		&i.AreaName,
 	)
 	return i, err
 }
@@ -349,22 +365,27 @@ func (q *Queries) TaskHasScheduleCards(ctx context.Context, taskID pgtype.Text) 
 }
 
 const updateScheduleCard = `-- name: UpdateScheduleCard :one
-UPDATE schedule_task_cards
-SET title = $1,
-    priority = $2,
-    room_area = $3,
-    people_needed = $4,
-    scheduled_date = $5,
-    sort_order = $6,
-    task_id = $7
-WHERE id = $8
-RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
+WITH updated AS (
+    UPDATE schedule_task_cards
+    SET title = $1,
+        priority = $2,
+        area_id = $3,
+        people_needed = $4,
+        scheduled_date = $5,
+        sort_order = $6,
+        task_id = $7
+    WHERE schedule_task_cards.id = $8
+    RETURNING id, title, priority, area_id, people_needed, scheduled_date, sort_order, created_at, task_id, completed
+)
+SELECT u.id, u.title, u.priority, u.area_id, ra.name AS area_name, u.people_needed, u.scheduled_date, u.sort_order, u.created_at, u.task_id, u.completed
+FROM updated u
+JOIN rooms_areas ra ON ra.id = u.area_id
 `
 
 type UpdateScheduleCardParams struct {
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaID        string
 	PeopleNeeded  int32
 	ScheduledDate pgtype.Date
 	SortOrder     int32
@@ -376,7 +397,8 @@ type UpdateScheduleCardRow struct {
 	ID            int32
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaID        string
+	AreaName      string
 	PeopleNeeded  int32
 	ScheduledDate pgtype.Date
 	SortOrder     int32
@@ -389,7 +411,7 @@ func (q *Queries) UpdateScheduleCard(ctx context.Context, arg UpdateScheduleCard
 	row := q.db.QueryRow(ctx, updateScheduleCard,
 		arg.Title,
 		arg.Priority,
-		arg.RoomArea,
+		arg.AreaID,
 		arg.PeopleNeeded,
 		arg.ScheduledDate,
 		arg.SortOrder,
@@ -401,7 +423,8 @@ func (q *Queries) UpdateScheduleCard(ctx context.Context, arg UpdateScheduleCard
 		&i.ID,
 		&i.Title,
 		&i.Priority,
-		&i.RoomArea,
+		&i.AreaID,
+		&i.AreaName,
 		&i.PeopleNeeded,
 		&i.ScheduledDate,
 		&i.SortOrder,

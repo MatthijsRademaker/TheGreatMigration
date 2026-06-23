@@ -66,12 +66,13 @@ date_for_day() {
 
 declare -A PERSON_ID
 declare -A TASK_ID
+declare -A ROOM_ID
 
 echo "Seeding The Great Migration into: $BASE_URL"
 echo "Planning window: $START_DATE to $END_DATE"
 echo
 
-echo "1/6 Updating planning window..."
+echo "1/7 Updating planning window..."
 api_json PUT "/api/planning-window" \
   "$(jq -n --arg startDate "$START_DATE" --arg endDate "$END_DATE" \
     '{startDate:$startDate,endDate:$endDate}')" >/dev/null
@@ -90,9 +91,9 @@ create_person() {
   printf "  created person %-10s -> %s\n" "$name" "${PERSON_ID[$key]}"
 }
 
-echo "2/6 Creating people..."
+echo "2/7 Creating people..."
 create_person "estella"  "Estella"  "E"
-create_person "meryl"    "Meryl"    "M"
+create_person "merel"    "Merel"    "M"
 create_person "matthijs" "Matthijs" "M"
 create_person "thomas"   "Thomas"   "T"
 create_person "esther"   "Esther"   "E"
@@ -104,14 +105,16 @@ create_room() {
   local name="$1"
   local type="$2"
 
-  api_json POST "/api/rooms" \
+  local response
+  response="$(api_json POST "/api/rooms" \
     "$(jq -n --arg name "$name" --arg type "$type" \
-      '{name:$name,type:$type}')" >/dev/null
+      '{name:$name,type:$type}')")"
 
-  printf "  created %-4s %s\n" "$type" "$name"
+  ROOM_ID["$name"]="$(jq -r '.id' <<<"$response")"
+  printf "  created %-4s %-20s -> %s\n" "$type" "$name" "${ROOM_ID[$name]}"
 }
 
-echo "3/6 Creating rooms and areas..."
+echo "3/7 Creating rooms and areas..."
 create_room "Hal" "area"
 create_room "Woonkamer" "room"
 create_room "Keuken" "room"
@@ -129,11 +132,11 @@ set_availability() {
     "$(jq -n --arg status "$status" '{status:$status}')" >/dev/null
 }
 
-echo "4/6 Setting availability from handwritten schedule..."
+echo "4/7 Setting availability from handwritten schedule..."
 
-# 2 July: Estella, Meryl, Matthijs, Thomas, Esther, Peter?, Beau.
+# 2 July: Estella, Merel, Matthijs, Thomas, Esther, Peter?, Beau.
 set_availability estella  "$(date_for_day 2)" available
-set_availability meryl    "$(date_for_day 2)" available
+set_availability merel    "$(date_for_day 2)" available
 set_availability matthijs "$(date_for_day 2)" available
 set_availability thomas   "$(date_for_day 2)" available
 set_availability esther   "$(date_for_day 2)" available
@@ -143,7 +146,7 @@ set_availability kees     "$(date_for_day 2)" off
 
 # 3 July: Thomas, Matthijs, Estella, Beau?
 set_availability estella  "$(date_for_day 3)" available
-set_availability meryl    "$(date_for_day 3)" off
+set_availability merel    "$(date_for_day 3)" off
 set_availability matthijs "$(date_for_day 3)" available
 set_availability thomas   "$(date_for_day 3)" available
 set_availability esther   "$(date_for_day 3)" off
@@ -153,7 +156,7 @@ set_availability kees     "$(date_for_day 3)" off
 
 # 4 July: Thomas, Matthijs, Estella, Esther, Peter, Kees.
 set_availability estella  "$(date_for_day 4)" available
-set_availability meryl    "$(date_for_day 4)" off
+set_availability merel    "$(date_for_day 4)" off
 set_availability matthijs "$(date_for_day 4)" available
 set_availability thomas   "$(date_for_day 4)" available
 set_availability esther   "$(date_for_day 4)" available
@@ -163,7 +166,7 @@ set_availability kees     "$(date_for_day 4)" available
 
 # 5 July: Esther, Thomas, Matthijs, Kees, Estella, Peter.
 set_availability estella  "$(date_for_day 5)" available
-set_availability meryl    "$(date_for_day 5)" off
+set_availability merel    "$(date_for_day 5)" off
 set_availability matthijs "$(date_for_day 5)" available
 set_availability thomas   "$(date_for_day 5)" available
 set_availability esther   "$(date_for_day 5)" available
@@ -176,8 +179,14 @@ create_task() {
   local title="$2"
   local priority="$3"
   local people_needed="$4"
-  local room="$5"
+  local room_name="$5"
   local status="${6:-ready}"
+
+  local area_id="${ROOM_ID[$room_name]:-}"
+  if [[ -z "$area_id" ]]; then
+    echo "Unknown room '$room_name' for task '$title' — create the room before the task." >&2
+    exit 1
+  fi
 
   local response
   response="$(api_json POST "/api/tasks" \
@@ -185,14 +194,14 @@ create_task() {
       --arg title "$title" \
       --arg priority "$priority" \
       --argjson peopleNeeded "$people_needed" \
-      --arg room "$room" \
+      --arg areaId "$area_id" \
       --arg status "$status" \
       --argjson assignedTo '[]' \
       '{
         title:$title,
         priority:$priority,
         peopleNeeded:$peopleNeeded,
-        room:$room,
+        areaId:$areaId,
         status:$status,
         assignedTo:$assignedTo
       }')")"
@@ -201,7 +210,7 @@ create_task() {
   printf "  created task %-38s -> %s\n" "$title" "${TASK_ID[$key]}"
 }
 
-echo "5/6 Creating backlog tasks..."
+echo "5/7 Creating backlog tasks..."
 create_task "afplakken"                          "Afplakken"                              "medium" 1 "Algemeen"
 create_task "schuren-hal"                        "Schuren"                                "medium" 1 "Hal"
 create_task "schilderen-hal"                     "Schilderen hal"                         "high"   2 "Hal"
@@ -257,11 +266,35 @@ create_schedule_card() {
   printf "  scheduled %-34s on %s -> %s (%s/%s)\n" "$title" "$date" "$id" "$count" "$needed"
 }
 
-echo "6/6 Creating schedule cards..."
+create_tool() {
+  local name="$1"
+  local bringer_key="${2:-}"
+
+  local response
+  response="$(api_json POST "/api/tools" \
+    "$(jq -n --arg name "$name" '{name:$name}')")"
+  local id
+  id="$(jq -r '.id' <<<"$response")"
+
+  if [[ -n "$bringer_key" ]]; then
+    local person_id="${PERSON_ID[$bringer_key]:-}"
+    if [[ -z "$person_id" ]]; then
+      echo "Unknown bringer '$bringer_key' for tool '$name' — create the person first." >&2
+      exit 1
+    fi
+    api_json PUT "/api/tools/${id}/bringer" \
+      "$(jq -n --arg personId "$person_id" '{personId:$personId}')" >/dev/null
+    printf "  created tool %-22s -> %s (brought by %s)\n" "$name" "$id" "$bringer_key"
+  else
+    printf "  created tool %-22s -> %s (open)\n" "$name" "$id"
+  fi
+}
+
+echo "6/7 Creating schedule cards..."
 
 # 2 July
 create_schedule_card "$(date_for_day 2)" "afplakken"                 estella
-create_schedule_card "$(date_for_day 2)" "schuren-hal"               meryl
+create_schedule_card "$(date_for_day 2)" "schuren-hal"               merel
 create_schedule_card "$(date_for_day 2)" "schilderen-hal"            matthijs thomas
 create_schedule_card "$(date_for_day 2)" "schoonmaken"               esther
 create_schedule_card "$(date_for_day 2)" "stoom-muren"               beau
@@ -283,6 +316,22 @@ create_schedule_card "$(date_for_day 5)" "hal-woonkamer-afronden"             th
 create_schedule_card "$(date_for_day 5)" "slaapkamer-schilderen"              kees peter
 create_schedule_card "$(date_for_day 5)" "tweede-verdieping-muren-schilderen" estella
 
+echo "7/7 Creating tools..."
+# Duplicates are intentional: each physical tool is its own row so the board can
+# distinguish who brings which copy. A second argument names the bringer; tools
+# with no bringer are left open (unassigned).
+create_tool "Ladder"             matthijs
+create_tool "Ladder"
+create_tool "Schuurmachine"
+create_tool "Schuurmachine"
+create_tool "Schoonmaak emmer"   matthijs
+create_tool "Schoonmaak emmer"
+create_tool "Schroefboormachine" matthijs
+create_tool "Schroefboormachine"
+create_tool "Kruislijnlaser"     matthijs
+create_tool "Hogedrukspuit"
+create_tool "Stoommachine"       matthijs
+
 echo
 echo "Seed complete."
 echo
@@ -290,4 +339,5 @@ echo "Useful checks:"
 echo "  curl -s '$BASE_URL/api/planning-window' | jq"
 echo "  curl -s '$BASE_URL/api/dashboard/people-availability?start=$START_DATE&days=4' | jq"
 echo "  curl -s '$BASE_URL/api/tasks/backlog' | jq"
+echo "  curl -s '$BASE_URL/api/tools' | jq"
 echo "  curl -s '$BASE_URL/api/dashboard/daily-schedule?start=$START_DATE&days=4' | jq"

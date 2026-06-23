@@ -21,10 +21,10 @@ type BacklogTask struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
 	Status       string
 	SortOrder    int32
 	CreatedAt    pgtype.Timestamptz
+	AreaID       string
 }
 
 type BacklogTaskAssignment struct {
@@ -66,13 +66,13 @@ type ScheduleTaskCard struct {
 	ID            int32
 	Title         string
 	Priority      string
-	RoomArea      string
 	PeopleNeeded  int32
 	SortOrder     int32
 	CreatedAt     pgtype.Timestamptz
 	ScheduledDate pgtype.Date
 	TaskID        pgtype.Text
 	Completed     bool
+	AreaID        string
 }
 
 type Tool struct {

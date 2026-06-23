@@ -12,11 +12,16 @@ interface AssignedPerson {
   initials: string
 }
 
+interface Area {
+  id: string
+  name: string
+}
+
 interface TaskCard {
   id: string
   title: string
   priority: 'high' | 'medium' | 'low'
-  roomArea: string
+  area: Area
   assignedPeople: AssignedPerson[]
   peopleNeeded: number
   assignedCount: number

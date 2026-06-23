@@ -46,7 +46,7 @@ function makeTask(
 		title: string;
 		priority: "high" | "medium" | "low";
 		peopleNeeded: number;
-		room: string;
+		area: { id: string; name: string };
 		status: "backlog" | "ready" | "assigned";
 		assignedTo: string[];
 	}> = {},
@@ -56,7 +56,7 @@ function makeTask(
 		title: overrides.title ?? "Pack kitchen boxes",
 		priority: overrides.priority ?? "high",
 		peopleNeeded: overrides.peopleNeeded ?? 3,
-		room: overrides.room ?? "Kitchen",
+		area: overrides.area ?? { id: "room-1", name: "Kitchen" },
 		status: overrides.status ?? "ready",
 		assignedTo: overrides.assignedTo ?? [],
 	};

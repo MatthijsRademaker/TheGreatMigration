@@ -10,16 +10,21 @@ import (
 )
 
 const createTask = `-- name: CreateTask :one
-INSERT INTO backlog_tasks (id, title, priority, people_needed, room, status, sort_order)
-VALUES ('task-' || nextval('backlog_tasks_id_seq'), $1, $2, $3, $4, $5, $6)
-RETURNING id, title, priority, people_needed, room, status
+WITH inserted AS (
+    INSERT INTO backlog_tasks (id, title, priority, people_needed, area_id, status, sort_order)
+    VALUES ('task-' || nextval('backlog_tasks_id_seq'), $1, $2, $3, $4, $5, $6)
+    RETURNING id, title, priority, people_needed, area_id, status
+)
+SELECT i.id, i.title, i.priority, i.people_needed, i.area_id, ra.name AS area_name, i.status
+FROM inserted i
+JOIN rooms_areas ra ON ra.id = i.area_id
 `
 
 type CreateTaskParams struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
 	Status       string
 	SortOrder    int32
 }
@@ -29,7 +34,8 @@ type CreateTaskRow struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
+	AreaName     string
 	Status       string
 }
 
@@ -38,7 +44,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (CreateT
 		arg.Title,
 		arg.Priority,
 		arg.PeopleNeeded,
-		arg.Room,
+		arg.AreaID,
 		arg.Status,
 		arg.SortOrder,
 	)
@@ -48,7 +54,8 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (CreateT
 		&i.Title,
 		&i.Priority,
 		&i.PeopleNeeded,
-		&i.Room,
+		&i.AreaID,
+		&i.AreaName,
 		&i.Status,
 	)
 	return i, err
@@ -135,9 +142,10 @@ func (q *Queries) GetTaskAssignments(ctx context.Context, taskID string) ([]GetT
 }
 
 const getTaskBacklog = `-- name: GetTaskBacklog :many
-SELECT id, title, priority, people_needed, room, status
-FROM backlog_tasks
-ORDER BY sort_order
+SELECT bt.id, bt.title, bt.priority, bt.people_needed, bt.area_id, ra.name AS area_name, bt.status
+FROM backlog_tasks bt
+JOIN rooms_areas ra ON ra.id = bt.area_id
+ORDER BY bt.sort_order
 `
 
 type GetTaskBacklogRow struct {
@@ -145,7 +153,8 @@ type GetTaskBacklogRow struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
+	AreaName     string
 	Status       string
 }
 
@@ -163,7 +172,8 @@ func (q *Queries) GetTaskBacklog(ctx context.Context) ([]GetTaskBacklogRow, erro
 			&i.Title,
 			&i.Priority,
 			&i.PeopleNeeded,
-			&i.Room,
+			&i.AreaID,
+			&i.AreaName,
 			&i.Status,
 		); err != nil {
 			return nil, err
@@ -208,9 +218,10 @@ func (q *Queries) GetTaskBacklogAssignments(ctx context.Context) ([]GetTaskBackl
 }
 
 const getTaskByID = `-- name: GetTaskByID :one
-SELECT id, title, priority, people_needed, room, status
-FROM backlog_tasks
-WHERE id = $1
+SELECT bt.id, bt.title, bt.priority, bt.people_needed, bt.area_id, ra.name AS area_name, bt.status
+FROM backlog_tasks bt
+JOIN rooms_areas ra ON ra.id = bt.area_id
+WHERE bt.id = $1
 `
 
 type GetTaskByIDRow struct {
@@ -218,7 +229,8 @@ type GetTaskByIDRow struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
+	AreaName     string
 	Status       string
 }
 
@@ -230,17 +242,23 @@ func (q *Queries) GetTaskByID(ctx context.Context, id string) (GetTaskByIDRow, e
 		&i.Title,
 		&i.Priority,
 		&i.PeopleNeeded,
-		&i.Room,
+		&i.AreaID,
+		&i.AreaName,
 		&i.Status,
 	)
 	return i, err
 }
 
 const updateTask = `-- name: UpdateTask :one
-UPDATE backlog_tasks
-SET title = $2, priority = $3, people_needed = $4, room = $5, status = $6
-WHERE id = $1
-RETURNING id, title, priority, people_needed, room, status
+WITH updated AS (
+    UPDATE backlog_tasks
+    SET title = $2, priority = $3, people_needed = $4, area_id = $5, status = $6
+    WHERE backlog_tasks.id = $1
+    RETURNING id, title, priority, people_needed, area_id, status
+)
+SELECT u.id, u.title, u.priority, u.people_needed, u.area_id, ra.name AS area_name, u.status
+FROM updated u
+JOIN rooms_areas ra ON ra.id = u.area_id
 `
 
 type UpdateTaskParams struct {
@@ -248,7 +266,7 @@ type UpdateTaskParams struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
 	Status       string
 }
 
@@ -257,7 +275,8 @@ type UpdateTaskRow struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int32
-	Room         string
+	AreaID       string
+	AreaName     string
 	Status       string
 }
 
@@ -267,7 +286,7 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateT
 		arg.Title,
 		arg.Priority,
 		arg.PeopleNeeded,
-		arg.Room,
+		arg.AreaID,
 		arg.Status,
 	)
 	var i UpdateTaskRow
@@ -276,7 +295,8 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateT
 		&i.Title,
 		&i.Priority,
 		&i.PeopleNeeded,
-		&i.Room,
+		&i.AreaID,
+		&i.AreaName,
 		&i.Status,
 	)
 	return i, err

@@ -4,6 +4,17 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type Area = {
+    /**
+     * Stable room/area identifier, prefixed 'room-'
+     */
+    id: string;
+    /**
+     * Human-readable room or area name
+     */
+    name: string;
+};
+
 export type AssignedPerson = {
     /**
      * Stable person key
@@ -66,6 +77,10 @@ export type CreateScheduleCardRequestBody = {
      */
     readonly $schema?: string;
     /**
+     * ID of the room or area (required unless taskId is provided)
+     */
+    areaId?: string;
+    /**
      * Person-ID strings for assigned helpers, may be empty
      */
     assignedTo?: Array<string> | null;
@@ -78,15 +93,11 @@ export type CreateScheduleCardRequestBody = {
      */
     priority?: 'high' | 'medium' | 'low';
     /**
-     * Room or area name (required unless taskId is provided)
-     */
-    roomArea?: string;
-    /**
      * ISO 8601 date (YYYY-MM-DD) the card is scheduled for
      */
     scheduledDate: string;
     /**
-     * Referenced backlog task ID. When provided, title/priority/roomArea/peopleNeeded inherit from the referenced task unless explicitly supplied.
+     * Referenced backlog task ID. When provided, title/priority/areaId/peopleNeeded inherit from the referenced task unless explicitly supplied.
      */
     taskId?: string;
     /**
@@ -101,6 +112,10 @@ export type CreateTaskRequestBody = {
      */
     readonly $schema?: string;
     /**
+     * ID of the room or area the task belongs to
+     */
+    areaId: string;
+    /**
      * Person-ID strings for assigned helpers, may be empty
      */
     assignedTo: Array<string> | null;
@@ -112,10 +127,6 @@ export type CreateTaskRequestBody = {
      * One of: high, medium, low
      */
     priority: 'high' | 'medium' | 'low';
-    /**
-     * Room or area the task belongs to
-     */
-    room: string;
     /**
      * One of: backlog, ready, assigned
      */
@@ -489,6 +500,10 @@ export type TaskCard = {
      */
     readonly $schema?: string;
     /**
+     * Room or area the card belongs to
+     */
+    area: Area;
+    /**
      * Number of people currently assigned (derived from assignedPeople)
      */
     assignedCount: number;
@@ -513,10 +528,6 @@ export type TaskCard = {
      */
     priority: string;
     /**
-     * Room or area name
-     */
-    roomArea: string;
-    /**
      * One of: fullyStaffed, underStaffed
      */
     staffingStatus: string;
@@ -536,6 +547,10 @@ export type TaskRow = {
      */
     readonly $schema?: string;
     /**
+     * Room or area the task belongs to
+     */
+    area: Area;
+    /**
      * Person-ID strings for assigned helpers, may be empty
      */
     assignedTo: Array<string> | null;
@@ -551,10 +566,6 @@ export type TaskRow = {
      * One of: high, medium, low
      */
     priority: string;
-    /**
-     * Room or area the task belongs to
-     */
-    room: string;
     /**
      * One of: backlog, ready, assigned
      */
@@ -751,6 +762,10 @@ export type CreateRoomRequestBodyWritable = {
 
 export type CreateScheduleCardRequestBodyWritable = {
     /**
+     * ID of the room or area (required unless taskId is provided)
+     */
+    areaId?: string;
+    /**
      * Person-ID strings for assigned helpers, may be empty
      */
     assignedTo?: Array<string> | null;
@@ -763,15 +778,11 @@ export type CreateScheduleCardRequestBodyWritable = {
      */
     priority?: 'high' | 'medium' | 'low';
     /**
-     * Room or area name (required unless taskId is provided)
-     */
-    roomArea?: string;
-    /**
      * ISO 8601 date (YYYY-MM-DD) the card is scheduled for
      */
     scheduledDate: string;
     /**
-     * Referenced backlog task ID. When provided, title/priority/roomArea/peopleNeeded inherit from the referenced task unless explicitly supplied.
+     * Referenced backlog task ID. When provided, title/priority/areaId/peopleNeeded inherit from the referenced task unless explicitly supplied.
      */
     taskId?: string;
     /**
@@ -781,6 +792,10 @@ export type CreateScheduleCardRequestBodyWritable = {
 };
 
 export type CreateTaskRequestBodyWritable = {
+    /**
+     * ID of the room or area the task belongs to
+     */
+    areaId: string;
     /**
      * Person-ID strings for assigned helpers, may be empty
      */
@@ -793,10 +808,6 @@ export type CreateTaskRequestBodyWritable = {
      * One of: high, medium, low
      */
     priority: 'high' | 'medium' | 'low';
-    /**
-     * Room or area the task belongs to
-     */
-    room: string;
     /**
      * One of: backlog, ready, assigned
      */
@@ -1005,6 +1016,10 @@ export type TaskBacklogBodyWritable = {
 
 export type TaskCardWritable = {
     /**
+     * Room or area the card belongs to
+     */
+    area: Area;
+    /**
      * Number of people currently assigned (derived from assignedPeople)
      */
     assignedCount: number;
@@ -1029,10 +1044,6 @@ export type TaskCardWritable = {
      */
     priority: string;
     /**
-     * Room or area name
-     */
-    roomArea: string;
-    /**
      * One of: fullyStaffed, underStaffed
      */
     staffingStatus: string;
@@ -1047,6 +1058,10 @@ export type TaskCardWritable = {
 };
 
 export type TaskRowWritable = {
+    /**
+     * Room or area the task belongs to
+     */
+    area: Area;
     /**
      * Person-ID strings for assigned helpers, may be empty
      */
@@ -1063,10 +1078,6 @@ export type TaskRowWritable = {
      * One of: high, medium, low
      */
     priority: string;
-    /**
-     * Room or area the task belongs to
-     */
-    room: string;
     /**
      * One of: backlog, ready, assigned
      */

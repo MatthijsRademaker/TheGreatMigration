@@ -40,7 +40,7 @@ describe("useDailySchedule", () => {
 											id: "sched-1",
 											title: "API-driven task",
 											priority: "high",
-											roomArea: "Kitchen",
+											area: { id: "room-1", name: "Kitchen" },
 											assignedPeople: [
 												{ id: "p1", name: "Alex", initials: "A" },
 											],

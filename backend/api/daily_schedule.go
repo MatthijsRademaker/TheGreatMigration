@@ -16,7 +16,7 @@ import (
 type CreateScheduleCardInput struct {
 	Title         string
 	Priority      string
-	RoomArea      string
+	AreaId        string
 	PeopleNeeded  int
 	ScheduledDate string
 	AssignedTo    []string
@@ -65,7 +65,7 @@ type TaskCard struct {
 	ID             string           `json:"id" doc:"Stable task identifier"`
 	Title          string           `json:"title" doc:"Task title"`
 	Priority       string           `json:"priority" doc:"One of: high, medium, low"`
-	RoomArea       string           `json:"roomArea" doc:"Room or area name"`
+	Area           Area             `json:"area" doc:"Room or area the card belongs to"`
 	AssignedPeople []AssignedPerson `json:"assignedPeople" doc:"People assigned to this task"`
 	PeopleNeeded   int              `json:"peopleNeeded" doc:"Number of people needed for the task (>=1)"`
 	AssignedCount  int              `json:"assignedCount" doc:"Number of people currently assigned (derived from assignedPeople)"`
@@ -140,9 +140,9 @@ func registerDailySchedule(api huma.API, store Store) {
 type CreateScheduleCardRequestBody struct {
 	Title         string   `json:"title" required:"false" doc:"Task title (required unless taskId is provided)"`
 	Priority      string   `json:"priority" required:"false" enum:"high,medium,low" doc:"One of: high, medium, low (required unless taskId is provided)"`
-	RoomArea      string   `json:"roomArea" required:"false" doc:"Room or area name (required unless taskId is provided)"`
+	AreaId        string   `json:"areaId" required:"false" doc:"ID of the room or area (required unless taskId is provided)"`
 	PeopleNeeded  int      `json:"peopleNeeded" required:"false" minimum:"1" doc:"Number of people needed for the task >=1 (required unless taskId is provided)"`
-	TaskId        string   `json:"taskId" required:"false" doc:"Referenced backlog task ID. When provided, title/priority/roomArea/peopleNeeded inherit from the referenced task unless explicitly supplied."`
+	TaskId        string   `json:"taskId" required:"false" doc:"Referenced backlog task ID. When provided, title/priority/areaId/peopleNeeded inherit from the referenced task unless explicitly supplied."`
 	ScheduledDate string   `json:"scheduledDate" required:"true" format:"date" doc:"ISO 8601 date (YYYY-MM-DD) the card is scheduled for"`
 	AssignedTo    []string `json:"assignedTo" required:"false" doc:"Person-ID strings for assigned helpers, may be empty"`
 }
@@ -199,9 +199,16 @@ func validateScheduleCardInput(body CreateScheduleCardRequestBody, store Store, 
 			return huma.Error400BadRequest("peopleNeeded must be at least 1")
 		}
 	}
-	if !hasTaskId || body.RoomArea != "" {
-		if body.RoomArea == "" {
-			return huma.Error400BadRequest("roomArea is required")
+	if !hasTaskId || body.AreaId != "" {
+		if body.AreaId == "" {
+			return huma.Error400BadRequest("areaId is required")
+		}
+		exists, err := store.AreaExists(ctx, body.AreaId)
+		if err != nil {
+			return huma.Error500InternalServerError("failed to validate area", err)
+		}
+		if !exists {
+			return huma.Error400BadRequest("area '" + body.AreaId + "' not found")
 		}
 	}
 
@@ -286,7 +293,7 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 		card, err := store.CreateScheduleCard(ctx, CreateScheduleCardInput{
 			Title:         input.Body.Title,
 			Priority:      input.Body.Priority,
-			RoomArea:      input.Body.RoomArea,
+			AreaId:        input.Body.AreaId,
 			PeopleNeeded:  input.Body.PeopleNeeded,
 			ScheduledDate: input.Body.ScheduledDate,
 			AssignedTo:    input.Body.AssignedTo,
@@ -315,7 +322,7 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 		card, err := store.UpdateScheduleCard(ctx, input.ID, CreateScheduleCardInput{
 			Title:         input.Body.Title,
 			Priority:      input.Body.Priority,
-			RoomArea:      input.Body.RoomArea,
+			AreaId:        input.Body.AreaId,
 			PeopleNeeded:  input.Body.PeopleNeeded,
 			ScheduledDate: input.Body.ScheduledDate,
 			AssignedTo:    input.Body.AssignedTo,

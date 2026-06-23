@@ -31,12 +31,18 @@ var ErrTaskHasScheduleCards = errors.New("task has referencing schedule cards")
 
 // ---------- Domain input types ----------
 
+// Area is a reference to a room or area, surfaced on tasks and schedule cards.
+type Area struct {
+	ID   string `json:"id" doc:"Stable room/area identifier, prefixed 'room-'"`
+	Name string `json:"name" doc:"Human-readable room or area name"`
+}
+
 // CreateTaskInput is the domain-layer input for creating a task.
 type CreateTaskInput struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int
-	Room         string
+	AreaID       string
 	Status       string
 	AssignedTo   []string
 }
@@ -46,7 +52,7 @@ type UpdateTaskInput struct {
 	Title        string
 	Priority     string
 	PeopleNeeded int
-	Room         string
+	AreaID       string
 	Status       string
 	AssignedTo   []string
 }
@@ -83,7 +89,7 @@ type TaskRow struct {
 	Title        string   `json:"title" doc:"Human-readable task description"`
 	Priority     string   `json:"priority" doc:"One of: high, medium, low"`
 	PeopleNeeded int      `json:"peopleNeeded" doc:"Number of people required for the task, minimum 1"`
-	Room         string   `json:"room" doc:"Room or area the task belongs to"`
+	Area         Area     `json:"area" doc:"Room or area the task belongs to"`
 	Status       string   `json:"status" doc:"One of: backlog, ready, assigned"`
 	AssignedTo   []string `json:"assignedTo" doc:"Person-ID strings for assigned helpers, may be empty"`
 }
@@ -148,7 +154,7 @@ type CreateTaskRequestBody struct {
 	Title        string   `json:"title" required:"true" doc:"Human-readable task description"`
 	Priority     string   `json:"priority" required:"true" enum:"high,medium,low" doc:"One of: high, medium, low"`
 	PeopleNeeded int      `json:"peopleNeeded" required:"true" minimum:"1" doc:"Number of people required for the task, minimum 1"`
-	Room         string   `json:"room" required:"true" doc:"Room or area the task belongs to"`
+	AreaId       string   `json:"areaId" required:"true" doc:"ID of the room or area the task belongs to"`
 	Status       string   `json:"status" required:"true" enum:"backlog,ready,assigned" doc:"One of: backlog, ready, assigned"`
 	AssignedTo   []string `json:"assignedTo" doc:"Person-ID strings for assigned helpers, may be empty"`
 }
@@ -198,8 +204,15 @@ func validateTaskInput(body CreateTaskRequestBody, store Store, ctx context.Cont
 	if body.PeopleNeeded < 1 {
 		return huma.Error400BadRequest("peopleNeeded must be at least 1")
 	}
-	if body.Room == "" {
-		return huma.Error400BadRequest("room is required")
+	if body.AreaId == "" {
+		return huma.Error400BadRequest("areaId is required")
+	}
+	areaExists, err := store.AreaExists(ctx, body.AreaId)
+	if err != nil {
+		return huma.Error500InternalServerError("failed to validate area", err)
+	}
+	if !areaExists {
+		return huma.Error400BadRequest("area '" + body.AreaId + "' not found")
 	}
 	for _, pid := range body.AssignedTo {
 		exists, err := store.PersonExists(ctx, pid)
@@ -233,7 +246,7 @@ func registerTasksEndpoints(api huma.API, store Store) {
 			Title:        input.Body.Title,
 			Priority:     input.Body.Priority,
 			PeopleNeeded: input.Body.PeopleNeeded,
-			Room:         input.Body.Room,
+			AreaID:       input.Body.AreaId,
 			Status:       input.Body.Status,
 			AssignedTo:   input.Body.AssignedTo,
 		})
@@ -261,7 +274,7 @@ func registerTasksEndpoints(api huma.API, store Store) {
 			Title:        input.Body.Title,
 			Priority:     input.Body.Priority,
 			PeopleNeeded: input.Body.PeopleNeeded,
-			Room:         input.Body.Room,
+			AreaID:       input.Body.AreaId,
 			Status:       input.Body.Status,
 			AssignedTo:   input.Body.AssignedTo,
 		})

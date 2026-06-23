@@ -8,6 +8,7 @@ import { Button } from '@/shared/ui/button'
 import Celebration from '@/shared/motion/Celebration.vue'
 import { useMotionPreference } from '@/shared/composables/useMotionPreference'
 import { springs } from '@/shared/motion/tokens'
+import { areaColor } from '@/shared/lib/areaColor'
 
 interface AssignedPerson {
   id: string
@@ -15,10 +16,16 @@ interface AssignedPerson {
   initials: string
 }
 
+interface Area {
+  id: string
+  name: string
+}
+
 interface BoardTaskCard {
   id: string
   title: string
   priority: 'high' | 'medium' | 'low'
+  area: Area
   assignedPeople: AssignedPerson[]
   peopleNeeded: number
   assignedCount: number
@@ -60,6 +67,9 @@ const priorityVariantMap: Record<BoardTaskCard['priority'], BadgeVariants['varia
   medium: 'priorityMedium',
   low: 'priorityLow',
 }
+
+// Deterministic area color derived from the area id (see areaColor).
+const areaDotColor = computed(() => areaColor(props.task.area.id))
 
 // Reward: a one-shot pop when staffing reaches fullyStaffed. The animate prop
 // briefly drives a scale keyframe; under reduced motion it stays at rest.
@@ -122,6 +132,20 @@ onBeforeUnmount(() => {
       </span>
       <Badge :variant="priorityVariantMap[task.priority]">{{ task.priority }}</Badge>
     </div>
+    <p
+      v-if="task.area.name"
+      class="flex items-center gap-1.5 text-xs text-muted-foreground mb-2"
+      :class="done ? 'line-through' : ''"
+      data-testid="area-chip"
+    >
+      <span
+        class="inline-block size-2 shrink-0 rounded-full"
+        :style="done ? undefined : { backgroundColor: areaDotColor }"
+        :class="done ? 'bg-muted-foreground/40' : ''"
+        aria-hidden="true"
+      />
+      {{ task.area.name }}
+    </p>
     <p
       v-if="task.assignedPeople.length > 0"
       class="text-xs text-muted-foreground mb-2"

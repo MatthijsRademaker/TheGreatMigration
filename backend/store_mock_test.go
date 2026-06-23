@@ -42,19 +42,50 @@ func cycleStatuses(dayOffset int) string {
 	return cycleOrder[dayOffset%len(cycleOrder)]
 }
 
+// mockAreas mirrors the seeded rooms_areas catalog (seed/002_seed_rooms_areas.sql)
+// so tests can resolve area id<->name in both directions.
+var mockAreas = []api.Area{
+	{ID: "room-1", Name: "Kitchen"},
+	{ID: "room-2", Name: "Living Room"},
+	{ID: "room-3", Name: "Bedroom 1"},
+	{ID: "room-4", Name: "Bedroom 2"},
+	{ID: "room-5", Name: "Garage"},
+	{ID: "room-6", Name: "Bedroom"},
+	{ID: "room-7", Name: "Storage"},
+	{ID: "room-8", Name: "Office"},
+}
+
+func mockAreaByName(name string) api.Area {
+	for _, a := range mockAreas {
+		if a.Name == name {
+			return a
+		}
+	}
+	return api.Area{}
+}
+
+func mockAreaByID(id string) api.Area {
+	for _, a := range mockAreas {
+		if a.ID == id {
+			return a
+		}
+	}
+	return api.Area{ID: id}
+}
+
 // seedTasks is the canonical set of tasks for test mocks.
 var seedTasks = []api.TaskRow{
-	{ID: "task-1", Title: "Disconnect kitchen appliances", Priority: "high", PeopleNeeded: 3, Room: "Kitchen", Status: "backlog", AssignedTo: []string{}},
-	{ID: "task-2", Title: "Wrap living room furniture", Priority: "high", PeopleNeeded: 2, Room: "Living Room", Status: "ready", AssignedTo: []string{}},
-	{ID: "task-3", Title: "Pack kitchen fragile items", Priority: "high", PeopleNeeded: 2, Room: "Kitchen", Status: "assigned", AssignedTo: []string{"p1"}},
-	{ID: "task-4", Title: "Disassemble bedroom furniture", Priority: "high", PeopleNeeded: 2, Room: "Bedroom 1", Status: "assigned", AssignedTo: []string{"p2", "p3"}},
-	{ID: "task-5", Title: "Sort and label moving boxes", Priority: "medium", PeopleNeeded: 3, Room: "Living Room", Status: "backlog", AssignedTo: []string{"p4"}},
-	{ID: "task-6", Title: "Clear garage shelving", Priority: "medium", PeopleNeeded: 1, Room: "Garage", Status: "ready", AssignedTo: []string{}},
-	{ID: "task-7", Title: "Move bedroom wardrobe", Priority: "medium", PeopleNeeded: 3, Room: "Bedroom 2", Status: "assigned", AssignedTo: []string{"p5", "p6", "p7"}},
-	{ID: "task-8", Title: "Sweep garage floor", Priority: "low", PeopleNeeded: 1, Room: "Garage", Status: "backlog", AssignedTo: []string{"p8"}},
-	{ID: "task-9", Title: "Dust living room shelves", Priority: "low", PeopleNeeded: 2, Room: "Living Room", Status: "ready", AssignedTo: []string{}},
-	{ID: "task-10", Title: "Wipe down kitchen counters", Priority: "low", PeopleNeeded: 2, Room: "Kitchen", Status: "assigned", AssignedTo: []string{"p1", "p2"}},
-	{ID: "task-11", Title: "Inventory bedroom closet", Priority: "medium", PeopleNeeded: 3, Room: "Bedroom 1", Status: "ready", AssignedTo: []string{"p3"}},
+	{ID: "task-1", Title: "Disconnect kitchen appliances", Priority: "high", PeopleNeeded: 3, Area: mockAreaByName("Kitchen"), Status: "backlog", AssignedTo: []string{}},
+	{ID: "task-2", Title: "Wrap living room furniture", Priority: "high", PeopleNeeded: 2, Area: mockAreaByName("Living Room"), Status: "ready", AssignedTo: []string{}},
+	{ID: "task-3", Title: "Pack kitchen fragile items", Priority: "high", PeopleNeeded: 2, Area: mockAreaByName("Kitchen"), Status: "assigned", AssignedTo: []string{"p1"}},
+	{ID: "task-4", Title: "Disassemble bedroom furniture", Priority: "high", PeopleNeeded: 2, Area: mockAreaByName("Bedroom 1"), Status: "assigned", AssignedTo: []string{"p2", "p3"}},
+	{ID: "task-5", Title: "Sort and label moving boxes", Priority: "medium", PeopleNeeded: 3, Area: mockAreaByName("Living Room"), Status: "backlog", AssignedTo: []string{"p4"}},
+	{ID: "task-6", Title: "Clear garage shelving", Priority: "medium", PeopleNeeded: 1, Area: mockAreaByName("Garage"), Status: "ready", AssignedTo: []string{}},
+	{ID: "task-7", Title: "Move bedroom wardrobe", Priority: "medium", PeopleNeeded: 3, Area: mockAreaByName("Bedroom 2"), Status: "assigned", AssignedTo: []string{"p5", "p6", "p7"}},
+	{ID: "task-8", Title: "Sweep garage floor", Priority: "low", PeopleNeeded: 1, Area: mockAreaByName("Garage"), Status: "backlog", AssignedTo: []string{"p8"}},
+	{ID: "task-9", Title: "Dust living room shelves", Priority: "low", PeopleNeeded: 2, Area: mockAreaByName("Living Room"), Status: "ready", AssignedTo: []string{}},
+	{ID: "task-10", Title: "Wipe down kitchen counters", Priority: "low", PeopleNeeded: 2, Area: mockAreaByName("Kitchen"), Status: "assigned", AssignedTo: []string{"p1", "p2"}},
+	{ID: "task-11", Title: "Inventory bedroom closet", Priority: "medium", PeopleNeeded: 3, Area: mockAreaByName("Bedroom 1"), Status: "ready", AssignedTo: []string{"p3"}},
 }
 
 // Seed daily-schedule helpers.
@@ -328,7 +359,7 @@ func (m *mockStore) GetDailySchedule(ctx context.Context, startDate time.Time, d
 				ID:             fmt.Sprintf("sched-d%d-%d", d, ti),
 				Title:          tmpl.title,
 				Priority:       tmpl.priority,
-				RoomArea:       tmpl.roomArea,
+				Area:           mockAreaByName(tmpl.roomArea),
 				AssignedPeople: assignees,
 				PeopleNeeded:   tmpl.peopleNeeded,
 				AssignedCount:  assignedCount,
@@ -423,7 +454,7 @@ func (m *mockStore) CreateTask(ctx context.Context, input api.CreateTaskInput) (
 		Title:        input.Title,
 		Priority:     input.Priority,
 		PeopleNeeded: input.PeopleNeeded,
-		Room:         input.Room,
+		Area:         mockAreaByID(input.AreaID),
 		Status:       input.Status,
 		AssignedTo:   assigned,
 	}
@@ -447,7 +478,7 @@ func (m *mockStore) UpdateTask(ctx context.Context, id string, input api.UpdateT
 		Title:        input.Title,
 		Priority:     input.Priority,
 		PeopleNeeded: input.PeopleNeeded,
-		Room:         input.Room,
+		Area:         mockAreaByID(input.AreaID),
 		Status:       input.Status,
 		AssignedTo:   assigned,
 	}
@@ -525,7 +556,7 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 	// Resolve inherited fields from referenced backlog task.
 	title := input.Title
 	priority := input.Priority
-	roomArea := input.RoomArea
+	areaID := input.AreaId
 	peopleNeeded := input.PeopleNeeded
 
 	if input.TaskId != "" {
@@ -539,8 +570,8 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 		if priority == "" {
 			priority = refTask.Priority
 		}
-		if roomArea == "" {
-			roomArea = refTask.Room
+		if areaID == "" {
+			areaID = refTask.Area.ID
 		}
 		if peopleNeeded < 1 {
 			peopleNeeded = refTask.PeopleNeeded
@@ -568,7 +599,7 @@ func (m *mockStore) CreateScheduleCard(ctx context.Context, input api.CreateSche
 		ID:             id,
 		Title:          title,
 		Priority:       priority,
-		RoomArea:       roomArea,
+		Area:           mockAreaByID(areaID),
 		AssignedPeople: assignees,
 		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,
@@ -596,7 +627,7 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 	// Resolve inherited fields from referenced backlog task.
 	title := input.Title
 	priority := input.Priority
-	roomArea := input.RoomArea
+	areaID := input.AreaId
 	peopleNeeded := input.PeopleNeeded
 
 	if effectiveTaskID != "" {
@@ -610,8 +641,8 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 		if priority == "" {
 			priority = refTask.Priority
 		}
-		if roomArea == "" {
-			roomArea = refTask.Room
+		if areaID == "" {
+			areaID = refTask.Area.ID
 		}
 		if peopleNeeded < 1 {
 			peopleNeeded = refTask.PeopleNeeded
@@ -639,7 +670,7 @@ func (m *mockStore) UpdateScheduleCard(ctx context.Context, idStr string, input 
 		ID:             idStr,
 		Title:          title,
 		Priority:       priority,
-		RoomArea:       roomArea,
+		Area:           mockAreaByID(areaID),
 		AssignedPeople: assignees,
 		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,
@@ -675,6 +706,13 @@ func (m *mockStore) SetScheduleCardCompleted(ctx context.Context, idStr string, 
 func (m *mockStore) TaskExists(ctx context.Context, id string) (bool, error) {
 	_, ok := m.tasks[id]
 	return ok, nil
+}
+
+func (m *mockStore) AreaExists(ctx context.Context, id string) (bool, error) {
+	if _, ok := m.rooms[id]; ok {
+		return true, nil
+	}
+	return mockAreaByID(id).Name != "", nil
 }
 
 func (m *mockStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {

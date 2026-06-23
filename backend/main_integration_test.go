@@ -270,7 +270,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 	// Test task CRUD lifecycle against Postgres.
 	t.Run("TasksCRUD", func(t *testing.T) {
 		// Create: add a new task with assignments.
-		createBody := `{"title":"Integration test task","priority":"high","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":["p1","p2"]}`
+		createBody := `{"title":"Integration test task","priority":"high","peopleNeeded":2,"areaId":"room-1","status":"backlog","assignedTo":["p1","p2"]}`
 		createReq := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(createBody))
 		createReq.Header.Set("Content-Type", "application/json")
 		createRec := httptest.NewRecorder()
@@ -287,8 +287,8 @@ func TestDBBackedEndpoints(t *testing.T) {
 		if created.Title != "Integration test task" {
 			t.Fatalf("unexpected title: %q", created.Title)
 		}
-		if created.Priority != "high" || created.Status != "backlog" || created.PeopleNeeded != 2 || created.Room != "Kitchen" {
-			t.Fatalf("unexpected created fields: prio=%q status=%q ppl=%d room=%q", created.Priority, created.Status, created.PeopleNeeded, created.Room)
+		if created.Priority != "high" || created.Status != "backlog" || created.PeopleNeeded != 2 || created.Area.ID != "room-1" || created.Area.Name != "Kitchen" {
+			t.Fatalf("unexpected created fields: prio=%q status=%q ppl=%d area=%+v", created.Priority, created.Status, created.PeopleNeeded, created.Area)
 		}
 		if created.ID == "" || created.ID[:5] != "task-" {
 			t.Fatalf("created task has invalid ID: %q", created.ID)
@@ -326,7 +326,7 @@ func TestDBBackedEndpoints(t *testing.T) {
 		}
 
 		// Update: change title and assignments.
-		updateBody := `{"title":"Updated integration task","priority":"medium","peopleNeeded":1,"room":"Garage","status":"ready","assignedTo":["p3"]}`
+		updateBody := `{"title":"Updated integration task","priority":"medium","peopleNeeded":1,"areaId":"room-5","status":"ready","assignedTo":["p3"]}`
 		updateReq := httptest.NewRequest(http.MethodPut, "/api/tasks/"+created.ID, strings.NewReader(updateBody))
 		updateReq.Header.Set("Content-Type", "application/json")
 		updateRec := httptest.NewRecorder()
@@ -346,8 +346,8 @@ func TestDBBackedEndpoints(t *testing.T) {
 		if updated.Title != "Updated integration task" || updated.Priority != "medium" || updated.Status != "ready" {
 			t.Fatalf("unexpected updated fields: title=%q prio=%q status=%q", updated.Title, updated.Priority, updated.Status)
 		}
-		if updated.PeopleNeeded != 1 || updated.Room != "Garage" {
-			t.Fatalf("unexpected updated fields: ppl=%d room=%q", updated.PeopleNeeded, updated.Room)
+		if updated.PeopleNeeded != 1 || updated.Area.ID != "room-5" || updated.Area.Name != "Garage" {
+			t.Fatalf("unexpected updated fields: ppl=%d area=%+v", updated.PeopleNeeded, updated.Area)
 		}
 		if len(updated.AssignedTo) != 1 || updated.AssignedTo[0] != "p3" {
 			t.Fatalf("unexpected updated assignedTo: %v", updated.AssignedTo)
@@ -798,7 +798,7 @@ func TestSeedAdvancesSequences(t *testing.T) {
 		Title:        "New Task",
 		Priority:     "high",
 		PeopleNeeded: 1,
-		Room:         "Kitchen",
+		AreaID:       "room-1",
 		Status:       "backlog",
 	})
 	if err != nil {
@@ -891,4 +891,115 @@ func applySeed(t *testing.T, dsn string) {
 		t.Fatalf("failed to run seed dataset: %v", err)
 	}
 	goose.SetTableName("goose_db_version")
+}
+
+// TestAreaBackfillMigration exercises migration 014's self-healing backfill:
+// name-match linking, deterministic MIN(id) on duplicate names, and orphan
+// auto-creation — by applying migrations up to v13, seeding legacy free-text
+// rooms, then applying v14 and asserting the resulting area_id foreign keys.
+func TestAreaBackfillMigration(t *testing.T) {
+	baseDSN := os.Getenv("DATABASE_URL")
+	if baseDSN == "" {
+		t.Fatal("DATABASE_URL must be set (run via scripts/test-integration)")
+	}
+	dsn := provisionFreshDB(t, baseDSN)
+	ctx := context.Background()
+
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer sqlDB.Close()
+
+	// Apply schema up to v13 (before the area_id FK migration).
+	goose.SetBaseFS(migrationsFS)
+	goose.SetTableName("goose_db_version")
+	if err := goose.UpTo(sqlDB, "migrations", 13); err != nil {
+		t.Fatalf("failed to migrate to v13: %v", err)
+	}
+
+	// Seed legacy catalog: a normal room, plus a duplicate-named pair to test
+	// deterministic MIN(id) resolution.
+	if _, err := sqlDB.ExecContext(ctx, `
+		INSERT INTO rooms_areas (id, name, type) VALUES
+			('room-1', 'Kitchen', 'room'),
+			('room-50', 'Attic', 'area'),
+			('room-60', 'Attic', 'area');
+		SELECT setval('rooms_areas_id_seq', 60);
+	`); err != nil {
+		t.Fatalf("failed to seed legacy rooms_areas: %v", err)
+	}
+
+	// Legacy free-text rows: a clean match, a duplicate-name match, and an
+	// orphan string present in BOTH tables (should auto-create exactly one row).
+	if _, err := sqlDB.ExecContext(ctx, `
+		INSERT INTO backlog_tasks (id, title, priority, people_needed, room, status, sort_order) VALUES
+			('task-a', 'Match',      'high',   1, 'Kitchen',   'backlog', 1),
+			('task-b', 'DupName',    'medium', 1, 'Attic',     'backlog', 2),
+			('task-c', 'Orphan',     'low',    1, 'Ghostroom', 'backlog', 3);
+		INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order) VALUES
+			('Card orphan', 'low', 'Ghostroom', 1, '2026-07-05', 0);
+	`); err != nil {
+		t.Fatalf("failed to seed legacy free-text rows: %v", err)
+	}
+
+	// Apply the area_id FK migration.
+	if err := goose.UpTo(sqlDB, "migrations", 14); err != nil {
+		t.Fatalf("failed to migrate to v14: %v", err)
+	}
+
+	// Clean match links to the catalog id.
+	var areaID string
+	if err := sqlDB.QueryRowContext(ctx, `SELECT area_id FROM backlog_tasks WHERE id = 'task-a'`).Scan(&areaID); err != nil {
+		t.Fatalf("query task-a: %v", err)
+	}
+	if areaID != "room-1" {
+		t.Fatalf("expected task-a area_id 'room-1', got %q", areaID)
+	}
+
+	// Duplicate name resolves to the numerically lowest id.
+	if err := sqlDB.QueryRowContext(ctx, `SELECT area_id FROM backlog_tasks WHERE id = 'task-b'`).Scan(&areaID); err != nil {
+		t.Fatalf("query task-b: %v", err)
+	}
+	if areaID != "room-50" {
+		t.Fatalf("expected task-b area_id 'room-50' (MIN id), got %q", areaID)
+	}
+
+	// Orphan string auto-created a single 'area' row, shared by both tables.
+	var taskOrphanArea, cardOrphanArea, orphanName, orphanType string
+	if err := sqlDB.QueryRowContext(ctx, `SELECT area_id FROM backlog_tasks WHERE id = 'task-c'`).Scan(&taskOrphanArea); err != nil {
+		t.Fatalf("query task-c: %v", err)
+	}
+	if err := sqlDB.QueryRowContext(ctx, `SELECT area_id FROM schedule_task_cards WHERE title = 'Card orphan'`).Scan(&cardOrphanArea); err != nil {
+		t.Fatalf("query card orphan: %v", err)
+	}
+	if taskOrphanArea != cardOrphanArea {
+		t.Fatalf("expected orphan rows to share one auto-created area, got %q and %q", taskOrphanArea, cardOrphanArea)
+	}
+	if err := sqlDB.QueryRowContext(ctx, `SELECT name, type FROM rooms_areas WHERE id = $1`, taskOrphanArea).Scan(&orphanName, &orphanType); err != nil {
+		t.Fatalf("query auto-created area: %v", err)
+	}
+	if orphanName != "Ghostroom" || orphanType != "area" {
+		t.Fatalf("expected auto-created area Ghostroom/area, got %q/%q", orphanName, orphanType)
+	}
+
+	// No row is left without an area_id.
+	var nullCount int
+	if err := sqlDB.QueryRowContext(ctx, `
+		SELECT (SELECT COUNT(*) FROM backlog_tasks WHERE area_id IS NULL)
+		     + (SELECT COUNT(*) FROM schedule_task_cards WHERE area_id IS NULL)
+	`).Scan(&nullCount); err != nil {
+		t.Fatalf("query null area_id count: %v", err)
+	}
+	if nullCount != 0 {
+		t.Fatalf("expected 0 rows with null area_id, got %d", nullCount)
+	}
+
+	// The foreign key is enforced: an unknown area_id is rejected.
+	if _, err := sqlDB.ExecContext(ctx, `
+		INSERT INTO backlog_tasks (id, title, priority, people_needed, area_id, status, sort_order)
+		VALUES ('task-bad', 'Bad', 'low', 1, 'room-does-not-exist', 'backlog', 99)
+	`); err == nil {
+		t.Fatal("expected FK violation inserting unknown area_id, got nil error")
+	}
 }

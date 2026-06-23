@@ -34,7 +34,7 @@ const mockBacklogData = computed(() => ({
 			id: "task-1",
 			title: "Pack kitchen",
 			priority: "high",
-			room: "Kitchen",
+			area: { id: "room-1", name: "Kitchen" },
 			peopleNeeded: 2,
 			status: "backlog",
 			assignedTo: [],

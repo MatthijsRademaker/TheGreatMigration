@@ -1,14 +1,20 @@
 -- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
-FROM schedule_task_cards
-WHERE scheduled_date >= sqlc.arg(start_date)::date
-  AND scheduled_date < (sqlc.arg(start_date)::date + sqlc.arg(days)::int * interval '1 day')
-ORDER BY scheduled_date, sort_order;
+SELECT sc.id, sc.title, sc.priority, sc.area_id, ra.name AS area_name, sc.people_needed, sc.scheduled_date, sc.sort_order, sc.created_at, sc.task_id, sc.completed
+FROM schedule_task_cards sc
+JOIN rooms_areas ra ON ra.id = sc.area_id
+WHERE sc.scheduled_date >= sqlc.arg(start_date)::date
+  AND sc.scheduled_date < (sqlc.arg(start_date)::date + sqlc.arg(days)::int * interval '1 day')
+ORDER BY sc.scheduled_date, sc.sort_order;
 
 -- name: CreateScheduleCard :one
-INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order, task_id)
-VALUES (sqlc.arg(title), sqlc.arg(priority), sqlc.arg(room_area), sqlc.arg(people_needed), sqlc.arg(scheduled_date), sqlc.arg(sort_order), sqlc.arg(task_id))
-RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed;
+WITH inserted AS (
+    INSERT INTO schedule_task_cards (title, priority, area_id, people_needed, scheduled_date, sort_order, task_id)
+    VALUES (sqlc.arg(title), sqlc.arg(priority), sqlc.arg(area_id), sqlc.arg(people_needed), sqlc.arg(scheduled_date), sqlc.arg(sort_order), sqlc.arg(task_id))
+    RETURNING id, title, priority, area_id, people_needed, scheduled_date, sort_order, created_at, task_id, completed
+)
+SELECT i.id, i.title, i.priority, i.area_id, ra.name AS area_name, i.people_needed, i.scheduled_date, i.sort_order, i.created_at, i.task_id, i.completed
+FROM inserted i
+JOIN rooms_areas ra ON ra.id = i.area_id;
 
 -- name: CreateScheduleAssignment :exec
 INSERT INTO schedule_task_assignments (task_card_id, person_id, sort_order)
@@ -19,16 +25,21 @@ DELETE FROM schedule_task_assignments
 WHERE task_card_id = sqlc.arg(task_card_id);
 
 -- name: UpdateScheduleCard :one
-UPDATE schedule_task_cards
-SET title = sqlc.arg(title),
-    priority = sqlc.arg(priority),
-    room_area = sqlc.arg(room_area),
-    people_needed = sqlc.arg(people_needed),
-    scheduled_date = sqlc.arg(scheduled_date),
-    sort_order = sqlc.arg(sort_order),
-    task_id = sqlc.arg(task_id)
-WHERE id = sqlc.arg(id)
-RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed;
+WITH updated AS (
+    UPDATE schedule_task_cards
+    SET title = sqlc.arg(title),
+        priority = sqlc.arg(priority),
+        area_id = sqlc.arg(area_id),
+        people_needed = sqlc.arg(people_needed),
+        scheduled_date = sqlc.arg(scheduled_date),
+        sort_order = sqlc.arg(sort_order),
+        task_id = sqlc.arg(task_id)
+    WHERE schedule_task_cards.id = sqlc.arg(id)
+    RETURNING id, title, priority, area_id, people_needed, scheduled_date, sort_order, created_at, task_id, completed
+)
+SELECT u.id, u.title, u.priority, u.area_id, ra.name AS area_name, u.people_needed, u.scheduled_date, u.sort_order, u.created_at, u.task_id, u.completed
+FROM updated u
+JOIN rooms_areas ra ON ra.id = u.area_id;
 
 -- name: DeleteScheduleCard :exec
 DELETE FROM schedule_task_cards
@@ -45,14 +56,16 @@ SELECT EXISTS (
 );
 
 -- name: GetTaskByIDForRef :one
-SELECT id, title, priority, people_needed, room
-FROM backlog_tasks
-WHERE id = sqlc.arg(id);
+SELECT bt.id, bt.title, bt.priority, bt.people_needed, bt.area_id, ra.name AS area_name
+FROM backlog_tasks bt
+JOIN rooms_areas ra ON ra.id = bt.area_id
+WHERE bt.id = sqlc.arg(id);
 
 -- name: GetScheduleCardByID :one
-SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
-FROM schedule_task_cards
-WHERE id = sqlc.arg(id);
+SELECT sc.id, sc.title, sc.priority, sc.area_id, ra.name AS area_name, sc.people_needed, sc.scheduled_date, sc.sort_order, sc.created_at, sc.task_id, sc.completed
+FROM schedule_task_cards sc
+JOIN rooms_areas ra ON ra.id = sc.area_id
+WHERE sc.id = sqlc.arg(id);
 
 -- name: GetMaxScheduleSortOrder :one
 SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort_order

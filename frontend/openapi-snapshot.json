@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "Area": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Stable room/area identifier, prefixed 'room-'",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable room or area name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "AssignedPerson": {
         "additionalProperties": false,
         "properties": {
@@ -116,6 +134,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "areaId": {
+            "description": "ID of the room or area (required unless taskId is provided)",
+            "type": "string"
+          },
           "assignedTo": {
             "description": "Person-ID strings for assigned helpers, may be empty",
             "items": {
@@ -141,17 +163,13 @@
             ],
             "type": "string"
           },
-          "roomArea": {
-            "description": "Room or area name (required unless taskId is provided)",
-            "type": "string"
-          },
           "scheduledDate": {
             "description": "ISO 8601 date (YYYY-MM-DD) the card is scheduled for",
             "format": "date",
             "type": "string"
           },
           "taskId": {
-            "description": "Referenced backlog task ID. When provided, title/priority/roomArea/peopleNeeded inherit from the referenced task unless explicitly supplied.",
+            "description": "Referenced backlog task ID. When provided, title/priority/areaId/peopleNeeded inherit from the referenced task unless explicitly supplied.",
             "type": "string"
           },
           "title": {
@@ -174,6 +192,10 @@
             ],
             "format": "uri",
             "readOnly": true,
+            "type": "string"
+          },
+          "areaId": {
+            "description": "ID of the room or area the task belongs to",
             "type": "string"
           },
           "assignedTo": {
@@ -201,10 +223,6 @@
             ],
             "type": "string"
           },
-          "room": {
-            "description": "Room or area the task belongs to",
-            "type": "string"
-          },
           "status": {
             "description": "One of: backlog, ready, assigned",
             "enum": [
@@ -223,7 +241,7 @@
           "title",
           "priority",
           "peopleNeeded",
-          "room",
+          "areaId",
           "status",
           "assignedTo"
         ],
@@ -926,6 +944,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "area": {
+            "$ref": "#/components/schemas/Area",
+            "description": "Room or area the card belongs to"
+          },
           "assignedCount": {
             "description": "Number of people currently assigned (derived from assignedPeople)",
             "format": "int64",
@@ -958,10 +980,6 @@
             "description": "One of: high, medium, low",
             "type": "string"
           },
-          "roomArea": {
-            "description": "Room or area name",
-            "type": "string"
-          },
           "staffingStatus": {
             "description": "One of: fullyStaffed, underStaffed",
             "type": "string"
@@ -982,7 +1000,7 @@
           "id",
           "title",
           "priority",
-          "roomArea",
+          "area",
           "assignedPeople",
           "peopleNeeded",
           "assignedCount",
@@ -1003,6 +1021,10 @@
             "format": "uri",
             "readOnly": true,
             "type": "string"
+          },
+          "area": {
+            "$ref": "#/components/schemas/Area",
+            "description": "Room or area the task belongs to"
           },
           "assignedTo": {
             "description": "Person-ID strings for assigned helpers, may be empty",
@@ -1027,10 +1049,6 @@
             "description": "One of: high, medium, low",
             "type": "string"
           },
-          "room": {
-            "description": "Room or area the task belongs to",
-            "type": "string"
-          },
           "status": {
             "description": "One of: backlog, ready, assigned",
             "type": "string"
@@ -1045,7 +1063,7 @@
           "title",
           "priority",
           "peopleNeeded",
-          "room",
+          "area",
           "status",
           "assignedTo"
         ],

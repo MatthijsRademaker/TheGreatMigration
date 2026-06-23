@@ -335,6 +335,10 @@ func (n *nilPlanningWindowStore) PersonExists(ctx context.Context, id string) (b
 	return false, errTestFailure
 }
 
+func (n *nilPlanningWindowStore) AreaExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
 func (n *nilPlanningWindowStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
 	return false, errTestFailure
 }
@@ -696,8 +700,8 @@ func TestTaskBacklog(t *testing.T) {
 		if task.Title == "" {
 			t.Fatalf("task %s has empty title", task.ID)
 		}
-		if task.Room == "" {
-			t.Fatalf("task %s has empty room", task.ID)
+		if task.Area.ID == "" || task.Area.Name == "" {
+			t.Fatalf("task %s has empty area", task.ID)
 		}
 		if task.PeopleNeeded < 1 {
 			t.Fatalf("task %s has peopleNeeded=%d, expected >= 1", task.ID, task.PeopleNeeded)
@@ -1026,6 +1030,10 @@ func (f *failingStore) PersonExists(ctx context.Context, id string) (bool, error
 	return false, errTestFailure
 }
 
+func (f *failingStore) AreaExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
 func (f *failingStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
 	return false, errTestFailure
 }
@@ -1208,6 +1216,10 @@ func (f *partialFailingStore) PersonExists(ctx context.Context, id string) (bool
 	return false, errTestFailure
 }
 
+func (f *partialFailingStore) AreaExists(ctx context.Context, id string) (bool, error) {
+	return false, errTestFailure
+}
+
 func (f *partialFailingStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
 	return false, errTestFailure
 }
@@ -1305,7 +1317,7 @@ func (f *partialFailingStore) ClearToolBringer(ctx context.Context, id string) e
 func TestCreateTask(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
-	body := `{"title":"Pack kitchen boxes","priority":"high","peopleNeeded":3,"room":"Kitchen","status":"backlog","assignedTo":["p1","p2"]}`
+	body := `{"title":"Pack kitchen boxes","priority":"high","peopleNeeded":3,"areaId":"room-1","status":"backlog","assignedTo":["p1","p2"]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1328,8 +1340,8 @@ func TestCreateTask(t *testing.T) {
 	if resp.PeopleNeeded != 3 {
 		t.Fatalf("expected peopleNeeded 3, got %d", resp.PeopleNeeded)
 	}
-	if resp.Room != "Kitchen" {
-		t.Fatalf("expected room 'Kitchen', got %q", resp.Room)
+	if resp.Area.ID != "room-1" || resp.Area.Name != "Kitchen" {
+		t.Fatalf("expected area room-1/Kitchen, got %+v", resp.Area)
 	}
 	if resp.Status != "backlog" {
 		t.Fatalf("expected status 'backlog', got %q", resp.Status)
@@ -1352,32 +1364,37 @@ func TestCreateTaskValidation(t *testing.T) {
 	}{
 		{
 			name:           "empty title",
-			body:           `{"title":"","priority":"medium","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":[]}`,
+			body:           `{"title":"","priority":"medium","peopleNeeded":2,"areaId":"room-1","status":"backlog","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "invalid priority",
-			body:           `{"title":"Task","priority":"urgent","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"urgent","peopleNeeded":2,"areaId":"room-1","status":"backlog","assignedTo":[]}`,
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:           "invalid status",
-			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"room":"Kitchen","status":"done","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"areaId":"room-1","status":"done","assignedTo":[]}`,
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:           "peopleNeeded < 1",
-			body:           `{"title":"Task","priority":"medium","peopleNeeded":0,"room":"Kitchen","status":"backlog","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":0,"areaId":"room-1","status":"backlog","assignedTo":[]}`,
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
 		{
-			name:           "empty room",
-			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"room":"","status":"backlog","assignedTo":[]}`,
+			name:           "empty areaId",
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"areaId":"","status":"backlog","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "unknown assigned person",
-			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"room":"Kitchen","status":"backlog","assignedTo":["p99"]}`,
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"areaId":"room-1","status":"backlog","assignedTo":["p99"]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unknown areaId",
+			body:           `{"title":"Task","priority":"medium","peopleNeeded":2,"areaId":"room-999","status":"backlog","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
@@ -1401,7 +1418,7 @@ func TestUpdateTask(t *testing.T) {
 	router, _ := newTestAPI(store)
 
 	// Update an existing task (task-1 from seed data).
-	body := `{"title":"Updated kitchen task","priority":"low","peopleNeeded":1,"room":"Kitchen","status":"ready","assignedTo":["p3"]}`
+	body := `{"title":"Updated kitchen task","priority":"low","peopleNeeded":1,"areaId":"room-1","status":"ready","assignedTo":["p3"]}`
 	req := httptest.NewRequest(http.MethodPut, "/api/tasks/task-1", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1441,7 +1458,7 @@ func TestUpdateTask(t *testing.T) {
 func TestUpdateTaskNotFound(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
-	body := `{"title":"Nobody","priority":"low","peopleNeeded":1,"room":"Nowhere","status":"backlog","assignedTo":[]}`
+	body := `{"title":"Nobody","priority":"low","peopleNeeded":1,"areaId":"room-1","status":"backlog","assignedTo":[]}`
 	req := httptest.NewRequest(http.MethodPut, "/api/tasks/task-nonexistent", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1487,7 +1504,7 @@ func TestDeleteTaskWithScheduleCards(t *testing.T) {
 	router, _ := newTestAPI(store)
 
 	// Create a schedule card referencing task-1.
-	createBody := `{"title":"Scheduled card","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"taskId":"task-1","scheduledDate":"2026-07-10","assignedTo":[]}`
+	createBody := `{"title":"Scheduled card","priority":"medium","areaId":"room-1","peopleNeeded":2,"taskId":"task-1","scheduledDate":"2026-07-10","assignedTo":[]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1538,8 +1555,8 @@ func TestCreateScheduleCardWithValidTaskId(t *testing.T) {
 	if resp.Priority != "high" {
 		t.Fatalf("expected inherited priority 'high', got %q", resp.Priority)
 	}
-	if resp.RoomArea != "Kitchen" {
-		t.Fatalf("expected inherited roomArea 'Kitchen', got %q", resp.RoomArea)
+	if resp.Area.Name != "Kitchen" {
+		t.Fatalf("expected inherited area 'Kitchen', got %q", resp.Area.Name)
 	}
 	if resp.PeopleNeeded != 3 {
 		t.Fatalf("expected inherited peopleNeeded 3, got %d", resp.PeopleNeeded)
@@ -1593,8 +1610,8 @@ func TestCreateScheduleCardWithTaskIdAndOverrides(t *testing.T) {
 		t.Fatalf("expected override priority 'low', got %q", resp.Priority)
 	}
 	// Inherited fields for values not explicitly set.
-	if resp.RoomArea != "Living Room" {
-		t.Fatalf("expected inherited roomArea 'Living Room', got %q", resp.RoomArea)
+	if resp.Area.Name != "Living Room" {
+		t.Fatalf("expected inherited area 'Living Room', got %q", resp.Area.Name)
 	}
 	if resp.PeopleNeeded != 2 {
 		t.Fatalf("expected inherited peopleNeeded 2, got %d", resp.PeopleNeeded)
@@ -1609,7 +1626,7 @@ func TestTaskWriteReflectsInBacklog(t *testing.T) {
 	router, _ := newTestAPI(store)
 
 	// Create a task.
-	createBody := `{"title":"New reflected task","priority":"high","peopleNeeded":2,"room":"Garage","status":"backlog","assignedTo":["p1"]}`
+	createBody := `{"title":"New reflected task","priority":"high","peopleNeeded":2,"areaId":"room-5","status":"backlog","assignedTo":["p1"]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1716,6 +1733,10 @@ func (s *peopleTestStore) DeletePerson(ctx context.Context, id string) error {
 func (s *peopleTestStore) PersonExists(ctx context.Context, id string) (bool, error) {
 	_, exists := s.people[id]
 	return exists, nil
+}
+
+func (s *peopleTestStore) AreaExists(ctx context.Context, id string) (bool, error) {
+	return true, nil
 }
 
 func (s *peopleTestStore) PersonHasReferences(ctx context.Context, id string) (bool, error) {
@@ -2409,7 +2430,7 @@ func TestOpenAPIIncludesMergedEndpoints(t *testing.T) {
 func TestCreateScheduleCard(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
-	body := `{"title":"Kitchen painting","priority":"high","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`
+	body := `{"title":"Kitchen painting","priority":"high","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -2432,8 +2453,8 @@ func TestCreateScheduleCard(t *testing.T) {
 	if resp.PeopleNeeded != 2 {
 		t.Fatalf("expected peopleNeeded 2, got %d", resp.PeopleNeeded)
 	}
-	if resp.RoomArea != "Kitchen" {
-		t.Fatalf("expected roomArea 'Kitchen', got %q", resp.RoomArea)
+	if resp.Area.ID != "room-1" || resp.Area.Name != "Kitchen" {
+		t.Fatalf("expected area room-1/Kitchen, got %+v", resp.Area)
 	}
 	if len(resp.AssignedPeople) != 2 {
 		t.Fatalf("expected 2 assigned people, got %d", len(resp.AssignedPeople))
@@ -2459,42 +2480,47 @@ func TestCreateScheduleCardValidation(t *testing.T) {
 	}{
 		{
 			name:           "empty title",
-			body:           `{"title":"","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			body:           `{"title":"","priority":"medium","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "invalid priority",
-			body:           `{"title":"Task","priority":"urgent","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"urgent","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:           "peopleNeeded < 1",
-			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":0,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"medium","areaId":"room-1","peopleNeeded":0,"scheduledDate":"2026-07-05","assignedTo":[]}`,
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
 		{
-			name:           "empty roomArea",
-			body:           `{"title":"Task","priority":"medium","roomArea":"","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
+			name:           "empty areaId",
+			body:           `{"title":"Task","priority":"medium","areaId":"","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "unknown assigned person",
-			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p99"]}`,
+			body:           `{"title":"Task","priority":"medium","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p99"]}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unknown areaId",
+			body:           `{"title":"Task","priority":"medium","areaId":"room-999","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "out-of-window date",
-			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2025-01-01","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"medium","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2025-01-01","assignedTo":[]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "assignedTo exceeds peopleNeeded",
-			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`,
+			body:           `{"title":"Task","priority":"medium","areaId":"room-1","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "malformed date",
-			body:           `{"title":"Task","priority":"medium","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"not-a-date","assignedTo":[]}`,
+			body:           `{"title":"Task","priority":"medium","areaId":"room-1","peopleNeeded":2,"scheduledDate":"not-a-date","assignedTo":[]}`,
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
 	}
@@ -2520,7 +2546,7 @@ func TestUpdateScheduleCard(t *testing.T) {
 	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
 		Title:         "Original task",
 		Priority:      "low",
-		RoomArea:      "Garage",
+		AreaId:        "room-5",
 		PeopleNeeded:  1,
 		ScheduledDate: "2026-07-05",
 		AssignedTo:    []string{"p1"},
@@ -2531,7 +2557,7 @@ func TestUpdateScheduleCard(t *testing.T) {
 
 	router, _ := newTestAPI(store)
 
-	body := `{"title":"Updated task","priority":"high","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-06","assignedTo":["p2","p3"]}`
+	body := `{"title":"Updated task","priority":"high","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2026-07-06","assignedTo":["p2","p3"]}`
 	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/"+card.ID, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -2610,8 +2636,8 @@ func TestUpdateScheduleCardWithTaskIdPreservesInheritedFields(t *testing.T) {
 	if resp.Priority != "high" {
 		t.Fatalf("expected priority 'high' (inherited), got %q", resp.Priority)
 	}
-	if resp.RoomArea != "Kitchen" {
-		t.Fatalf("expected roomArea 'Kitchen' (inherited), got %q", resp.RoomArea)
+	if resp.Area.Name != "Kitchen" {
+		t.Fatalf("expected area 'Kitchen' (inherited), got %q", resp.Area.Name)
 	}
 	if resp.PeopleNeeded != 3 {
 		t.Fatalf("expected peopleNeeded 3 (inherited from task-1), got %d", resp.PeopleNeeded)
@@ -2668,8 +2694,8 @@ func TestUpdateScheduleCardPreservesTaskIdWhenOmitted(t *testing.T) {
 	if updated.Priority != "high" {
 		t.Fatalf("expected priority 'high', got %q", updated.Priority)
 	}
-	if updated.RoomArea != "Kitchen" {
-		t.Fatalf("expected roomArea 'Kitchen', got %q", updated.RoomArea)
+	if updated.Area.Name != "Kitchen" {
+		t.Fatalf("expected area 'Kitchen', got %q", updated.Area.Name)
 	}
 	if updated.PeopleNeeded != 3 {
 		t.Fatalf("expected peopleNeeded 3, got %d", updated.PeopleNeeded)
@@ -2728,8 +2754,8 @@ func TestUpdateScheduleCardChangesTaskId(t *testing.T) {
 	if resp.Priority != "high" {
 		t.Fatalf("expected priority 'high' (inherited from task-2), got %q", resp.Priority)
 	}
-	if resp.RoomArea != "Living Room" {
-		t.Fatalf("expected roomArea 'Living Room' (inherited from task-2), got %q", resp.RoomArea)
+	if resp.Area.Name != "Living Room" {
+		t.Fatalf("expected area 'Living Room' (inherited from task-2), got %q", resp.Area.Name)
 	}
 	if resp.PeopleNeeded != 2 {
 		t.Fatalf("expected peopleNeeded 2 (inherited from task-2), got %d", resp.PeopleNeeded)
@@ -2748,7 +2774,7 @@ func TestUpdateScheduleCardChangesTaskId(t *testing.T) {
 func TestUpdateScheduleCardNotFound(t *testing.T) {
 	router, _ := newTestAPI(newMockStore())
 
-	body := `{"title":"Nowhere","priority":"low","roomArea":"Garage","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
+	body := `{"title":"Nowhere","priority":"low","areaId":"room-5","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
 	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/sched-999", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -2792,7 +2818,7 @@ func TestDeleteScheduleCard(t *testing.T) {
 	card, err := store.CreateScheduleCard(context.Background(), backendapi.CreateScheduleCardInput{
 		Title:         "To be deleted",
 		Priority:      "medium",
-		RoomArea:      "Storage",
+		AreaId:        "room-7",
 		PeopleNeeded:  1,
 		ScheduledDate: "2026-07-05",
 		AssignedTo:    []string{},
@@ -2834,7 +2860,7 @@ func TestScheduleCardWriteReflectsInDailySchedule(t *testing.T) {
 	router, _ := newTestAPI(store)
 
 	// Create a schedule card on 2026-07-05.
-	createBody := `{"title":"Reflected scheduled task","priority":"high","roomArea":"Kitchen","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`
+	createBody := `{"title":"Reflected scheduled task","priority":"high","areaId":"room-1","peopleNeeded":2,"scheduledDate":"2026-07-05","assignedTo":["p1","p2"]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -2931,7 +2957,7 @@ func TestTaskIdReflectsInDailySchedule(t *testing.T) {
 func TestCreateScheduleCardStoreFailure(t *testing.T) {
 	router, _ := newTestAPI(&failingStore{})
 
-	body := `{"title":"Test","priority":"medium","roomArea":"Kitchen","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
+	body := `{"title":"Test","priority":"medium","areaId":"room-1","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/schedule/cards", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -2945,7 +2971,7 @@ func TestCreateScheduleCardStoreFailure(t *testing.T) {
 func TestUpdateScheduleCardStoreFailure(t *testing.T) {
 	router, _ := newTestAPI(&failingStore{})
 
-	body := `{"title":"Test","priority":"medium","roomArea":"Kitchen","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
+	body := `{"title":"Test","priority":"medium","areaId":"room-1","peopleNeeded":1,"scheduledDate":"2026-07-05","assignedTo":[]}`
 	req := httptest.NewRequest(http.MethodPut, "/api/schedule/cards/sched-1", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()

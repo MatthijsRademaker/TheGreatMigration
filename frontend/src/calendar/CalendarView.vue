@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { parseDate } from '@internationalized/date'
-import { useMutation, useQueryCache } from '@pinia/colada'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type { DateValue } from '@internationalized/date'
 import {
   createScheduleCardMutation,
   updateScheduleCardMutation,
   deleteScheduleCardMutation,
   setScheduleCardCompletedMutation,
+  listRoomsQuery,
 } from '@/client/@pinia/colada.gen'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 import { useScheduleBoardDnd } from '@/calendar/composables/useScheduleBoardDnd'
@@ -44,6 +45,7 @@ const {
 } = useDailySchedule()
 const { data: peopleData } = usePeopleAvailability()
 const { data: backlog, isLoading: backlogLoading, isEmpty: backlogEmpty } = useTaskBacklog()
+const roomsQuery = useQuery(listRoomsQuery())
 
 // ---- Mutations ----
 const queryCache = useQueryCache()
@@ -93,7 +95,7 @@ const formTaskId = ref('')
 const formTitle = ref('')
 const formPriority = ref<'high' | 'medium' | 'low'>('medium')
 const formPeopleNeeded = ref(2)
-const formRoomArea = ref('')
+const formAreaId = ref('')
 const formScheduledDate = ref('')
 const formAssignedTo = ref<string[]>([])
 const mutationLoading = ref(false)
@@ -120,7 +122,7 @@ function resetForm() {
   formTitle.value = ''
   formPriority.value = 'medium'
   formPeopleNeeded.value = 2
-  formRoomArea.value = ''
+  formAreaId.value = ''
   formScheduledDate.value = ''
   formAssignedTo.value = []
   mutationError.value = null
@@ -134,7 +136,7 @@ function openCreate(date?: string) {
   modalOpen.value = true
 }
 
-function openEdit(card: { id: string; title: string; priority: string; roomArea: string; peopleNeeded: number; scheduledDate: string; assignedPeople?: { id: string }[]; taskId?: string | null }) {
+function openEdit(card: { id: string; title: string; priority: string; area: { id: string; name: string }; peopleNeeded: number; scheduledDate: string; assignedPeople?: { id: string }[]; taskId?: string | null }) {
   resetForm()
   editingId.value = card.id
   if (card.taskId) {
@@ -145,7 +147,7 @@ function openEdit(card: { id: string; title: string; priority: string; roomArea:
     formTitle.value = card.title
     formPriority.value = card.priority as 'high' | 'medium' | 'low'
     formPeopleNeeded.value = card.peopleNeeded
-    formRoomArea.value = card.roomArea
+    formAreaId.value = card.area.id
   }
   formScheduledDate.value = card.scheduledDate
   formAssignedTo.value = card.assignedPeople?.map(p => p.id) ?? []
@@ -162,13 +164,13 @@ async function handleSubmit() {
       assignedTo: [...formAssignedTo.value],
     }
     if (hasTaskId) {
-      // When referencing a backlog task, send taskId; omit title/priority/roomArea/peopleNeeded
+      // When referencing a backlog task, send taskId; omit title/priority/areaId/peopleNeeded
       body.taskId = formTaskId.value
     } else {
       // Use free-form fields for cards with no backlog reference
       body.title = formTitle.value
       body.priority = formPriority.value
-      body.roomArea = formRoomArea.value
+      body.areaId = formAreaId.value
       body.peopleNeeded = formPeopleNeeded.value
     }
     if (editingId.value) {
@@ -343,7 +345,7 @@ function handleCancel() {
             <p class="text-sm font-medium">{{ selectedTask.title }}</p>
             <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>Priority: <strong>{{ selectedTask.priority }}</strong></span>
-              <span>Room: <strong>{{ selectedTask.room }}</strong></span>
+              <span>Room: <strong>{{ selectedTask.area.name }}</strong></span>
               <span>People needed: <strong>{{ selectedTask.peopleNeeded }}</strong></span>
             </div>
           </div>
@@ -372,7 +374,32 @@ function handleCancel() {
 
           <div class="flex flex-col gap-1.5">
             <label for="form-room" class="text-xs font-medium text-muted-foreground">Room / Area</label>
-            <Input id="form-room" v-model="formRoomArea" placeholder="Room or area name" />
+            <Select v-if="roomsQuery.isLoading.value" disabled>
+              <SelectTrigger>
+                <SelectValue placeholder="Loading rooms…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="loading" disabled>Loading…</SelectItem>
+              </SelectContent>
+            </Select>
+            <div v-else-if="roomsQuery.error.value" class="flex items-center gap-2">
+              <span class="text-xs text-destructive">Could not load rooms.</span>
+              <Button variant="outline" size="sm" @click="roomsQuery.refetch()">Retry</Button>
+            </div>
+            <Select v-else v-model="formAreaId">
+              <SelectTrigger>
+                <SelectValue placeholder="Select a room…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="room in roomsQuery.data.value?.rooms ?? []"
+                  :key="room.id"
+                  :value="room.id"
+                >
+                  {{ room.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div class="flex flex-col gap-1.5">

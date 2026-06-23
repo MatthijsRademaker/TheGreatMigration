@@ -14,7 +14,7 @@ function createBacklogMock(
 			id: string;
 			title: string;
 			priority: string;
-			room: string;
+			area: { id: string; name: string };
 			peopleNeeded: number;
 		}[];
 	}> = {},
@@ -113,6 +113,7 @@ vi.mock("@/client/@pinia/colada.gen", () => ({
 	updateScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 	deleteScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 	setScheduleCardCompletedMutation: vi.fn(() => ({ mutation: vi.fn() })),
+	listRoomsQuery: vi.fn(() => ({ key: ["listRooms"], query: vi.fn() })),
 }));
 
 vi.mock("@/calendar/composables/useDailySchedule", () => ({
@@ -206,7 +207,7 @@ describe("CalendarView – Task Selector", () => {
 				id: "task-1",
 				title: "Pack kitchen",
 				priority: "high",
-				room: "Kitchen",
+				area: { id: "room-1", name: "Kitchen" },
 				peopleNeeded: 2,
 			},
 		];
@@ -245,7 +246,7 @@ describe("CalendarView – Task Selector", () => {
 					id: "task-1",
 					title: "Pack kitchen",
 					priority: "high",
-					room: "Kitchen",
+					area: { id: "room-1", name: "Kitchen" },
 					peopleNeeded: 2,
 				},
 			],
@@ -291,7 +292,7 @@ describe("CalendarView – Edit Modal", () => {
 					id: "task-1",
 					title: "Pack kitchen",
 					priority: "high",
-					room: "Kitchen",
+					area: { id: "room-1", name: "Kitchen" },
 					peopleNeeded: 2,
 				},
 			],
@@ -306,7 +307,7 @@ describe("CalendarView – Edit Modal", () => {
 							id: "card-1",
 							title: "Pack kitchen",
 							priority: "high",
-							roomArea: "Kitchen",
+							area: { id: "room-1", name: "Kitchen" },
 							peopleNeeded: 2,
 							scheduledDate: "2026-07-10",
 							taskId: "task-1",
@@ -331,7 +332,7 @@ describe("CalendarView – Edit Modal", () => {
 				id: "card-1",
 				title: "Pack kitchen",
 				priority: "high",
-				roomArea: "Kitchen",
+				area: { id: "room-1", name: "Kitchen" },
 				peopleNeeded: 2,
 				scheduledDate: "2026-07-10",
 				assignedPeople: [],
@@ -375,7 +376,7 @@ describe("CalendarView – Edit Modal", () => {
 							id: "card-2",
 							title: "Legacy card",
 							priority: "low",
-							roomArea: "Garage",
+							area: { id: "room-5", name: "Garage" },
 							peopleNeeded: 3,
 							scheduledDate: "2026-07-10",
 							taskId: null,
@@ -400,7 +401,7 @@ describe("CalendarView – Edit Modal", () => {
 				id: "card-2",
 				title: "Legacy card",
 				priority: "low",
-				roomArea: "Garage",
+				area: { id: "room-5", name: "Garage" },
 				peopleNeeded: 3,
 				scheduledDate: "2026-07-10",
 				assignedPeople: [],

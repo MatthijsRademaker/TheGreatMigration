@@ -14,11 +14,16 @@ import type {
 
 // ── Local types (narrowed from generated) ──────────────────────────────────
 
+export interface Area {
+	id: string;
+	name: string;
+}
+
 export interface ScheduleTaskCard {
 	id: string;
 	title: string;
 	priority: "high" | "medium" | "low";
-	roomArea: string;
+	area: Area;
 	assignedPeople: AssignedPerson[];
 	peopleNeeded: number;
 	assignedCount: number;
@@ -67,7 +72,9 @@ function adaptTaskCard(
 		id: card.id,
 		title: card.title,
 		priority: card.priority as ScheduleTaskCard["priority"],
-		roomArea: card.roomArea,
+		// Sanitize a missing/malformed area to a stable empty fallback so
+		// rendering never crashes (the chip is suppressed when name is empty).
+		area: card.area ?? { id: "", name: "" },
 		assignedPeople: card.assignedPeople ?? [],
 		peopleNeeded: card.peopleNeeded,
 		assignedCount: card.assignedCount,
