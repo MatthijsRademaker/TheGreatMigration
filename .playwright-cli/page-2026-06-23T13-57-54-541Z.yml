@@ -1,0 +1,366 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - link "Open moving dashboard" [ref=e10] [cursor=pointer]:
+            - /url: /
+            - img "The Great Migration" [ref=e11]
+      - list [ref=e12]:
+        - listitem [ref=e13]:
+          - button "Toggle Sidebar" [ref=e14]:
+            - img
+            - generic [ref=e15]: Toggle Sidebar
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: Plan
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Dashboard" [ref=e22] [cursor=pointer]:
+              - /url: /
+              - img [ref=e23]
+              - generic [ref=e26]: Dashboard
+          - listitem [ref=e27]:
+            - link "Tasks" [ref=e28] [cursor=pointer]:
+              - /url: /tasks
+              - img [ref=e29]
+              - generic [ref=e32]: Tasks
+          - listitem [ref=e33]:
+            - link "Schedule" [ref=e34] [cursor=pointer]:
+              - /url: /calendar
+              - img [ref=e35]
+              - generic [ref=e37]: Schedule
+          - listitem [ref=e38]:
+            - link "People" [ref=e39] [cursor=pointer]:
+              - /url: /people
+              - img [ref=e40]
+              - generic [ref=e44]: People
+          - listitem [ref=e45]:
+            - link "Tools" [ref=e46] [cursor=pointer]:
+              - /url: /tools
+              - img [ref=e47]
+              - generic [ref=e49]: Tools
+      - generic [ref=e50]:
+        - generic [ref=e51]: Organization
+        - list [ref=e53]:
+          - listitem [ref=e54]:
+            - link "Rooms / Areas" [ref=e55] [cursor=pointer]:
+              - /url: /rooms
+              - img [ref=e56]
+              - generic [ref=e60]: Rooms / Areas
+          - listitem [ref=e61]:
+            - link "Settings" [ref=e62] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e63]
+              - generic [ref=e66]: Settings
+    - img "Trail portrait" [ref=e68]
+    - button "Toggle Sidebar" [ref=e69]
+  - main [ref=e70]:
+    - generic [ref=e71]:
+      - generic [ref=e72]: The Great Migration
+      - generic [ref=e74]: 2 Jul – 5 Jul 2026 · 4 days
+    - generic [ref=e76]:
+      - generic [ref=e77]:
+        - heading "Daily Schedule" [level=2] [ref=e78]
+        - generic [ref=e79]:
+          - generic [ref=e80]: Thu, Jul 2 – Sun, Jul 5
+          - generic [ref=e81]: Page 1 of 1
+          - button "Previous" [disabled]
+          - button "Next" [disabled]
+          - 'button "View by: Day" [ref=e82]'
+          - button "Add task" [ref=e83]
+      - generic [ref=e311]:
+        - generic [ref=e312]: "Drag a helper onto a task:"
+        - generic [ref=e313]:
+          - generic [ref=e315]: E
+          - generic [ref=e316]: Estella
+        - generic [ref=e317]:
+          - generic [ref=e319]: M
+          - generic [ref=e320]: Merel
+        - generic [ref=e321]:
+          - generic [ref=e323]: M
+          - generic [ref=e324]: Matthijs
+        - generic [ref=e325]:
+          - generic [ref=e327]: T
+          - generic [ref=e328]: Thomas
+        - generic [ref=e329]:
+          - generic [ref=e331]: E
+          - generic [ref=e332]: Esther
+        - generic [ref=e333]:
+          - generic [ref=e335]: P
+          - generic [ref=e336]: Peter
+        - generic [ref=e337]:
+          - generic [ref=e339]: B
+          - generic [ref=e340]: Beau
+        - generic [ref=e341]:
+          - generic [ref=e343]: K
+          - generic [ref=e344]: Kees
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - generic [ref=e88]:
+            - generic [ref=e89]: Thu, Jul 2
+            - generic [ref=e90]: 6 available
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - generic [ref=e93]:
+                - generic [ref=e94]:
+                  - generic [ref=e95]: Schilderen hal
+                  - generic [ref=e96]: high
+                - paragraph [ref=e97]: Hal
+                - paragraph [ref=e99]: Matthijs, Thomas
+                - paragraph [ref=e100]:
+                  - text: 2 / 2
+                  - img [ref=e346]
+                - generic [ref=e101]:
+                  - button "Done" [ref=e102]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e103]
+                  - button "Delete" [ref=e104]
+              - generic [ref=e105]:
+                - generic [ref=e106]:
+                  - generic [ref=e107]: Stoom muren
+                  - generic [ref=e108]: high
+                - paragraph [ref=e109]: Algemeen
+                - paragraph [ref=e111]: Beau
+                - paragraph [ref=e112]:
+                  - text: 1 / 1
+                  - img [ref=e349]
+                - generic [ref=e113]:
+                  - button "Done" [ref=e114]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e115]
+                  - button "Delete" [ref=e116]
+              - generic [ref=e117]:
+                - generic [ref=e118]:
+                  - generic [ref=e119]: Afplakken
+                  - generic [ref=e120]: medium
+                - paragraph [ref=e121]: Algemeen
+                - paragraph [ref=e123]: Estella
+                - paragraph [ref=e124]:
+                  - text: 1 / 1
+                  - img [ref=e352]
+                - generic [ref=e125]:
+                  - button "Done" [ref=e126]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e127]
+                  - button "Delete" [ref=e128]
+              - generic [ref=e129]:
+                - generic [ref=e130]:
+                  - generic [ref=e131]: Schuren
+                  - generic [ref=e132]: medium
+                - paragraph [ref=e133]: Hal
+                - paragraph [ref=e135]: Merel
+                - paragraph [ref=e136]:
+                  - text: 1 / 1
+                  - img [ref=e355]
+                - generic [ref=e137]:
+                  - button "Done" [ref=e138]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e139]
+                  - button "Delete" [ref=e140]
+              - generic [ref=e141]:
+                - generic [ref=e142]:
+                  - generic [ref=e143]: Schoonmaken
+                  - generic [ref=e144]: low
+                - paragraph [ref=e145]: Algemeen
+                - paragraph [ref=e147]: Esther
+                - paragraph [ref=e148]:
+                  - text: 1 / 1
+                  - img [ref=e358]
+                - generic [ref=e149]:
+                  - button "Done" [ref=e150]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e151]
+                  - button "Delete" [ref=e152]
+            - button "+ Add task" [ref=e154]
+        - generic [ref=e155]:
+          - generic [ref=e156]:
+            - generic [ref=e157]: Fri, Jul 3
+            - generic [ref=e158]: 3 available
+          - generic [ref=e159]:
+            - generic [ref=e160]:
+              - generic [ref=e161]:
+                - generic [ref=e162]:
+                  - generic [ref=e163]: Schilderen
+                  - generic [ref=e164]: high
+                - paragraph [ref=e165]: Hal
+                - paragraph [ref=e167]: Thomas, Matthijs
+                - paragraph [ref=e168]:
+                  - text: 2 / 2
+                  - img [ref=e361]
+                - generic [ref=e169]:
+                  - button "Done" [ref=e170]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e171]
+                  - button "Delete" [ref=e172]
+              - generic [ref=e173]:
+                - generic [ref=e174]:
+                  - generic [ref=e175]: Stoom muren
+                  - generic [ref=e176]: high
+                - paragraph [ref=e177]: Algemeen
+                - paragraph [ref=e179]: Estella
+                - paragraph [ref=e180]:
+                  - text: 1 / 1
+                  - img [ref=e364]
+                - generic [ref=e181]:
+                  - button "Done" [ref=e182]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e183]
+                  - button "Delete" [ref=e184]
+              - generic [ref=e185]:
+                - generic [ref=e186]:
+                  - generic [ref=e187]: Schuren / schilderen keuken
+                  - generic [ref=e188]: medium
+                - paragraph [ref=e189]: Keuken
+                - paragraph [ref=e191]: Beau
+                - paragraph [ref=e192]:
+                  - text: 1 / 1
+                  - img [ref=e367]
+                - generic [ref=e193]:
+                  - button "Done" [ref=e194]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e195]
+                  - button "Delete" [ref=e196]
+            - button "+ Add task" [ref=e198]
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - generic [ref=e201]: Sat, Jul 4
+            - generic [ref=e202]: 6 available
+          - generic [ref=e203]:
+            - generic [ref=e204]:
+              - generic [ref=e205]:
+                - generic [ref=e206]:
+                  - generic [ref=e207]: Schilderen hal / woonkamer
+                  - generic [ref=e208]: high
+                - paragraph [ref=e209]: Hal
+                - paragraph [ref=e211]: Thomas, Matthijs
+                - paragraph [ref=e212]:
+                  - text: 2 / 2
+                  - img [ref=e370]
+                - generic [ref=e213]:
+                  - button "Done" [ref=e214]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e215]
+                  - button "Delete" [ref=e216]
+              - generic [ref=e217]:
+                - generic [ref=e218]:
+                  - generic [ref=e219]: Stoom muren woonkamer
+                  - generic [ref=e220]: high
+                - paragraph [ref=e221]: Woonkamer
+                - paragraph [ref=e223]: Estella
+                - paragraph [ref=e224]:
+                  - text: 1 / 1
+                  - img [ref=e373]
+                - generic [ref=e225]:
+                  - button "Done" [ref=e226]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e227]
+                  - button "Delete" [ref=e228]
+              - generic [ref=e229]:
+                - generic [ref=e230]:
+                  - generic [ref=e231]: Slaapkamer schilderen
+                  - generic [ref=e232]: high
+                - paragraph [ref=e233]: Slaapkamer
+                - paragraph [ref=e235]: Peter, Kees
+                - paragraph [ref=e236]:
+                  - text: 2 / 2
+                  - img [ref=e376]
+                - generic [ref=e237]:
+                  - button "Done" [ref=e238]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e239]
+                  - button "Delete" [ref=e240]
+              - generic [ref=e241]:
+                - generic [ref=e242]:
+                  - generic [ref=e243]: Schoonmaken / eten
+                  - generic [ref=e244]: low
+                - paragraph [ref=e245]: Algemeen
+                - paragraph [ref=e247]: Esther
+                - paragraph [ref=e248]:
+                  - text: 1 / 1
+                  - img [ref=e379]
+                - generic [ref=e249]:
+                  - button "Done" [ref=e250]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e251]
+                  - button "Delete" [ref=e252]
+            - button "+ Add task" [ref=e254]
+        - generic [ref=e255]:
+          - generic [ref=e256]:
+            - generic [ref=e257]: Sun, Jul 5
+            - generic [ref=e258]: 6 available
+          - generic [ref=e259]:
+            - generic [ref=e260]:
+              - generic [ref=e261]:
+                - generic [ref=e262]:
+                  - generic [ref=e263]: Hal / woonkamer afronden
+                  - generic [ref=e264]: high
+                - paragraph [ref=e265]: Hal
+                - paragraph [ref=e267]: Thomas, Matthijs
+                - paragraph [ref=e268]:
+                  - text: 2 / 2
+                  - img [ref=e382]
+                - generic [ref=e269]:
+                  - button "Done" [ref=e270]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e271]
+                  - button "Delete" [ref=e272]
+              - generic [ref=e273]:
+                - generic [ref=e274]:
+                  - generic [ref=e275]: Slaapkamer schilderen
+                  - generic [ref=e276]: high
+                - paragraph [ref=e277]: Slaapkamer
+                - paragraph [ref=e279]: Kees, Peter
+                - paragraph [ref=e280]:
+                  - text: 2 / 2
+                  - img [ref=e385]
+                - generic [ref=e281]:
+                  - button "Done" [ref=e282]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e283]
+                  - button "Delete" [ref=e284]
+              - generic [ref=e285]:
+                - generic [ref=e286]:
+                  - generic [ref=e287]: 2e verdieping muren schilderen
+                  - generic [ref=e288]: high
+                - paragraph [ref=e289]: Tweede verdieping
+                - paragraph [ref=e291]: Estella
+                - paragraph [ref=e292]:
+                  - text: 1 / 1
+                  - img [ref=e388]
+                - generic [ref=e293]:
+                  - button "Done" [ref=e294]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e295]
+                  - button "Delete" [ref=e296]
+              - generic [ref=e297]:
+                - generic [ref=e298]:
+                  - generic [ref=e299]: 2e verdieping muren schuren
+                  - generic [ref=e300]: medium
+                - paragraph [ref=e301]: Tweede verdieping
+                - paragraph [ref=e303]: Esther
+                - paragraph [ref=e304]:
+                  - text: 1 / 1
+                  - img [ref=e391]
+                - generic [ref=e305]:
+                  - button "Done" [ref=e306]:
+                    - img
+                    - text: Done
+                  - button "Edit" [ref=e307]
+                  - button "Delete" [ref=e308]
+            - button "+ Add task" [ref=e310]

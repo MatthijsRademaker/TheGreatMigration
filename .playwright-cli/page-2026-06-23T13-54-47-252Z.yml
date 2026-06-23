@@ -1,0 +1,67 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - link "Open moving dashboard" [ref=e10] [cursor=pointer]:
+            - /url: /
+            - img "The Great Migration" [ref=e11]
+      - list [ref=e12]:
+        - listitem [ref=e13]:
+          - button "Toggle Sidebar" [ref=e14]:
+            - img
+            - generic [ref=e15]: Toggle Sidebar
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: Plan
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Dashboard" [ref=e22] [cursor=pointer]:
+              - /url: /
+              - img [ref=e23]
+              - generic [ref=e26]: Dashboard
+          - listitem [ref=e27]:
+            - link "Tasks" [ref=e28] [cursor=pointer]:
+              - /url: /tasks
+              - img [ref=e29]
+              - generic [ref=e32]: Tasks
+          - listitem [ref=e33]:
+            - link "Schedule" [ref=e34] [cursor=pointer]:
+              - /url: /calendar
+              - img [ref=e35]
+              - generic [ref=e37]: Schedule
+          - listitem [ref=e38]:
+            - link "People" [ref=e39] [cursor=pointer]:
+              - /url: /people
+              - img [ref=e40]
+              - generic [ref=e44]: People
+          - listitem [ref=e45]:
+            - link "Tools" [ref=e46] [cursor=pointer]:
+              - /url: /tools
+              - img [ref=e47]
+              - generic [ref=e49]: Tools
+      - generic [ref=e50]:
+        - generic [ref=e51]: Organization
+        - list [ref=e53]:
+          - listitem [ref=e54]:
+            - link "Rooms / Areas" [ref=e55] [cursor=pointer]:
+              - /url: /rooms
+              - img [ref=e56]
+              - generic [ref=e60]: Rooms / Areas
+          - listitem [ref=e61]:
+            - link "Settings" [ref=e62] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e63]
+              - generic [ref=e66]: Settings
+    - img "Trail portrait" [ref=e68]
+    - button "Toggle Sidebar" [ref=e69]
+  - main [ref=e70]:
+    - generic [ref=e71]:
+      - generic [ref=e72]: The Great Migration
+      - generic [ref=e74]:
+        - generic [ref=e75]: Jul 2 – Jul 5, 2026
+        - button "Today" [ref=e76]
+        - button [disabled]:
+          - img
+        - button [disabled]:
+          - img

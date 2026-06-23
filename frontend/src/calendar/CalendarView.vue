@@ -45,7 +45,7 @@ const {
   queryKey,
 } = useDailySchedule()
 const { data: peopleData } = usePeopleAvailability()
-const { data: backlog, isLoading: backlogLoading, isEmpty: backlogEmpty } = useTaskBacklog()
+const { data: backlog, isLoading: backlogLoading, isError: backlogError, isEmpty: backlogEmpty, refresh: refreshBacklog } = useTaskBacklog()
 const roomsQuery = useQuery(listRoomsQuery())
 
 // ---- Mutations ----
@@ -315,6 +315,12 @@ function handleCancel() {
             <p class="text-sm text-muted-foreground">Loading tasks…</p>
           </div>
 
+          <!-- Error state: surface the failure instead of a silently-empty dropdown -->
+          <div v-else-if="backlogError" class="flex items-center justify-between gap-2 rounded border border-destructive/30 p-3">
+            <span class="text-sm text-destructive">Could not load backlog tasks.</span>
+            <Button variant="outline" size="sm" @click="refreshBacklog()">Retry</Button>
+          </div>
+
           <template v-else>
             <div class="flex flex-col gap-1.5">
               <label for="form-task-select" class="text-xs font-medium text-muted-foreground">Select a task</label>
@@ -328,7 +334,15 @@ function handleCancel() {
                     :key="task.id"
                     :value="task.id"
                   >
-                    {{ task.title }}
+                    <span class="inline-flex items-center gap-1.5">
+                      <span
+                        class="inline-block size-2 shrink-0 rounded-full"
+                        :style="{ backgroundColor: areaColor(task.area.id) }"
+                        aria-hidden="true"
+                      />
+                      {{ task.title }}
+                      <span class="text-muted-foreground">· {{ task.area.name }}</span>
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>

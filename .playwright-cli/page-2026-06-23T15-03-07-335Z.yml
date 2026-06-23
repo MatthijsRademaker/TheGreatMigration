@@ -1,0 +1,512 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /
+                    - img
+              - list:
+                - listitem:
+                  - button:
+                    - img
+                    - generic: Toggle Sidebar
+            - generic:
+              - generic:
+                - generic: Plan
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /
+                        - img
+                        - generic: Dashboard
+                    - listitem:
+                      - link:
+                        - /url: /tasks
+                        - img
+                        - generic: Tasks
+                    - listitem:
+                      - link:
+                        - /url: /calendar
+                        - img
+                        - generic: Schedule
+                    - listitem:
+                      - link:
+                        - /url: /people
+                        - img
+                        - generic: People
+                    - listitem:
+                      - link:
+                        - /url: /tools
+                        - img
+                        - generic: Tools
+              - generic:
+                - generic: Organization
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /rooms
+                        - img
+                        - generic: Rooms / Areas
+                    - listitem:
+                      - link:
+                        - /url: /settings
+                        - img
+                        - generic: Settings
+            - generic:
+              - img
+            - button
+      - main:
+        - generic:
+          - generic: The Great Migration
+          - generic:
+            - generic: 2 Jul – 5 Jul 2026 · 4 days
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=2]: Daily Schedule
+              - generic:
+                - generic: Thu, Jul 2 – Sun, Jul 5
+                - generic: Page 1 of 1
+                - button [disabled]: Previous
+                - button [disabled]: Next
+                - button: "View by: Day"
+                - button: Add task
+            - generic:
+              - generic: "Drag a helper onto a task:"
+              - generic:
+                - generic:
+                  - generic: E
+                - generic: Estella
+              - generic:
+                - generic:
+                  - generic: M
+                - generic: Merel
+              - generic:
+                - generic:
+                  - generic: M
+                - generic: Matthijs
+              - generic:
+                - generic:
+                  - generic: T
+                - generic: Thomas
+              - generic:
+                - generic:
+                  - generic: E
+                - generic: Esther
+              - generic:
+                - generic:
+                  - generic: P
+                - generic: Peter
+              - generic:
+                - generic:
+                  - generic: B
+                - generic: Beau
+              - generic:
+                - generic:
+                  - generic: K
+                - generic: Kees
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: Thu, Jul 2
+                      - generic: 6 available
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Schilderen hal
+                            - generic: high
+                          - paragraph: Hal
+                          - paragraph: Matthijs, Thomas
+                          - paragraph:
+                            - text: 2 / 2
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Stoom muren
+                            - generic: high
+                          - paragraph: Algemeen
+                          - paragraph: Beau
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Afplakken
+                            - generic: medium
+                          - paragraph: Algemeen
+                          - paragraph: Estella
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Schuren
+                            - generic: medium
+                          - paragraph: Hal
+                          - paragraph: Merel
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Schoonmaken
+                            - generic: low
+                          - paragraph: Algemeen
+                          - paragraph: Esther
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                      - generic:
+                        - button: + Add task
+                  - generic:
+                    - generic:
+                      - generic: Fri, Jul 3
+                      - generic: 3 available
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Schilderen
+                            - generic: high
+                          - paragraph: Hal
+                          - paragraph: Thomas, Matthijs
+                          - paragraph:
+                            - text: 2 / 2
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Stoom muren
+                            - generic: high
+                          - paragraph: Algemeen
+                          - paragraph: Estella
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Schuren / schilderen keuken
+                            - generic: medium
+                          - paragraph: Keuken
+                          - paragraph: Beau
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                      - generic:
+                        - button: + Add task
+                  - generic:
+                    - generic:
+                      - generic: Sat, Jul 4
+                      - generic: 6 available
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Schilderen hal / woonkamer
+                            - generic: high
+                          - paragraph: Hal
+                          - paragraph: Thomas, Matthijs
+                          - paragraph:
+                            - text: 2 / 2
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Stoom muren woonkamer
+                            - generic: high
+                          - paragraph: Woonkamer
+                          - paragraph: Estella
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Slaapkamer schilderen
+                            - generic: high
+                          - paragraph: Slaapkamer
+                          - paragraph: Peter, Kees
+                          - paragraph:
+                            - text: 2 / 2
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Schoonmaken / eten
+                            - generic: low
+                          - paragraph: Algemeen
+                          - paragraph: Esther
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                      - generic:
+                        - button: + Add task
+                  - generic:
+                    - generic:
+                      - generic: Sun, Jul 5
+                      - generic: 6 available
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Hal / woonkamer afronden
+                            - generic: high
+                          - paragraph: Hal
+                          - paragraph: Thomas, Matthijs
+                          - paragraph:
+                            - text: 2 / 2
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: Slaapkamer schilderen
+                            - generic: high
+                          - paragraph: Slaapkamer
+                          - paragraph: Kees, Peter
+                          - paragraph:
+                            - text: 2 / 2
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: 2e verdieping muren schilderen
+                            - generic: high
+                          - paragraph: Tweede verdieping
+                          - paragraph: Estella
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                        - generic:
+                          - generic:
+                            - generic: 2e verdieping muren schuren
+                            - generic: medium
+                          - paragraph: Tweede verdieping
+                          - paragraph: Esther
+                          - paragraph:
+                            - text: 1 / 1
+                            - generic:
+                              - img
+                          - generic:
+                            - button:
+                              - img
+                              - text: Done
+                            - button: Edit
+                            - button: Delete
+                      - generic:
+                        - button: + Add task
+  - dialog:
+    - generic:
+      - heading [level=2]: Add task to schedule
+      - paragraph: Select an existing backlog task to schedule. Tasks are defined in the Task Panel.
+    - generic:
+      - generic:
+        - generic:
+          - generic: Select a task
+          - combobox [expanded] [active]:
+            - generic: Choose a task…
+            - generic:
+              - img
+        - generic:
+          - generic: Scheduled date
+          - button:
+            - img
+            - text: Select date
+        - group:
+          - generic: Assign People
+          - generic:
+            - generic:
+              - checkbox
+              - text: Estella
+            - generic:
+              - checkbox
+              - text: Merel
+            - generic:
+              - checkbox
+              - text: Matthijs
+            - generic:
+              - checkbox
+              - text: Thomas
+            - generic:
+              - checkbox
+              - text: Esther
+            - generic:
+              - checkbox
+              - text: Peter
+            - generic:
+              - checkbox
+              - text: Beau
+            - generic:
+              - checkbox
+              - text: Kees
+    - generic:
+      - button: Save
+      - button: Cancel
+    - button:
+      - img
+      - generic: Close
+  - listbox [ref=e436]:
+    - option "Afplakken · Algemeen" [ref=e437]:
+      - generic [ref=e440]:
+        - text: Afplakken
+        - generic [ref=e442]: · Algemeen
+    - option "Schuren · Hal" [ref=e443]:
+      - generic [ref=e446]:
+        - text: Schuren
+        - generic [ref=e448]: · Hal
+    - option "Schilderen hal · Hal" [ref=e449]:
+      - generic [ref=e452]:
+        - text: Schilderen hal
+        - generic [ref=e454]: · Hal
+    - option "Schoonmaken · Algemeen" [ref=e455]:
+      - generic [ref=e458]:
+        - text: Schoonmaken
+        - generic [ref=e460]: · Algemeen
+    - option "Stoom muren · Algemeen" [ref=e461]:
+      - generic [ref=e464]:
+        - text: Stoom muren
+        - generic [ref=e466]: · Algemeen
+    - option "Schilderen · Hal" [ref=e467]:
+      - generic [ref=e470]:
+        - text: Schilderen
+        - generic [ref=e472]: · Hal
+    - option "Schuren / schilderen keuken · Keuken" [ref=e473]:
+      - generic [ref=e476]:
+        - text: Schuren / schilderen keuken
+        - generic [ref=e478]: · Keuken
+    - option "Schilderen hal / woonkamer · Hal" [ref=e479]:
+      - generic [ref=e482]:
+        - text: Schilderen hal / woonkamer
+        - generic [ref=e484]: · Hal
+    - option "Stoom muren woonkamer · Woonkamer" [ref=e485]:
+      - generic [ref=e488]:
+        - text: Stoom muren woonkamer
+        - generic [ref=e490]: · Woonkamer
+    - option "Schoonmaken / eten · Algemeen" [ref=e491]:
+      - generic [ref=e494]:
+        - text: Schoonmaken / eten
+        - generic [ref=e496]: · Algemeen
+    - option "Slaapkamer schilderen · Slaapkamer" [ref=e497]:
+      - generic [ref=e500]:
+        - text: Slaapkamer schilderen
+        - generic [ref=e502]: · Slaapkamer
+    - option "2e verdieping muren schuren · Tweede verdieping" [ref=e503]:
+      - generic [ref=e506]:
+        - text: 2e verdieping muren schuren
+        - generic [ref=e508]: · Tweede verdieping
+    - option "Hal / woonkamer afronden · Hal" [ref=e509]:
+      - generic [ref=e512]:
+        - text: Hal / woonkamer afronden
+        - generic [ref=e514]: · Hal
+    - option "2e verdieping muren schilderen · Tweede verdieping" [ref=e515]:
+      - generic [ref=e518]:
+        - text: 2e verdieping muren schilderen
+        - generic [ref=e520]: · Tweede verdieping
