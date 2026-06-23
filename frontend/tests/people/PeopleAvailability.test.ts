@@ -47,16 +47,12 @@ describe("PeopleAvailability", () => {
 		expect(html).toContain(">Off<");
 	});
 
-	it("renders the legend with all four status badges", async () => {
+	it("does not render legend footer", async () => {
 		const app = createSSRApp({
 			render: () => h(PeopleAvailability),
 		});
 		const html = await renderToString(app);
-		// Legend Badges with `data-variant` attributes
-		expect(html).toContain('data-variant="available"');
-		expect(html).toContain('data-variant="busy"');
-		expect(html).toContain('data-variant="partial"');
-		expect(html).toContain('data-variant="off"');
+		expect(html).not.toContain("legend");
 	});
 
 	it("does not render the summary row", async () => {
@@ -155,12 +151,6 @@ describe("PeopleAvailability", () => {
 					],
 				},
 			],
-			legend: [
-				{ id: "available", label: "Available" },
-				{ id: "busy", label: "Busy" },
-				{ id: "partial", label: "Partial" },
-				{ id: "off", label: "Off" },
-			],
 			availableToday: 1,
 			totalPeople: 2,
 		};
@@ -181,7 +171,6 @@ describe("PeopleAvailability", () => {
 		const props: PeopleAvailabilityProps = {
 			days: [],
 			people: [],
-			legend: [],
 			availableToday: 0,
 			totalPeople: 0,
 		};
@@ -203,12 +192,6 @@ describe("PeopleAvailability", () => {
 					name: "Test",
 					availability: [{ date: "Day 1", status: "available" }],
 				},
-			],
-			legend: [
-				{ id: "available", label: "Available" },
-				{ id: "busy", label: "Busy" },
-				{ id: "partial", label: "Partial" },
-				{ id: "off", label: "Off" },
 			],
 			availableToday: 1,
 			totalPeople: 1,

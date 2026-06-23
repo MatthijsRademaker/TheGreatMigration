@@ -42,12 +42,6 @@ vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 					],
 				},
 			],
-			legend: [
-				{ id: "available", label: "Available" },
-				{ id: "busy", label: "Busy" },
-				{ id: "partial", label: "Partial" },
-				{ id: "off", label: "Off" },
-			],
 			availableToday: mockAvailableToday,
 			totalPeople: mockTotalPeople,
 		}),

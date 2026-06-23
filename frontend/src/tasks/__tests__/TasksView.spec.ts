@@ -53,6 +53,7 @@ const mockBacklogData = computed(() => ({
 // ── Module mocks ────────────────────────────────────────────────────────────
 
 let mockRoomsQuery = createRoomsQuery();
+let mockPeople = [] as { id: string; name: string }[];
 
 vi.mock("@pinia/colada", () => ({
 	useQuery: vi.fn(() => mockRoomsQuery),
@@ -84,7 +85,7 @@ vi.mock("@/tasks/composables/useTaskBacklog", () => ({
 
 vi.mock("@/shared/composables/usePeopleAvailability", () => ({
 	usePeopleAvailability: vi.fn(() => ({
-		data: computed(() => ({ people: [] })),
+		data: computed(() => ({ people: mockPeople })),
 	})),
 }));
 
@@ -115,6 +116,7 @@ async function openAddModal(wrapper: ReturnType<typeof mount>) {
 describe("TasksView – Room Select", () => {
 	beforeEach(() => {
 		mockRoomsQuery = createRoomsQuery();
+		mockPeople = [];
 	});
 
 	it("renders without crashing and shows backlog", async () => {
@@ -156,6 +158,22 @@ describe("TasksView – Room Select", () => {
 		// The loading state shows a disabled Select with "Loading rooms…"
 		const html = document.body.innerHTML;
 		expect(html).toContain("Loading rooms");
+
+		wrapper.unmount();
+	});
+
+	it("does not render assign people in task modal", async () => {
+		mockRoomsQuery = createRoomsQuery({
+			rooms: [{ id: "r1", name: "Kitchen", type: "room" }],
+		});
+		mockPeople = [{ id: "p1", name: "Alex Kim" }];
+
+		const wrapper = await mountTasks();
+		await openAddModal(wrapper);
+
+		const html = document.body.innerHTML;
+		expect(html).not.toContain("Assign People");
+		expect(html).not.toContain("Alex Kim");
 
 		wrapper.unmount();
 	});

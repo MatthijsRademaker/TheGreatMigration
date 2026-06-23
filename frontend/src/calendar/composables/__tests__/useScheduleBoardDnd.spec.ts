@@ -44,7 +44,20 @@ function makeDays(): ScheduleDay[] {
 			date: "2026-07-06",
 			label: "6 Jul",
 			availablePeopleCount: 2,
-			tasks: [],
+			tasks: [
+				{
+					id: "card-low",
+					title: "Sweep floor",
+					priority: "low",
+					roomArea: "Kitchen",
+					assignedPeople: [],
+					peopleNeeded: 1,
+					assignedCount: 0,
+					staffingStatus: "underStaffed",
+					scheduledDate: "2026-07-06",
+					taskId: null,
+				},
+			],
 		},
 	];
 }
@@ -113,7 +126,9 @@ describe("useScheduleBoardDnd", () => {
 	});
 
 	it("rolls back to the untouched data and surfaces an error when assignment fails", async () => {
-		mutateAsync.mockRejectedValue(new Error("assignedTo count must not exceed peopleNeeded"));
+		mutateAsync.mockRejectedValue(
+			new Error("assignedTo count must not exceed peopleNeeded"),
+		);
 		const { api } = setup(makeDays());
 
 		await api.assignPerson("card-1", { id: "p1", name: "Alex Kim" });
@@ -141,18 +156,25 @@ describe("useScheduleBoardDnd", () => {
 		await api.rescheduleCard("card-1", "2026-07-06");
 
 		expect(api.board.value[0].tasks).toHaveLength(0); // left source day
-		expect(api.board.value[1].tasks[0].id).toBe("card-1"); // arrived target day
+		expect(api.board.value[1].tasks.map((task) => task.id)).toEqual([
+			"card-1",
+			"card-low",
+		]);
 		expect(mutateAsync.mock.calls[0][0].body.scheduledDate).toBe("2026-07-06");
 	});
 
 	it("reverts a failed reschedule to the original column", async () => {
-		mutateAsync.mockRejectedValue(new Error("scheduledDate must be within the planning window"));
+		mutateAsync.mockRejectedValue(
+			new Error("scheduledDate must be within the planning window"),
+		);
 		const { api } = setup(makeDays());
 
 		await api.rescheduleCard("card-1", "2026-07-06");
 
 		expect(api.board.value[0].tasks[0].id).toBe("card-1"); // back in source day
-		expect(api.board.value[1].tasks).toHaveLength(0);
+		expect(api.board.value[1].tasks.map((task) => task.id)).toEqual([
+			"card-low",
+		]);
 		expect(api.error.value).toContain("planning window");
 	});
 });

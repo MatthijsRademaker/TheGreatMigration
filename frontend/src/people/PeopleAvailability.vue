@@ -55,12 +55,6 @@ withDefaults(defineProps<PeopleAvailabilityProps>(), {
       ],
     },
   ],
-  legend: () => [
-    { id: 'available', label: 'Available' },
-    { id: 'busy', label: 'Busy' },
-    { id: 'partial', label: 'Partial' },
-    { id: 'off', label: 'Off' },
-  ],
   // Keep in sync with demo people data: counts people with status 'available' on the first day column.
   availableToday: 1,
   totalPeople: 4,
@@ -223,16 +217,6 @@ const peopleList = useMotionAutoAnimate()
         </table>
       </div>
 
-        <!-- Legend -->
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          <Badge
-            v-for="item in legend"
-            :key="item.id"
-            :variant="item.id"
-          >
-            {{ item.label }}
-          </Badge>
-        </div>
     </CardContent>
   </Card>
 </template>

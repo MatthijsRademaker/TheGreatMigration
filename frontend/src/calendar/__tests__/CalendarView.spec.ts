@@ -219,7 +219,7 @@ describe("CalendarView – Task Selector", () => {
 
 		const html = document.body.innerHTML;
 		expect(html).toContain("Select a task");
-		expect(html).toContain("Search task");
+		expect(html).not.toContain("Search task");
 
 		wrapper.unmount();
 	});

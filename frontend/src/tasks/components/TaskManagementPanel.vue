@@ -6,8 +6,6 @@ import { Badge } from '@/shared/ui/badge'
 import { SkeletonRows } from '@/shared/ui/skeleton'
 import { useTaskBacklog } from '../composables/useTaskBacklog'
 import { useMotionAutoAnimate } from '@/shared/composables/useMotionAutoAnimate'
-import { priorityLabels, priorityBadgeVariant } from '../helpers'
-import type { TaskPriority } from '../types'
 import TaskRow from './TaskRow.vue'
 
 withDefaults(defineProps<{
@@ -26,7 +24,6 @@ defineEmits<{
 const { data, isLoading, isError, isEmpty } = useTaskBacklog()
 const tasksList = useMotionAutoAnimate()
 
-const priorities: TaskPriority[] = ['high', 'medium', 'low']
 </script>
 
 <template>
@@ -88,14 +85,6 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
           </table>
         </div>
 
-        <div class="mt-4 flex items-center gap-3 border-t border-border pt-4">
-          <span class="text-sm text-muted-foreground">Priority:</span>
-          <div class="flex items-center gap-2">
-            <Badge v-for="p in priorities" :key="p" :variant="priorityBadgeVariant[p]">
-              {{ priorityLabels[p] }}
-            </Badge>
-          </div>
-        </div>
       </template>
     </CardContent>
   </Card>

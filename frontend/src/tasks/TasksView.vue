@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
-import { Checkbox } from '@/shared/ui/checkbox'
 import AddOperationModal from '@/shared/components/AddOperationModal.vue'
 import {
   createTaskMutation,
@@ -20,7 +19,6 @@ import {
   listRoomsQuery,
 } from '@/client/@pinia/colada.gen'
 import { useTaskBacklog } from '@/tasks/composables/useTaskBacklog'
-import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import type { TaskRow } from '@/tasks/types'
 
 // ---- State ----
@@ -37,7 +35,6 @@ const formAssignedTo = ref<string[]>([])
 
 // ---- Queries ----
 const { data, queryKey } = useTaskBacklog()
-const { data: peopleData } = usePeopleAvailability()
 const roomsQuery = useQuery(listRoomsQuery())
 
 // ---- Mutations ----
@@ -87,15 +84,6 @@ function cancelEdit() {
   formStatus.value = 'backlog'
   formAssignedTo.value = []
   modalOpen.value = false
-}
-
-function toggleAssignment(personId: string) {
-  const idx = formAssignedTo.value.indexOf(personId)
-  if (idx === -1) {
-    formAssignedTo.value.push(personId)
-  } else {
-    formAssignedTo.value.splice(idx, 1)
-  }
 }
 
 async function handleSubmit() {
@@ -253,25 +241,6 @@ watch(() => data.value.tasks, (tasks) => {
           <Input v-model.number="formPeopleNeeded" type="number" min="1" />
         </div>
       </div>
-
-      <!-- Assignment -->
-      <fieldset v-if="peopleData.people?.length" class="rounded border border-border p-3">
-        <legend class="px-1 text-xs font-medium text-muted-foreground">Assign People</legend>
-        <div class="flex flex-wrap gap-3">
-          <label
-            v-for="person in peopleData.people"
-            :key="person.id"
-            class="flex items-center gap-1.5 text-sm"
-          >
-            <Checkbox
-              :model-value="formAssignedTo.includes(person.id)"
-              size="sm"
-              @update:model-value="toggleAssignment(person.id)"
-            />
-            {{ person.name }}
-          </label>
-        </div>
-      </fieldset>
     </form>
   </AddOperationModal>
   </section>

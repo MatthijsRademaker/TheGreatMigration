@@ -15,7 +15,7 @@ function days() {
 					title: "Pack kitchen",
 					priority: "high" as const,
 					roomArea: "Kitchen",
-					assignedPeople: [],
+					assignedPeople: [{ id: "p2", name: "Jordan Lee", initials: "JL" }],
 					peopleNeeded: 2,
 					assignedCount: 0,
 					staffingStatus: "underStaffed" as const,
@@ -41,6 +41,14 @@ describe("DailySchedule drag-and-drop", () => {
 		const rail = wrapper.find("[data-testid='people-rail']");
 		expect(rail.exists()).toBe(true);
 		expect(wrapper.findAll("[data-testid='rail-person']")).toHaveLength(1);
+		wrapper.unmount();
+	});
+
+	it("shows assigned people names on task cards", () => {
+		const wrapper = mount(DailySchedule, { props: { days: days(), people } });
+		const card = wrapper.find("[data-slot='task-board-card']");
+		expect(card.text()).toContain("Jordan Lee");
+		expect(card.text()).not.toContain("JL");
 		wrapper.unmount();
 	});
 

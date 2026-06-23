@@ -101,14 +101,6 @@ const scheduledDateModel = computed({
   },
 })
 
-// ---- Search filter for tasks ----
-const taskSearch = ref('')
-const filteredTasks = computed(() => {
-  if (!taskSearch.value) return backlog.value.tasks
-  const q = taskSearch.value.toLowerCase()
-  return backlog.value.tasks.filter(t => t.title.toLowerCase().includes(q))
-})
-
 // ---- Helpers ----
 function resetForm() {
   editingId.value = null
@@ -117,7 +109,6 @@ function resetForm() {
   formPriority.value = 'medium'
   formPeopleNeeded.value = 2
   formRoomArea.value = ''
-  taskSearch.value = ''
   formScheduledDate.value = ''
   formAssignedTo.value = []
   mutationError.value = null
@@ -308,34 +299,21 @@ function handleCancel() {
             <p class="text-sm text-muted-foreground">Loading tasks…</p>
           </div>
 
-          <!-- Task selector with search -->
           <template v-else>
-            <div class="flex flex-col gap-1.5">
-              <label for="form-task-search" class="text-xs font-medium text-muted-foreground">Search task</label>
-              <Input
-                id="form-task-search"
-                v-model="taskSearch"
-                placeholder="Type to filter backlog tasks…"
-              />
-            </div>
-
             <div class="flex flex-col gap-1.5">
               <label for="form-task-select" class="text-xs font-medium text-muted-foreground">Select a task</label>
               <Select v-model="formTaskId">
                 <SelectTrigger id="form-task-select">
-                  <SelectValue :placeholder="filteredTasks.length === 0 ? 'No matching tasks' : 'Choose a task…'" />
+                  <SelectValue :placeholder="backlog.tasks.length === 0 ? 'No tasks available' : 'Choose a task…'" />
                 </SelectTrigger>
                 <SelectContent class="max-h-[240px]">
                   <SelectItem
-                    v-for="task in filteredTasks"
+                    v-for="task in backlog.tasks"
                     :key="task.id"
                     :value="task.id"
                   >
                     {{ task.title }}
                   </SelectItem>
-                  <div v-if="filteredTasks.length === 0" class="px-2 py-4 text-center text-xs text-muted-foreground">
-                    No tasks match your search.
-                  </div>
                 </SelectContent>
               </Select>
             </div>

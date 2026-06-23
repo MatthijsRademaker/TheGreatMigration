@@ -41,15 +41,12 @@ function adaptToComponentProps(data: DashboardBody | undefined): AdaptedResult {
 			props: {
 				people: [],
 				days: [],
-				legend: [],
 			},
 			daysISO: [],
 		};
 	}
 
 	const peopleRaw = data.people ?? [];
-	const legendRaw = data.statuses ?? [];
-
 	const days: string[] = [];
 	const daysISO: string[] = [];
 	const people: PersonAvailability[] = [];
@@ -89,19 +86,11 @@ function adaptToComponentProps(data: DashboardBody | undefined): AdaptedResult {
 		});
 	}
 
-	const legend = legendRaw
-		.filter((s) => CANONICAL_STATUSES.has(s.id))
-		.map((s) => ({
-			id: s.id as PersonAvailabilityEntry["status"],
-			label: s.label,
-		}));
-
 	return {
 		props: {
 			title: "People availability",
 			days,
 			people,
-			legend,
 		},
 		daysISO,
 	};

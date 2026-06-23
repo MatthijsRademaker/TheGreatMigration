@@ -93,7 +93,7 @@ const whileHover = computed(() =>
       v-if="task.assignedPeople.length > 0"
       class="text-xs text-muted-foreground mb-2"
     >
-      {{ task.assignedPeople.map(p => p.initials).join(', ') }}
+      {{ task.assignedPeople.map((person) => person.name).join(', ') }}
     </p>
     <p class="flex items-center gap-1 text-xs text-muted-foreground">
       {{ task.assignedCount }} / {{ task.peopleNeeded }}

@@ -36,6 +36,20 @@ export interface ScheduleDay {
 
 const CANONICAL_PRIORITIES = new Set(["high", "medium", "low"]);
 const CANONICAL_STAFFING = new Set(["fullyStaffed", "underStaffed"]);
+const PRIORITY_RANK: Record<ScheduleTaskCard["priority"], number> = {
+	high: 0,
+	medium: 1,
+	low: 2,
+};
+
+export function sortScheduleTasksByPriority(
+	tasks: ScheduleTaskCard[],
+): ScheduleTaskCard[] {
+	return tasks.sort(
+		(left, right) =>
+			PRIORITY_RANK[left.priority] - PRIORITY_RANK[right.priority],
+	);
+}
 
 function isCanonicalTask(card: ApiTaskCard): boolean {
 	return (
@@ -70,6 +84,8 @@ function adaptDay(day: ApiScheduleDay): ScheduleDay {
 			tasks.push(adaptTaskCard(card, day.date));
 		}
 	}
+	sortScheduleTasksByPriority(tasks);
+
 	return {
 		date: day.date,
 		label: day.label,

@@ -212,15 +212,12 @@ describe("TaskManagementPanel", () => {
 	});
 
 	// 6.10
-	it("renders priority legend footer with all three priority badges", () => {
+	it("does not render priority legend footer", () => {
 		setBacklogState({
 			tasks: [makeTask()],
 			summary: { totalTasks: 1 },
 		});
 		const wrapper = mount(TaskManagementPanel);
-		expect(wrapper.text()).toContain("Priority:");
-		expect(wrapper.text()).toContain("High");
-		expect(wrapper.text()).toContain("Medium");
-		expect(wrapper.text()).toContain("Low");
+		expect(wrapper.text()).not.toContain("Priority:");
 	});
 });

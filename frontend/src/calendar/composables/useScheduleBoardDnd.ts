@@ -5,7 +5,11 @@ import type {
 	CreateScheduleCardRequestBodyWritable,
 	TaskCard as ApiTaskCard,
 } from "@/client/types.gen";
-import type { ScheduleDay, ScheduleTaskCard } from "./useDailySchedule";
+import {
+	sortScheduleTasksByPriority,
+	type ScheduleDay,
+	type ScheduleTaskCard,
+} from "./useDailySchedule";
 
 /** Derive uppercase initials from a name as a client-side optimistic stand-in. */
 function deriveInitials(name: string): string {
@@ -189,6 +193,7 @@ export function useScheduleBoardDnd(options: UseScheduleBoardDndOptions) {
 		const [moved] = next[source.dayIndex].tasks.splice(source.cardIndex, 1);
 		moved.scheduledDate = targetDate;
 		next[targetDayIndex].tasks.push(moved);
+		sortScheduleTasksByPriority(next[targetDayIndex].tasks);
 
 		await persist(cardId, moved, targetDate, next, "Failed to reschedule card");
 	}

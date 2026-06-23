@@ -150,15 +150,13 @@ describe("DailySchedule", () => {
 		expect(matches?.length).toBe(2);
 	});
 
-	it("renders assignee initials in compact comma-separated format", async () => {
+	it("renders assignee names in compact comma-separated format", async () => {
 		const html = await renderComponent(DailySchedule, { days: sampleDays });
-		// First day — one assignee
-		expect(html).toContain("T");
-		// Second day — two assignees: comma-separated
-		expect(html).toContain("A, M");
-		// No full names rendered directly
-		expect(html).not.toContain("Taylor");
-		expect(html).not.toContain("Alex");
+		expect(html).toContain("Taylor");
+		expect(html).toContain("Alex, Morgan");
+		// No initials rendered directly
+		expect(html).not.toContain(">T<");
+		expect(html).not.toContain("A, M");
 	});
 
 	it("renders a Card shell without CardHeader/CardTitle wrappers", async () => {
@@ -330,14 +328,12 @@ describe("DailySchedule", () => {
 	});
 
 	describe("compact assignee display", () => {
-		it("renders initials as comma-separated text without avatars", async () => {
+		it("renders names as comma-separated text without avatars", async () => {
 			const html = await renderComponent(DailySchedule, {
 				days: sampleDays,
 			});
-			// T for first day's single assignee
-			expect(html).toContain("T");
-			// A, M for second day's two assignees (comma-separated)
-			expect(html).toContain("A, M");
+			expect(html).toContain("Taylor");
+			expect(html).toContain("Alex, Morgan");
 			// No Avatar data-slot rendered
 			expect(html).not.toContain('data-slot="avatar"');
 		});

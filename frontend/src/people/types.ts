@@ -17,11 +17,6 @@ export interface PersonAvailability {
 	availability: PersonAvailabilityEntry[];
 }
 
-export interface StatusLegendItem {
-	id: AvailabilityStatus;
-	label: string;
-}
-
 export interface CellChangePayload {
 	personId: string;
 	dayIndex: number;
@@ -32,7 +27,6 @@ export interface PeopleAvailabilityProps {
 	title?: string;
 	days?: string[];
 	people?: PersonAvailability[];
-	legend?: StatusLegendItem[];
 	availableToday?: number;
 	totalPeople?: number;
 	editable?: boolean;
