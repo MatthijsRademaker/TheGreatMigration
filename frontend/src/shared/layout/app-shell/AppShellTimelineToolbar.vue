@@ -5,6 +5,8 @@ import { Button } from "@/shared/ui/button"
 interface ToolbarProps {
   /** Formatted date range label, e.g. "2 Jul – 5 Jul, 2024". */
   rangeLabel: string
+  /** Compact label for narrow viewports, e.g. "5–8 Jul". */
+  compactRangeLabel: string
   /** Whether the Previous chevron should be enabled. */
   canGoPrev: boolean
   /** Whether the Next chevron should be enabled. */
@@ -24,7 +26,8 @@ const emit = defineEmits<ToolbarEmits>()
 
 <template>
   <div class="flex items-center gap-2">
-    <span class="text-sm text-muted-foreground">{{ rangeLabel }}</span>
+    <span class="hidden sm:inline text-sm text-muted-foreground whitespace-nowrap">{{ rangeLabel }}</span>
+    <span class="sm:hidden text-sm text-muted-foreground whitespace-nowrap">{{ compactRangeLabel }}</span>
     <Button variant="outline" size="sm" @click="emit('today')">
       Today
     </Button>

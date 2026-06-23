@@ -5,6 +5,7 @@ import { useMutation, useQueryCache } from '@pinia/colada'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
+import { SkeletonRows } from '@/shared/ui/skeleton'
 import PeopleAvailability from './PeopleAvailability.vue'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import {
@@ -177,7 +178,7 @@ function isMutationLoading(mutation: typeof createMutation | typeof deleteMutati
         <CardDescription>Loading availability data…</CardDescription>
       </CardHeader>
       <CardContent>
-        <p class="text-sm text-muted-foreground">Fetching people and their statuses from the backend.</p>
+        <SkeletonRows :rows="5" />
       </CardContent>
     </Card>
 

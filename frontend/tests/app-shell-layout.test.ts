@@ -48,6 +48,7 @@ const mockHomePage = ref(1);
 const mockHomeDaysPerPage = ref(4);
 const mockHomeTotalPages = ref(10);
 const mockHomeRangeLabel = ref("5 Jul – 8 Jul, 2026");
+const mockHomeCompactRangeLabel = ref("5–8 Jul");
 const mockHomeIsLoading = ref(false);
 const mockHomeIsError = ref(false);
 
@@ -61,6 +62,7 @@ vi.mock("@/shared/composables/useHomePagination", () => ({
 		daysPerPage: mockHomeDaysPerPage,
 		totalPages: computed(() => mockHomeTotalPages.value),
 		rangeLabel: computed(() => mockHomeRangeLabel.value),
+		compactRangeLabel: computed(() => mockHomeCompactRangeLabel.value),
 		isLoading: computed(() => mockHomeIsLoading.value),
 		isError: computed(() => mockHomeIsError.value),
 		goPrev: mockHomeGoPrev,
@@ -108,6 +110,7 @@ describe("AppShell scroll and sticky header layout", () => {
 		mockHomeDaysPerPage.value = 4;
 		mockHomeTotalPages.value = 10;
 		mockHomeRangeLabel.value = "5 Jul – 8 Jul, 2026";
+		mockHomeCompactRangeLabel.value = "5–8 Jul";
 		mockHomeIsLoading.value = false;
 		mockHomeIsError.value = false;
 		mockHomeGoPrev.mockClear();

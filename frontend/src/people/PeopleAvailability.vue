@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
 import { Separator } from '@/shared/ui/separator'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/shared/ui/dialog'
+import { useMotionAutoAnimate } from '@/shared/composables/useMotionAutoAnimate'
 import type { AvailabilityStatus, CellChangePayload, PeopleAvailabilityProps } from './types'
 
 withDefaults(defineProps<PeopleAvailabilityProps>(), {
@@ -75,6 +76,7 @@ const emit = defineEmits<{
 
 const statusOptions: AvailabilityStatus[] = ['available', 'busy', 'partial', 'off']
 const confirmDeletePersonId = ref<string | null>(null)
+const peopleList = useMotionAutoAnimate()
 </script>
 
 <template>
@@ -108,7 +110,7 @@ const confirmDeletePersonId = ref<string | null>(null)
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref="peopleList">
             <tr
               v-for="person in people"
               :key="person.id"

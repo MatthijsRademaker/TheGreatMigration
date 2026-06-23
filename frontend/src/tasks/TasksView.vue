@@ -161,10 +161,9 @@ watch(() => data.value.tasks, (tasks) => {
       @edit-task="(task: TaskRow) => startEdit(task)"
       @delete-task="(id: string) => handleDelete(id)"
     />
-  </section>
 
-  <!-- Add/Edit Modal -->
-  <AddOperationModal
+    <!-- Add/Edit Modal -->
+    <AddOperationModal
     v-model:open="modalOpen"
     :title="editingId ? 'Edit Task' : 'Add Task'"
     :description="editingId ? 'Update the task details.' : 'Add a new task to the backlog.'"
@@ -275,4 +274,5 @@ watch(() => data.value.tasks, (tasks) => {
       </fieldset>
     </form>
   </AddOperationModal>
+  </section>
 </template>

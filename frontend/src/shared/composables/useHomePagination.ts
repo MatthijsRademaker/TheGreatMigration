@@ -29,6 +29,21 @@ function formatPageRangeLabel(startISO: string, endISO: string): string {
 	return `${startPart} – ${endDayMonth}, ${endYear}`;
 }
 
+/** Compact label for narrow viewports, e.g. "5–8 Jul" or "30 Jul–2 Aug". */
+function formatCompactRangeLabel(startISO: string, endISO: string): string {
+	const monthFmt = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" });
+	const start = new Date(startISO);
+	const end = new Date(endISO);
+	const startDay = start.getUTCDate();
+	const endDay = end.getUTCDate();
+	const startMonth = monthFmt.format(start);
+	const endMonth = monthFmt.format(end);
+	if (startMonth === endMonth) {
+		return startDay === endDay ? `${startDay} ${endMonth}` : `${startDay}–${endDay} ${endMonth}`;
+	}
+	return `${startDay} ${startMonth}–${endDay} ${endMonth}`;
+}
+
 /** Module-scoped shared state so all callers share the same page/daysPerPage refs. */
 const page = ref<number>(1);
 const daysPerPage = ref<number>(4);
@@ -52,6 +67,18 @@ export function useHomePagination() {
 		const endDate = days[endIdx]?.dateString ?? "";
 		if (!startDate || !endDate) return "—";
 		return formatPageRangeLabel(startDate, endDate);
+	});
+
+	/** Compact label for narrow viewports, e.g. "5–8 Jul". */
+	const compactRangeLabel = computed<string>(() => {
+		const days = planningWindow.planWindowDays.value;
+		if (days.length === 0) return "—";
+		const startIdx = (page.value - 1) * daysPerPage.value;
+		const endIdx = Math.min(startIdx + daysPerPage.value - 1, days.length - 1);
+		const startDate = days[startIdx]?.dateString ?? "";
+		const endDate = days[endIdx]?.dateString ?? "";
+		if (!startDate || !endDate) return "—";
+		return formatCompactRangeLabel(startDate, endDate);
 	});
 
 	const isLoading = computed<boolean>(() => planningWindow.isLoading.value);
@@ -99,6 +126,7 @@ export function useHomePagination() {
 		daysPerPage,
 		totalPages,
 		rangeLabel,
+		compactRangeLabel,
 		isLoading,
 		isError,
 		goPrev,

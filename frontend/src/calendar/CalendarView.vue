@@ -9,10 +9,12 @@ import {
   deleteScheduleCardMutation,
 } from '@/client/@pinia/colada.gen'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
+import { useScheduleBoardDnd } from '@/calendar/composables/useScheduleBoardDnd'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 import { useTaskBacklog } from '@/tasks/composables/useTaskBacklog'
 import DailySchedule from '@/calendar/DailySchedule.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { ScheduleSkeleton } from '@/shared/ui/skeleton'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import {
@@ -55,6 +57,19 @@ const updateMut = useMutation({
 const deleteMut = useMutation({
   ...deleteScheduleCardMutation(),
   onSuccess: () => queryCache.invalidateQueries({ key: queryKey }),
+})
+
+// ---- Drag-and-drop board (optimistic assign / reschedule) ----
+// Created after the CRUD mutations above so the mutation order is preserved.
+const {
+  board,
+  error: boardError,
+  assignPerson,
+  rescheduleCard,
+  dismissError,
+} = useScheduleBoardDnd({
+  source: computed(() => scheduleData.value.days),
+  queryKey,
 })
 
 // ---- Modal / form state ----
@@ -205,7 +220,7 @@ function handleCancel() {
         <CardDescription>Loading schedule data…</CardDescription>
       </CardHeader>
       <CardContent>
-        <p class="text-sm text-muted-foreground">Fetching task cards from the backend.</p>
+        <ScheduleSkeleton />
       </CardContent>
     </Card>
 
@@ -238,8 +253,19 @@ function handleCancel() {
 
     <!-- Success -->
     <template v-else>
+      <!-- Non-blocking error surfaced when an optimistic DnD write fails -->
+      <div
+        v-if="boardError"
+        role="alert"
+        class="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-3 py-2 text-sm text-destructive"
+      >
+        <span>{{ boardError }}</span>
+        <Button variant="ghost" size="xs" @click="dismissError">Dismiss</Button>
+      </div>
+
       <DailySchedule
-        :days="scheduleData.days"
+        :days="board"
+        :people="peopleData.people ?? []"
         :page="page"
         :total-pages="totalPages"
         :date-range-label="dateRangeLabel"
@@ -248,6 +274,8 @@ function handleCancel() {
         @add-task="openCreate"
         @edit-task="openEdit"
         @delete-task="handleDelete"
+        @assign-person="assignPerson"
+        @reschedule-card="rescheduleCard"
       />
     </template>
 

@@ -2,11 +2,14 @@
 import { WrenchIcon } from '@lucide/vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
+import { SkeletonRows } from '@/shared/ui/skeleton'
 import { useTools } from '@/tools/composables/useTools'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
+import { useMotionAutoAnimate } from '@/shared/composables/useMotionAutoAnimate'
 import { computed } from 'vue'
 
 const { data, isLoading, isError, isEmpty } = useTools()
+const toolsList = useMotionAutoAnimate()
 const { data: peopleData } = usePeopleAvailability()
 
 const peopleNameById = computed<Record<string, string>>(() => {
@@ -33,16 +36,15 @@ function bringerName(personId: string): string {
       </div>
     </CardHeader>
     <CardContent>
-      <div v-if="isLoading" class="py-4 text-center text-sm text-muted-foreground">
-        Loading tools&hellip;
-      </div>
+      <SkeletonRows v-if="isLoading" :rows="4" />
+
       <div v-else-if="isError" class="py-4 text-center text-sm text-destructive">
         Could not load tools.
       </div>
       <div v-else-if="isEmpty" class="py-4 text-center text-sm text-muted-foreground">
         No tools yet.
       </div>
-      <ul v-else class="flex flex-col divide-y divide-border">
+      <ul v-else ref="toolsList" class="flex flex-col divide-y divide-border">
         <li
           v-for="tool in data.tools"
           :key="tool.id"

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Badge } from '@/shared/ui/badge'
-import type { BadgeVariants } from '@/shared/ui/badge'
+import { computed, ref, watch } from 'vue'
 import { Button } from '@/shared/ui/button'
 import { Card } from '@/shared/ui/card'
+import { PersonChip } from '@/shared/ui/person-chip'
+import Celebration from '@/shared/motion/Celebration.vue'
+import TaskBoardCard from './components/TaskBoardCard.vue'
 
 interface AssignedPerson {
   id: string
@@ -31,21 +32,17 @@ interface ScheduleDay {
   tasks: TaskCard[]
 }
 
-const priorityAccentMap: Record<TaskCard['priority'], string> = {
-  high: 'border-l-destructive',
-  medium: 'border-l-warning',
-  low: 'border-l-success',
-}
-
-const priorityVariantMap: Record<TaskCard['priority'], BadgeVariants['variant']> = {
-  high: 'priorityHigh',
-  medium: 'priorityMedium',
-  low: 'priorityLow',
+/** Minimal person shape for the draggable people rail. */
+interface RailPerson {
+  id: string
+  name: string
 }
 
 interface DailyScheduleProps {
   days?: ScheduleDay[]
   readOnly?: boolean
+  /** People available to drag onto task cards. Only shown when not read-only. */
+  people?: RailPerson[]
   /** Page number for pagination (1-indexed). Renders a pagination bar when > 0 together with totalPages. */
   page?: number
   /** Total number of pages. */
@@ -62,10 +59,15 @@ interface DailyScheduleEmits {
   "delete-task": [taskId: string]
   "prev-page": []
   "next-page": []
+  /** A person was dropped onto a task card to be assigned. */
+  "assign-person": [cardId: string, person: RailPerson]
+  /** A card was dropped onto a different day column to be rescheduled. */
+  "reschedule-card": [cardId: string, date: string]
 }
 
 const props = withDefaults(defineProps<DailyScheduleProps>(), {
   readOnly: false,
+  people: () => [],
   page: 0,
   totalPages: 0,
   dateRangeLabel: '',
@@ -77,6 +79,94 @@ const hasPagination = computed(() => !props.hidePagination && props.page > 0 && 
 const emit = defineEmits<DailyScheduleEmits>()
 
 const scheduleDays = computed(() => props.days ?? [])
+const interactive = computed(() => !props.readOnly)
+
+// ── Day-complete celebration ────────────────────────────────────────────────
+// A day is "complete" when it has tasks and every task is fully staffed. We
+// bump a per-day trigger when a day transitions into completeness (not on
+// initial load) so the burst only plays as a reward for the change.
+function isDayComplete(day: ScheduleDay): boolean {
+  return day.tasks.length > 0 && day.tasks.every((t) => t.staffingStatus === 'fullyStaffed')
+}
+
+const dayCelebrationTrigger = ref<Record<string, number>>({})
+
+watch(
+  scheduleDays,
+  (days, previous) => {
+    const prevComplete = new Map((previous ?? []).map((d) => [d.date, isDayComplete(d)]))
+    for (const day of days) {
+      // Only celebrate days that existed before (skip the first data load).
+      if (!prevComplete.has(day.date)) continue
+      if (isDayComplete(day) && !prevComplete.get(day.date)) {
+        dayCelebrationTrigger.value[day.date] = (dayCelebrationTrigger.value[day.date] ?? 0) + 1
+      }
+    }
+  },
+  { deep: true },
+)
+
+// ── Drag-and-drop state ─────────────────────────────────────────────────────
+type DragKind = 'person' | 'card' | null
+const dragKind = ref<DragKind>(null)
+const draggedPerson = ref<RailPerson | null>(null)
+const draggedCardId = ref<string | null>(null)
+const dropTargetCardId = ref<string | null>(null)
+const dropTargetDayDate = ref<string | null>(null)
+
+function resetDrag() {
+  dragKind.value = null
+  draggedPerson.value = null
+  draggedCardId.value = null
+  dropTargetCardId.value = null
+  dropTargetDayDate.value = null
+}
+
+function onPersonDragStart(event: DragEvent, person: RailPerson) {
+  dragKind.value = 'person'
+  draggedPerson.value = person
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('text/plain', person.id)
+    event.dataTransfer.effectAllowed = 'copy'
+  }
+}
+
+function onCardDragStart(event: DragEvent, cardId: string) {
+  dragKind.value = 'card'
+  draggedCardId.value = cardId
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('text/plain', cardId)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+// Assignment: a person dropped onto a task card.
+function onCardDragOver(event: DragEvent, cardId: string) {
+  if (dragKind.value !== 'person') return
+  event.preventDefault()
+  dropTargetCardId.value = cardId
+}
+
+function onCardDrop(event: DragEvent, cardId: string) {
+  if (dragKind.value !== 'person' || !draggedPerson.value) return
+  event.preventDefault()
+  emit('assign-person', cardId, draggedPerson.value)
+  resetDrag()
+}
+
+// Reschedule: a card dropped onto a day column.
+function onDayDragOver(event: DragEvent, date: string) {
+  if (dragKind.value !== 'card') return
+  event.preventDefault()
+  dropTargetDayDate.value = date
+}
+
+function onDayDrop(event: DragEvent, date: string) {
+  if (dragKind.value !== 'card' || !draggedCardId.value) return
+  event.preventDefault()
+  emit('reschedule-card', draggedCardId.value, date)
+  resetDrag()
+}
 </script>
 
 <template>
@@ -110,6 +200,25 @@ const scheduleDays = computed(() => props.days ?? [])
       </div>
     </div>
 
+    <!-- People rail: drag a helper onto a task card to assign them -->
+    <div
+      v-if="interactive && people.length"
+      data-testid="people-rail"
+      class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3"
+    >
+      <span class="mr-1 text-xs font-medium text-muted-foreground">Drag a helper onto a task:</span>
+      <PersonChip
+        v-for="person in people"
+        :key="person.id"
+        :name="person.name"
+        draggable="true"
+        data-testid="rail-person"
+        class="cursor-grab select-none transition-transform active:scale-105 active:cursor-grabbing"
+        @dragstart="onPersonDragStart($event, person)"
+        @dragend="resetDrag"
+      />
+    </div>
+
     <!-- Day columns -->
     <div class="px-4 py-3">
       <div class="overflow-x-auto">
@@ -117,8 +226,16 @@ const scheduleDays = computed(() => props.days ?? [])
           <div
             v-for="day in scheduleDays"
             :key="day.date"
-            class="min-w-[260px] shrink-0"
+            data-testid="day-column"
+            class="relative min-w-[260px] shrink-0 rounded-lg p-1 transition-colors"
+            :class="interactive && dragKind === 'card' && dropTargetDayDate === day.date
+              ? 'bg-primary/5 ring-2 ring-primary/40'
+              : ''"
+            @dragover="onDayDragOver($event, day.date)"
+            @drop="onDayDrop($event, day.date)"
           >
+            <Celebration :trigger="dayCelebrationTrigger[day.date] ?? 0" />
+
             <!-- Day header: compact horizontal layout -->
             <div class="flex items-baseline gap-2 mb-3">
               <span class="text-sm font-semibold">{{ day.label }}</span>
@@ -127,36 +244,22 @@ const scheduleDays = computed(() => props.days ?? [])
 
             <!-- Task cards -->
             <div class="flex flex-col gap-3">
-              <div
+              <TaskBoardCard
                 v-for="task in day.tasks"
                 :key="task.id"
-                class="rounded-lg border bg-card shadow-sm p-3 border-l-4"
-                :class="priorityAccentMap[task.priority]"
-              >
-                <div class="flex items-start justify-between gap-2 mb-2">
-                  <span class="text-sm font-medium">{{ task.title }}</span>
-                  <Badge :variant="priorityVariantMap[task.priority]">
-                    {{ task.priority }}
-                  </Badge>
-                </div>
-                <p
-                  v-if="task.assignedPeople.length > 0"
-                  class="text-xs text-muted-foreground mb-2"
-                >
-                  {{ task.assignedPeople.map(p => p.initials).join(', ') }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ task.assignedCount }} / {{ task.peopleNeeded }}
-                  <span
-                    v-if="task.staffingStatus === 'underStaffed'"
-                    class="text-destructive"
-                  >&nbsp;— needs help</span>
-                </p>
-                <div v-if="!readOnly" class="flex items-center gap-1 mt-2">
-                  <Button variant="ghost" size="xs" @click.stop="emit('edit-task', task)">Edit</Button>
-                  <Button variant="ghost" size="xs" @click.stop="emit('delete-task', task.id)">Delete</Button>
-                </div>
-              </div>
+                :task="task"
+                :read-only="readOnly"
+                :interactive="interactive"
+                :drop-active="interactive && dragKind === 'person' && dropTargetCardId === task.id"
+                :draggable="interactive ? 'true' : undefined"
+                :class="interactive ? 'cursor-grab active:cursor-grabbing' : ''"
+                @dragstart="onCardDragStart($event, task.id)"
+                @dragend="resetDrag"
+                @dragover="onCardDragOver($event, task.id)"
+                @drop="onCardDrop($event, task.id)"
+                @edit="emit('edit-task', task)"
+                @delete="emit('delete-task', task.id)"
+              />
 
               <!-- Task creation placeholder: only when not readOnly -->
               <div

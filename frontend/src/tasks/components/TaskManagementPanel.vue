@@ -3,7 +3,9 @@ import { ListFilterIcon, PlusIcon } from '@lucide/vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { SkeletonRows } from '@/shared/ui/skeleton'
 import { useTaskBacklog } from '../composables/useTaskBacklog'
+import { useMotionAutoAnimate } from '@/shared/composables/useMotionAutoAnimate'
 import { priorityLabels, priorityBadgeVariant } from '../helpers'
 import type { TaskPriority } from '../types'
 import TaskRow from './TaskRow.vue'
@@ -22,6 +24,7 @@ defineEmits<{
 }>()
 
 const { data, isLoading, isError, isEmpty } = useTaskBacklog()
+const tasksList = useMotionAutoAnimate()
 
 const priorities: TaskPriority[] = ['high', 'medium', 'low']
 </script>
@@ -48,9 +51,8 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
     </CardHeader>
     <CardContent>
       <!-- Loading state -->
-      <div v-if="isLoading" class="py-8 text-center text-sm text-muted-foreground">
-        Loading tasks&hellip;
-      </div>
+      <SkeletonRows v-if="isLoading" :rows="5" />
+
 
       <!-- Error state -->
       <div v-else-if="isError" class="py-8 text-center text-sm text-destructive">
@@ -75,7 +77,7 @@ const priorities: TaskPriority[] = ['high', 'medium', 'low']
                 <th class="h-10 px-4 text-left text-sm font-medium text-muted-foreground">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref="tasksList">
               <TaskRow v-for="task in data.tasks" :key="task.id" :task="task">
                 <template v-if="!readOnly" #actions>
                   <Button variant="outline" size="sm" @click="$emit('edit-task', task)">Edit</Button>

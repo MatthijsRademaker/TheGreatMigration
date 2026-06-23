@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { ScheduleSkeleton } from '@/shared/ui/skeleton'
 import KpiCards from './components/KpiCards.vue'
+import MigrationJourney from './components/MigrationJourney.vue'
 import TaskManagementPanel from '@/tasks/components/TaskManagementPanel.vue'
 import PeopleAvailability from '@/people/PeopleAvailability.vue'
 import DailySchedule from '@/calendar/DailySchedule.vue'
@@ -29,12 +31,9 @@ const {
 <template>
   <section class="flex flex-1 flex-col gap-6 p-4 sm:p-6">
 
-    <KpiCards />
+    <MigrationJourney :days="scheduleData.days" class="hidden sm:block" />
 
-    <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-      <TaskManagementPanel read-only />
-      <PeopleAvailability v-bind="availabilityData" />
-    </div>
+    <KpiCards />
 
     <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
       <!-- Daily Schedule: state-driven rendering, read-only on home -->
@@ -44,7 +43,7 @@ const {
           <CardDescription>Loading schedule data…</CardDescription>
         </CardHeader>
         <CardContent>
-          <p class="text-sm text-muted-foreground">Fetching task cards from the backend.</p>
+          <ScheduleSkeleton />
         </CardContent>
       </Card>
 
@@ -81,6 +80,11 @@ const {
       </template>
 
       <ToolsPanel />
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+      <TaskManagementPanel read-only />
+      <PeopleAvailability v-bind="availabilityData" />
     </div>
   </section>
 </template>

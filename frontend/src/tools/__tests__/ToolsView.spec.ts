@@ -79,10 +79,10 @@ describe("ToolsView", () => {
 		wrapper.unmount();
 	});
 
-	it("shows the loading state", () => {
+	it("shows a shimmer skeleton while loading", () => {
 		resetToolsState({ isLoading: true });
 		const wrapper = mount(ToolsView);
-		expect(wrapper.text()).toContain("Loading tools");
+		expect(wrapper.find("[data-testid='skeleton-rows']").exists()).toBe(true);
 		wrapper.unmount();
 	});
 

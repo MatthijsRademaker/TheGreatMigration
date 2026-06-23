@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Component } from 'vue'
 import {
   BriefcaseIcon,
   CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   FlagIcon,
   UsersRoundIcon,
   WrenchIcon,
 } from '@lucide/vue'
 import { getDashboardPeopleAvailabilityQuery, getTasksBacklogQuery, getToolsQuery } from '@/client/@pinia/colada.gen'
 import { Card, CardHeader, CardContent } from '@/shared/ui/card'
+import AnimatedNumber from '@/shared/motion/AnimatedNumber.vue'
 
 const availabilityQuery = useQuery(getDashboardPeopleAvailabilityQuery())
 const tasksBacklogQuery = useQuery(getTasksBacklogQuery())
@@ -65,6 +68,8 @@ const formattedSelectedDate = computed(() => {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(date)
 })
 
+const expanded = ref(false)
+
 interface KpiCardConfig {
   id: string
   label: string
@@ -74,6 +79,7 @@ interface KpiCardConfig {
   borderClass: string
   status: 'loading' | 'error' | 'ready' | 'empty'
   value: number
+  compactDisplay: string
 }
 
 /**
@@ -90,6 +96,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     borderClass: 'border-destructive',
     status: backlogStatus.value,
     value: highPriorityTasks.value,
+    compactDisplay: backlogStatus.value === 'loading' ? '…' : backlogStatus.value === 'error' ? '!' : String(highPriorityTasks.value),
   },
   {
     id: 'people',
@@ -102,6 +109,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     borderClass: 'border-info',
     status: peopleStatus.value,
     value: displayAvailableToday.value,
+    compactDisplay: peopleStatus.value === 'loading' ? '…' : peopleStatus.value === 'error' ? '!' : `${displayAvailableToday.value}/${totalPeople.value}`,
   },
   {
     id: 'unassigned',
@@ -112,6 +120,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     borderClass: 'border-warning',
     status: backlogStatus.value,
     value: unassignedTasks.value,
+    compactDisplay: backlogStatus.value === 'loading' ? '…' : backlogStatus.value === 'error' ? '!' : String(unassignedTasks.value),
   },
   // Rooms completed — placeholder for future room-progress contract
   {
@@ -123,6 +132,7 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     borderClass: 'border-success',
     status: 'empty',
     value: 0,
+    compactDisplay: '—',
   },
   {
     id: 'tools',
@@ -133,16 +143,35 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
     borderClass: 'border-info',
     status: toolsStatus.value,
     value: toolsClaimed.value,
+    compactDisplay: toolsStatus.value === 'loading' ? '…' : toolsStatus.value === 'error' ? '!' : `${toolsClaimed.value}/${toolsTotal.value}`,
   },
 ])
 </script>
 
 <template>
-  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+  <!-- Mobile compact summary row (hidden on sm+) -->
+  <div class="sm:hidden flex items-center gap-3 overflow-x-auto rounded-lg border bg-card px-3 py-2">
+    <div v-for="card in cardConfigs" :key="card.id" class="flex items-center gap-1.5 shrink-0">
+      <div class="size-5 rounded flex items-center justify-center shrink-0" :class="card.iconBgClass">
+        <component :is="card.icon" class="size-3" />
+      </div>
+      <span class="text-sm font-medium">{{ card.compactDisplay }}</span>
+    </div>
+    <button
+      class="ml-auto flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
+      @click="expanded = !expanded"
+    >
+      <component :is="expanded ? ChevronUpIcon : ChevronDownIcon" class="size-4" />
+      <span>{{ expanded ? 'Hide' : 'Show' }} KPIs</span>
+    </button>
+  </div>
+
+  <!-- Full card grid (always shown on sm+, toggle-controlled on mobile via v-show) -->
+  <div v-show="expanded" class="grid gap-4 md:grid-cols-2 xl:grid-cols-5 sm:!grid">
     <Card
       v-for="card in cardConfigs"
       :key="card.id"
-      class="border-l-4 relative"
+      class="border-l-4 relative motion-interactive"
       :class="card.borderClass"
       :data-testid="card.id === 'rooms' ? 'kpi-placeholder-rooms-completed' : undefined"
     >
@@ -172,12 +201,12 @@ const cardConfigs = computed<KpiCardConfig[]>(() => [
             <template v-else-if="card.status === 'error'">Backend unavailable</template>
             <template v-else-if="card.status === 'empty'">—</template>
             <template v-else-if="card.id === 'people' && card.status === 'ready'">
-              {{ card.value }} / {{ totalPeople }}
+              <AnimatedNumber :value="card.value" /> / <AnimatedNumber :value="totalPeople" />
             </template>
             <template v-else-if="card.id === 'tools' && card.status === 'ready'">
-              {{ toolsClaimed }} / {{ toolsTotal }}
+              <AnimatedNumber :value="toolsClaimed" /> / <AnimatedNumber :value="toolsTotal" />
             </template>
-            <template v-else>{{ card.value }}</template>
+            <template v-else><AnimatedNumber :value="card.value" /></template>
           </span>
           <span class="text-sm text-muted-foreground">{{ card.description }}</span>
         </div>

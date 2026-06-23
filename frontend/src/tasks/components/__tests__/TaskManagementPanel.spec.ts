@@ -171,10 +171,10 @@ describe("TaskManagementPanel", () => {
 	});
 
 	// 6.8
-	it("renders loading state text", () => {
+	it("renders a shimmer skeleton while loading", () => {
 		setBacklogState({ isLoading: true });
 		const wrapper = mount(TaskManagementPanel);
-		expect(wrapper.text()).toContain("Loading tasks…");
+		expect(wrapper.find("[data-testid='skeleton-rows']").exists()).toBe(true);
 		// Loading state should not render the table or footer
 		expect(wrapper.text()).not.toContain("Priority:");
 	});

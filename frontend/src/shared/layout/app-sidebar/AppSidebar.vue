@@ -172,7 +172,7 @@ const vTitle: Directive<HTMLElement, string> = {
     </SidebarContent>
 
     <SidebarFooter class="p-0">
-      <img src="/images/trail-portrait.png" alt="Trail portrait" class="w-full group-data-[collapsible=icon]:hidden" />
+      <img v-if="!isMobile" src="/images/trail-portrait.png" alt="Trail portrait" class="w-full group-data-[collapsible=icon]:hidden" />
     </SidebarFooter>
     <SidebarRail />
   </Sidebar>

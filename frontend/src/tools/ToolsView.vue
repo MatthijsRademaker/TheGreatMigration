@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select'
+import { SkeletonRows } from '@/shared/ui/skeleton'
 import { useTools } from '@/tools/composables/useTools'
 import { usePeopleAvailability } from '@/shared/composables/usePeopleAvailability'
 
@@ -86,9 +87,8 @@ async function handleClaim(toolId: string, personId: string) {
         </form>
 
         <!-- Loading state -->
-        <div v-if="isLoading" class="py-8 text-center text-sm text-muted-foreground">
-          Loading tools&hellip;
-        </div>
+        <SkeletonRows v-if="isLoading" :rows="5" />
+
 
         <!-- Error state -->
         <div v-else-if="isError" class="py-8 text-center text-sm text-destructive">

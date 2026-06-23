@@ -61,17 +61,13 @@ func main() {
 		}
 		fmt.Println("Database migrations applied successfully")
 
-		// Always bootstrap the singleton planning-window row if missing.
-		// This is essential config, not demo data — the app cannot function
-		// without it. Uses a 30-day default window starting today.
-		if err := bootstrapPlanningWindow(sqlDB); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to bootstrap planning window: %v\n", err)
-			os.Exit(1)
-		}
-
 		// Conditionally apply the demo seed dataset (gated by DB_SEED).
 		// It is a separate goose dataset tracked in its own version table so
 		// it stays independent of the schema chain and idempotent on restart.
+		// The seed includes its own planning window, so it must run before the
+		// bootstrap below — otherwise bootstrap would insert an explicit id=1
+		// row without advancing the SERIAL sequence, and the seed's serial
+		// insert would then collide on planning_windows_pkey.
 		if shouldSeed() {
 			goose.SetBaseFS(seedFS)
 			goose.SetTableName("goose_seed_version")
@@ -81,6 +77,15 @@ func main() {
 			}
 			goose.SetTableName("goose_db_version")
 			fmt.Println("Demo seed dataset applied successfully")
+		}
+
+		// Bootstrap the singleton planning-window row only if one does not
+		// already exist (e.g. when the demo seed is disabled). This is essential
+		// config, not demo data — the app cannot function without it. Uses a
+		// 30-day default window starting today.
+		if err := bootstrapPlanningWindow(sqlDB); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to bootstrap planning window: %v\n", err)
+			os.Exit(1)
 		}
 	}
 
