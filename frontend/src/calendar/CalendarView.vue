@@ -29,6 +29,7 @@ import {
 import { Checkbox } from '@/shared/ui/checkbox'
 import { DatePicker } from '@/shared/ui/date-picker'
 import AddOperationModal from '@/shared/components/AddOperationModal.vue'
+import { areaColor } from '@/shared/lib/areaColor'
 
 // ---- Queries ----
 const {
@@ -396,7 +397,14 @@ function handleCancel() {
                   :key="room.id"
                   :value="room.id"
                 >
-                  {{ room.name }}
+                  <span class="inline-flex items-center gap-1.5">
+                    <span
+                      class="inline-block size-2 shrink-0 rounded-full"
+                      :style="{ backgroundColor: areaColor(room.id) }"
+                      aria-hidden="true"
+                    />
+                    {{ room.name }}
+                  </span>
                 </SelectItem>
               </SelectContent>
             </Select>
