@@ -112,6 +112,7 @@ vi.mock("@/client/@pinia/colada.gen", () => ({
 	createScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 	updateScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
 	deleteScheduleCardMutation: vi.fn(() => ({ mutation: vi.fn() })),
+	setScheduleCardCompletedMutation: vi.fn(() => ({ mutation: vi.fn() })),
 }));
 
 vi.mock("@/calendar/composables/useDailySchedule", () => ({

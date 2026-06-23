@@ -21,6 +21,7 @@ interface TaskCard {
   peopleNeeded: number
   assignedCount: number
   staffingStatus: 'fullyStaffed' | 'underStaffed'
+  completed: boolean
   scheduledDate: string
   taskId: string | null
 }
@@ -51,6 +52,8 @@ interface DailyScheduleProps {
   dateRangeLabel?: string
   /** When true, suppress the pagination bar regardless of page/totalPages values. */
   hidePagination?: boolean
+  /** Callback to persist done/revert to the backend. Returns a promise that resolves on success. */
+  onToggleComplete?: (taskId: string, completed: boolean) => Promise<void>
 }
 
 interface DailyScheduleEmits {
@@ -102,12 +105,14 @@ function formatCompactRangeLabel(days: ScheduleDay[]): string {
 const compactDateRangeLabel = computed(() => formatCompactRangeLabel(scheduleDays.value))
 
 // ── Done state ──────────────────────────────────────────────────────────────
-// "Done" is currently a frontend-only affordance: the card briefly leaves the
-// column using the same transition as deletion, then reappears greyed out.
+// "Done" is persisted to the backend via the onToggleComplete callback.
+// Local state mirrors the backend truth; on initial load, doneTaskIds is
+// populated from the API data's completed fields.
 const TASK_DONE_TRANSITION_MS = 220
 const doneTaskIds = ref<Record<string, true>>({})
 const hidingTaskIds = ref<Record<string, true>>({})
 const doneTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const doneError = ref<string | null>(null)
 
 function isTaskDone(taskId: string): boolean {
   return doneTaskIds.value[taskId] === true
@@ -132,8 +137,19 @@ function clearDoneTimer(taskId: string) {
   doneTimers.delete(taskId)
 }
 
-function markTaskDone(taskId: string) {
+async function markTaskDone(taskId: string) {
   if (props.readOnly || isTaskDone(taskId) || isTaskHidden(taskId)) return
+
+  // Persist to backend first.
+  if (props.onToggleComplete) {
+    try {
+      await props.onToggleComplete(taskId, true)
+      doneError.value = null
+    } catch {
+      doneError.value = 'Failed to mark task as done'
+      return
+    }
+  }
 
   hidingTaskIds.value = {
     ...hidingTaskIds.value,
@@ -153,13 +169,56 @@ function markTaskDone(taskId: string) {
   }, TASK_DONE_TRANSITION_MS))
 }
 
+async function unmarkTaskDone(taskId: string) {
+  if (props.readOnly || !isTaskDone(taskId)) return
+
+  // Persist revert to backend first.
+  if (props.onToggleComplete) {
+    try {
+      await props.onToggleComplete(taskId, false)
+      doneError.value = null
+    } catch {
+      doneError.value = 'Failed to revert task'
+      return
+    }
+  }
+
+  const next = { ...doneTaskIds.value }
+  delete next[taskId]
+  doneTaskIds.value = next
+}
+
 watch(
   scheduleDays,
-  (days) => {
+  (days, previous) => {
     const liveTaskIds = new Set(days.flatMap((day) => day.tasks.map((task) => task.id)))
-    const nextDone = Object.fromEntries(
-      Object.entries(doneTaskIds.value).filter(([taskId]) => liveTaskIds.has(taskId)),
-    ) as Record<string, true>
+
+    // Seed doneTaskIds from API data on initial load or when new tasks appear.
+    const isFirstLoad = !previous || previous.length === 0
+    const nextDone: Record<string, true> = {}
+    for (const day of days) {
+      for (const task of day.tasks) {
+        if (task.completed && liveTaskIds.has(task.id)) {
+          nextDone[task.id] = true
+        }
+      }
+    }
+    // On first load, take the API truth. On subsequent loads, preserve
+    // locally-toggled state for tasks still present.
+    if (isFirstLoad) {
+      doneTaskIds.value = nextDone
+    } else {
+      // Merge: keep existing local done state for tasks that are still live,
+      // add newly completed tasks from API, remove tasks no longer present.
+      const merged: Record<string, true> = {}
+      for (const taskId of liveTaskIds) {
+        if (doneTaskIds.value[taskId] || nextDone[taskId]) {
+          merged[taskId] = true
+        }
+      }
+      doneTaskIds.value = merged
+    }
+
     const nextHiding = Object.fromEntries(
       Object.entries(hidingTaskIds.value).filter(([taskId]) => liveTaskIds.has(taskId)),
     ) as Record<string, true>
@@ -170,7 +229,6 @@ watch(
       }
     }
 
-    doneTaskIds.value = nextDone
     hidingTaskIds.value = nextHiding
   },
   { deep: true },
@@ -341,6 +399,16 @@ function onDayDrop(event: DragEvent, date: string) {
       />
     </div>
 
+    <!-- Non-blocking done/revert error -->
+    <div
+      v-if="doneError"
+      role="alert"
+      class="flex items-center justify-between gap-3 border-b border-destructive/40 bg-destructive-soft px-4 py-2 text-sm text-destructive"
+    >
+      <span>{{ doneError }}</span>
+      <Button variant="ghost" size="xs" @click="doneError = null">Dismiss</Button>
+    </div>
+
     <!-- Day columns -->
     <div class="px-4 py-3">
       <div class="overflow-x-auto">
@@ -382,6 +450,7 @@ function onDayDrop(event: DragEvent, date: string) {
                   @dragover="onCardDragOver($event, task.id)"
                   @drop="onCardDrop($event, task.id)"
                   @done="markTaskDone(task.id)"
+                  @revert="unmarkTaskDone(task.id)"
                   @edit="emit('edit-task', task)"
                   @delete="emit('delete-task', task.id)"
                 />

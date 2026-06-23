@@ -37,6 +37,17 @@ func (q *Queries) CheckPersonScheduleReferences(ctx context.Context, personID st
 	return has_refs, err
 }
 
+const countPeople = `-- name: CountPeople :one
+SELECT COUNT(*) FROM people
+`
+
+func (q *Queries) CountPeople(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPeople)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPerson = `-- name: CreatePerson :one
 INSERT INTO people (id, name, initials)
 VALUES ('p' || nextval('people_id_seq'), $1, $2)
@@ -149,6 +160,43 @@ func (q *Queries) GetAvailabilityByDateRange(ctx context.Context, arg GetAvailab
 	return items, nil
 }
 
+const getPeoplePaginated = `-- name: GetPeoplePaginated :many
+SELECT id, name, initials, created_at
+FROM people
+ORDER BY id
+LIMIT $1 OFFSET $2
+`
+
+type GetPeoplePaginatedParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetPeoplePaginated(ctx context.Context, arg GetPeoplePaginatedParams) ([]Person, error) {
+	rows, err := q.db.Query(ctx, getPeoplePaginated, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Person
+	for rows.Next() {
+		var i Person
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Initials,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPerson = `-- name: GetPerson :one
 SELECT id, name, initials, created_at
 FROM people
@@ -195,54 +243,6 @@ type UpdatePersonParams struct {
 func (q *Queries) UpdatePerson(ctx context.Context, arg UpdatePersonParams) error {
 	_, err := q.db.Exec(ctx, updatePerson, arg.ID, arg.Name, arg.Initials)
 	return err
-}
-
-const countPeople = `-- name: CountPeople :one
-SELECT COUNT(*) FROM people
-`
-
-func (q *Queries) CountPeople(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countPeople)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const getPeoplePaginated = `-- name: GetPeoplePaginated :many
-SELECT id, name, initials, created_at
-FROM people
-ORDER BY id
-LIMIT $1 OFFSET $2
-`
-
-type GetPeoplePaginatedParams struct {
-	Limit  int32
-	Offset int32
-}
-
-func (q *Queries) GetPeoplePaginated(ctx context.Context, arg GetPeoplePaginatedParams) ([]Person, error) {
-	rows, err := q.db.Query(ctx, getPeoplePaginated, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Person
-	for rows.Next() {
-		var i Person
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Initials,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const upsertAvailability = `-- name: UpsertAvailability :exec

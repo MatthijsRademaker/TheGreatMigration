@@ -71,6 +71,8 @@ type ScheduleTaskCard struct {
 	SortOrder     int32
 	CreatedAt     pgtype.Timestamptz
 	ScheduledDate pgtype.Date
+	TaskID        pgtype.Text
+	Completed     bool
 }
 
 type Tool struct {

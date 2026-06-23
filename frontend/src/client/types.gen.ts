@@ -412,6 +412,17 @@ export type ScheduleRange = {
     startDate: string;
 };
 
+export type SetScheduleCardCompletedRequestBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Whether the card is completed (true to mark done, false to revert)
+     */
+    completed: boolean;
+};
+
 export type SetToolBringerInputBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -485,6 +496,10 @@ export type TaskCard = {
      * People assigned to this task
      */
     assignedPeople: Array<AssignedPerson> | null;
+    /**
+     * Whether the card is marked as done
+     */
+    completed: boolean;
     /**
      * Stable task identifier
      */
@@ -955,6 +970,13 @@ export type ScheduleDayWritable = {
     tasks: Array<TaskCardWritable> | null;
 };
 
+export type SetScheduleCardCompletedRequestBodyWritable = {
+    /**
+     * Whether the card is completed (true to mark done, false to revert)
+     */
+    completed: boolean;
+};
+
 export type SetToolBringerInputBodyWritable = {
     /**
      * ID of the person bringing the tool
@@ -990,6 +1012,10 @@ export type TaskCardWritable = {
      * People assigned to this task
      */
     assignedPeople: Array<AssignedPerson> | null;
+    /**
+     * Whether the card is marked as done
+     */
+    completed: boolean;
     /**
      * Stable task identifier
      */
@@ -1634,6 +1660,36 @@ export type UpdateScheduleCardResponses = {
 };
 
 export type UpdateScheduleCardResponse = UpdateScheduleCardResponses[keyof UpdateScheduleCardResponses];
+
+export type SetScheduleCardCompletedData = {
+    body: SetScheduleCardCompletedRequestBodyWritable;
+    path: {
+        /**
+         * Schedule card identifier (e.g., sched-1)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/schedule/cards/{id}/complete';
+};
+
+export type SetScheduleCardCompletedErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetScheduleCardCompletedError = SetScheduleCardCompletedErrors[keyof SetScheduleCardCompletedErrors];
+
+export type SetScheduleCardCompletedResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type SetScheduleCardCompletedResponse = SetScheduleCardCompletedResponses[keyof SetScheduleCardCompletedResponses];
 
 export type CreateTaskData = {
     body: CreateTaskRequestBodyWritable;

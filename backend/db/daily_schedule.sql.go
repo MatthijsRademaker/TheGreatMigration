@@ -30,7 +30,7 @@ func (q *Queries) CreateScheduleAssignment(ctx context.Context, arg CreateSchedu
 const createScheduleCard = `-- name: CreateScheduleCard :one
 INSERT INTO schedule_task_cards (title, priority, room_area, people_needed, scheduled_date, sort_order, task_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id
+RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
 `
 
 type CreateScheduleCardParams struct {
@@ -53,6 +53,7 @@ type CreateScheduleCardRow struct {
 	SortOrder     int32
 	CreatedAt     pgtype.Timestamptz
 	TaskID        pgtype.Text
+	Completed     bool
 }
 
 func (q *Queries) CreateScheduleCard(ctx context.Context, arg CreateScheduleCardParams) (CreateScheduleCardRow, error) {
@@ -76,6 +77,7 @@ func (q *Queries) CreateScheduleCard(ctx context.Context, arg CreateScheduleCard
 		&i.SortOrder,
 		&i.CreatedAt,
 		&i.TaskID,
+		&i.Completed,
 	)
 	return i, err
 }
@@ -172,7 +174,7 @@ func (q *Queries) GetDailyScheduleAssignments(ctx context.Context) ([]GetDailySc
 }
 
 const getDailyScheduleTaskCards = `-- name: GetDailyScheduleTaskCards :many
-SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id
+SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
 FROM schedule_task_cards
 WHERE scheduled_date >= $1::date
   AND scheduled_date < ($1::date + $2::int * interval '1 day')
@@ -194,6 +196,7 @@ type GetDailyScheduleTaskCardsRow struct {
 	SortOrder     int32
 	CreatedAt     pgtype.Timestamptz
 	TaskID        pgtype.Text
+	Completed     bool
 }
 
 func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context, arg GetDailyScheduleTaskCardsParams) ([]GetDailyScheduleTaskCardsRow, error) {
@@ -215,6 +218,7 @@ func (q *Queries) GetDailyScheduleTaskCards(ctx context.Context, arg GetDailySch
 			&i.SortOrder,
 			&i.CreatedAt,
 			&i.TaskID,
+			&i.Completed,
 		); err != nil {
 			return nil, err
 		}
@@ -239,7 +243,7 @@ func (q *Queries) GetMaxScheduleSortOrder(ctx context.Context) (int32, error) {
 }
 
 const getScheduleCardByID = `-- name: GetScheduleCardByID :one
-SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id
+SELECT id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
 FROM schedule_task_cards
 WHERE id = $1
 `
@@ -254,6 +258,7 @@ type GetScheduleCardByIDRow struct {
 	SortOrder     int32
 	CreatedAt     pgtype.Timestamptz
 	TaskID        pgtype.Text
+	Completed     bool
 }
 
 func (q *Queries) GetScheduleCardByID(ctx context.Context, id int32) (GetScheduleCardByIDRow, error) {
@@ -269,8 +274,78 @@ func (q *Queries) GetScheduleCardByID(ctx context.Context, id int32) (GetSchedul
 		&i.SortOrder,
 		&i.CreatedAt,
 		&i.TaskID,
+		&i.Completed,
 	)
 	return i, err
+}
+
+const getTaskByIDForRef = `-- name: GetTaskByIDForRef :one
+SELECT id, title, priority, people_needed, room
+FROM backlog_tasks
+WHERE id = $1
+`
+
+type GetTaskByIDForRefRow struct {
+	ID           string
+	Title        string
+	Priority     string
+	PeopleNeeded int32
+	Room         string
+}
+
+func (q *Queries) GetTaskByIDForRef(ctx context.Context, id string) (GetTaskByIDForRefRow, error) {
+	row := q.db.QueryRow(ctx, getTaskByIDForRef, id)
+	var i GetTaskByIDForRefRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Priority,
+		&i.PeopleNeeded,
+		&i.Room,
+	)
+	return i, err
+}
+
+const setScheduleCardCompleted = `-- name: SetScheduleCardCompleted :exec
+UPDATE schedule_task_cards
+SET completed = $1
+WHERE id = $2
+`
+
+type SetScheduleCardCompletedParams struct {
+	Completed bool
+	ID        int32
+}
+
+func (q *Queries) SetScheduleCardCompleted(ctx context.Context, arg SetScheduleCardCompletedParams) error {
+	_, err := q.db.Exec(ctx, setScheduleCardCompleted, arg.Completed, arg.ID)
+	return err
+}
+
+const taskExists = `-- name: TaskExists :one
+SELECT EXISTS (
+  SELECT 1 FROM backlog_tasks WHERE id = $1
+)
+`
+
+func (q *Queries) TaskExists(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, taskExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const taskHasScheduleCards = `-- name: TaskHasScheduleCards :one
+SELECT EXISTS (
+  SELECT 1 FROM schedule_task_cards WHERE task_id = $1
+)
+`
+
+func (q *Queries) TaskHasScheduleCards(ctx context.Context, taskID pgtype.Text) (bool, error) {
+	row := q.db.QueryRow(ctx, taskHasScheduleCards, taskID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const updateScheduleCard = `-- name: UpdateScheduleCard :one
@@ -283,7 +358,7 @@ SET title = $1,
     sort_order = $6,
     task_id = $7
 WHERE id = $8
-RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id
+RETURNING id, title, priority, room_area, people_needed, scheduled_date, sort_order, created_at, task_id, completed
 `
 
 type UpdateScheduleCardParams struct {
@@ -307,6 +382,7 @@ type UpdateScheduleCardRow struct {
 	SortOrder     int32
 	CreatedAt     pgtype.Timestamptz
 	TaskID        pgtype.Text
+	Completed     bool
 }
 
 func (q *Queries) UpdateScheduleCard(ctx context.Context, arg UpdateScheduleCardParams) (UpdateScheduleCardRow, error) {
@@ -331,59 +407,7 @@ func (q *Queries) UpdateScheduleCard(ctx context.Context, arg UpdateScheduleCard
 		&i.SortOrder,
 		&i.CreatedAt,
 		&i.TaskID,
-	)
-	return i, err
-}
-
-const taskExists = `-- name: TaskExists :one
-SELECT EXISTS (
-  SELECT 1 FROM backlog_tasks WHERE id = $1
-)
-`
-
-func (q *Queries) TaskExists(ctx context.Context, id string) (bool, error) {
-	row := q.db.QueryRow(ctx, taskExists, id)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
-const taskHasScheduleCards = `-- name: TaskHasScheduleCards :one
-SELECT EXISTS (
-  SELECT 1 FROM schedule_task_cards WHERE task_id = $1
-)
-`
-
-func (q *Queries) TaskHasScheduleCards(ctx context.Context, taskID string) (bool, error) {
-	row := q.db.QueryRow(ctx, taskHasScheduleCards, taskID)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
-type GetTaskByIDForRefRow struct {
-	ID           string
-	Title        string
-	Priority     string
-	PeopleNeeded int32
-	Room         string
-}
-
-const getTaskByIDForRef = `-- name: GetTaskByIDForRef :one
-SELECT id, title, priority, people_needed, room
-FROM backlog_tasks
-WHERE id = $1
-`
-
-func (q *Queries) GetTaskByIDForRef(ctx context.Context, id string) (GetTaskByIDForRefRow, error) {
-	row := q.db.QueryRow(ctx, getTaskByIDForRef, id)
-	var i GetTaskByIDForRefRow
-	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.Priority,
-		&i.PeopleNeeded,
-		&i.Room,
+		&i.Completed,
 	)
 	return i, err
 }

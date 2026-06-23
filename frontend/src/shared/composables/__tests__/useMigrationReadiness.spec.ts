@@ -28,6 +28,7 @@ function dayWith(assigned: number, needed: number): ScheduleDay {
 				peopleNeeded: needed,
 				assignedCount: assigned,
 				staffingStatus: assigned >= needed ? "fullyStaffed" : "underStaffed",
+				completed: false,
 				scheduledDate: "2026-07-05",
 				taskId: null,
 			},

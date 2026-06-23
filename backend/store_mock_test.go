@@ -662,6 +662,16 @@ func (m *mockStore) DeleteScheduleCard(ctx context.Context, idStr string) error 
 	return nil
 }
 
+func (m *mockStore) SetScheduleCardCompleted(ctx context.Context, idStr string, completed bool) error {
+	card, ok := m.scheduleCards[idStr]
+	if !ok {
+		return api.ErrScheduleCardNotFound
+	}
+	card.Completed = completed
+	m.scheduleCards[idStr] = card
+	return nil
+}
+
 func (m *mockStore) TaskExists(ctx context.Context, id string) (bool, error) {
 	_, ok := m.tasks[id]
 	return ok, nil

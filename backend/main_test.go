@@ -371,6 +371,10 @@ func (n *nilPlanningWindowStore) DeleteScheduleCard(ctx context.Context, id stri
 	return errTestFailure
 }
 
+func (n *nilPlanningWindowStore) SetScheduleCardCompleted(ctx context.Context, id string, completed bool) error {
+	return errTestFailure
+}
+
 func (n *nilPlanningWindowStore) TaskExists(ctx context.Context, id string) (bool, error) {
 	return false, errTestFailure
 }
@@ -1074,6 +1078,10 @@ func (f *failingStore) DeleteScheduleCard(ctx context.Context, id string) error 
 	return errTestFailure
 }
 
+func (f *failingStore) SetScheduleCardCompleted(ctx context.Context, id string, completed bool) error {
+	return errTestFailure
+}
+
 func (f *failingStore) TaskExists(ctx context.Context, id string) (bool, error) {
 	return false, errTestFailure
 }
@@ -1249,6 +1257,10 @@ func (f *partialFailingStore) UpdateScheduleCard(ctx context.Context, id string,
 }
 
 func (f *partialFailingStore) DeleteScheduleCard(ctx context.Context, id string) error {
+	return errTestFailure
+}
+
+func (f *partialFailingStore) SetScheduleCardCompleted(ctx context.Context, id string, completed bool) error {
 	return errTestFailure
 }
 

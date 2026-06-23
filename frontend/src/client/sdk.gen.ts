@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ClearToolBringerData, ClearToolBringerErrors, ClearToolBringerResponses, CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateScheduleCardData, CreateScheduleCardErrors, CreateScheduleCardResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, CreateToolData, CreateToolErrors, CreateToolResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteScheduleCardData, DeleteScheduleCardErrors, DeleteScheduleCardResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, DeleteToolData, DeleteToolErrors, DeleteToolResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, GetToolsData, GetToolsErrors, GetToolsResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, SetToolBringerData, SetToolBringerErrors, SetToolBringerResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateScheduleCardData, UpdateScheduleCardErrors, UpdateScheduleCardResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpdateToolData, UpdateToolErrors, UpdateToolResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
+import type { ClearToolBringerData, ClearToolBringerErrors, ClearToolBringerResponses, CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateRoomData, CreateRoomErrors, CreateRoomResponses, CreateScheduleCardData, CreateScheduleCardErrors, CreateScheduleCardResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, CreateToolData, CreateToolErrors, CreateToolResponses, DeletePersonAvailabilityData, DeletePersonAvailabilityErrors, DeletePersonAvailabilityResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteRoomData, DeleteRoomErrors, DeleteRoomResponses, DeleteScheduleCardData, DeleteScheduleCardErrors, DeleteScheduleCardResponses, DeleteTaskData, DeleteTaskErrors, DeleteTaskResponses, DeleteToolData, DeleteToolErrors, DeleteToolResponses, GetDashboardDailyScheduleData, GetDashboardDailyScheduleErrors, GetDashboardDailyScheduleResponses, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityErrors, GetDashboardPeopleAvailabilityResponses, GetHelloData, GetHelloErrors, GetHelloResponses, GetPlanningWindowData, GetPlanningWindowErrors, GetPlanningWindowResponses, GetTasksBacklogData, GetTasksBacklogErrors, GetTasksBacklogResponses, GetToolsData, GetToolsErrors, GetToolsResponses, ListRoomsData, ListRoomsErrors, ListRoomsResponses, PutPlanningWindowData, PutPlanningWindowErrors, PutPlanningWindowResponses, SetScheduleCardCompletedData, SetScheduleCardCompletedErrors, SetScheduleCardCompletedResponses, SetToolBringerData, SetToolBringerErrors, SetToolBringerResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateRoomData, UpdateRoomErrors, UpdateRoomResponses, UpdateScheduleCardData, UpdateScheduleCardErrors, UpdateScheduleCardResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpdateToolData, UpdateToolErrors, UpdateToolResponses, UpsertPersonAvailabilityData, UpsertPersonAvailabilityErrors, UpsertPersonAvailabilityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -186,6 +186,20 @@ export const deleteScheduleCard = <ThrowOnError extends boolean = false>(options
  */
 export const updateScheduleCard = <ThrowOnError extends boolean = false>(options: Options<UpdateScheduleCardData, ThrowOnError>): RequestResult<UpdateScheduleCardResponses, UpdateScheduleCardErrors, ThrowOnError> => (options.client ?? client).put<UpdateScheduleCardResponses, UpdateScheduleCardErrors, ThrowOnError>({
     url: '/api/schedule/cards/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set a schedule card's completed status
+ *
+ * Marks a schedule card as completed (done) or reverts it back to incomplete. Returns 404 if the card ID is unknown.
+ */
+export const setScheduleCardCompleted = <ThrowOnError extends boolean = false>(options: Options<SetScheduleCardCompletedData, ThrowOnError>): RequestResult<SetScheduleCardCompletedResponses, SetScheduleCardCompletedErrors, ThrowOnError> => (options.client ?? client).patch<SetScheduleCardCompletedResponses, SetScheduleCardCompletedErrors, ThrowOnError>({
+    url: '/api/schedule/cards/{id}/complete',
     ...options,
     headers: {
         'Content-Type': 'application/json',

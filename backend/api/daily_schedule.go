@@ -70,6 +70,7 @@ type TaskCard struct {
 	PeopleNeeded   int              `json:"peopleNeeded" doc:"Number of people needed for the task (>=1)"`
 	AssignedCount  int              `json:"assignedCount" doc:"Number of people currently assigned (derived from assignedPeople)"`
 	StaffingStatus string           `json:"staffingStatus" doc:"One of: fullyStaffed, underStaffed"`
+	Completed      bool             `json:"completed" doc:"Whether the card is marked as done"`
 	TaskId         *string          `json:"taskId" doc:"Referenced backlog task ID, null if no reference"`
 }
 
@@ -253,6 +254,19 @@ func validateScheduleCardInput(body CreateScheduleCardRequestBody, store Store, 
 	return nil
 }
 
+// ---------- Schedule-card completion ----------
+
+// SetScheduleCardCompletedInput is the Huma input for PATCH /api/schedule/cards/{id}/complete.
+type SetScheduleCardCompletedInput struct {
+	ID   string                              `path:"id" doc:"Schedule card identifier (e.g., sched-1)"`
+	Body SetScheduleCardCompletedRequestBody `json:"body"`
+}
+
+// SetScheduleCardCompletedRequestBody holds the completed flag.
+type SetScheduleCardCompletedRequestBody struct {
+	Completed bool `json:"completed" doc:"Whether the card is completed (true to mark done, false to revert)"`
+}
+
 // ---------- Schedule-card CRUD handlers ----------
 
 func registerScheduleCardEndpoints(api huma.API, store Store) {
@@ -335,5 +349,24 @@ func registerScheduleCardEndpoints(api huma.API, store Store) {
 			return nil, huma.Error500InternalServerError("failed to delete schedule card", err)
 		}
 		return &DeleteScheduleCardOutput{}, nil
+	})
+
+	// PATCH /api/schedule/cards/{id}/complete — mark a card as completed or revert.
+	huma.Register(api, huma.Operation{
+		OperationID: "set-schedule-card-completed",
+		Method:      http.MethodPatch,
+		Path:        "/api/schedule/cards/{id}/complete",
+		Summary:     "Set a schedule card's completed status",
+		Description: "Marks a schedule card as completed (done) or reverts it back to incomplete. Returns 404 if the card ID is unknown.",
+		Tags:        []string{"Schedule"},
+	}, func(ctx context.Context, input *SetScheduleCardCompletedInput) (*struct{}, error) {
+		err := store.SetScheduleCardCompleted(ctx, input.ID, input.Body.Completed)
+		if err != nil {
+			if errors.Is(err, ErrScheduleCardNotFound) {
+				return nil, huma.Error404NotFound("schedule card not found", err)
+			}
+			return nil, huma.Error500InternalServerError("failed to set schedule card completed status", err)
+		}
+		return nil, nil
 	})
 }

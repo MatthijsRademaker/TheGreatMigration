@@ -20,6 +20,7 @@ function days() {
 					peopleNeeded: 2,
 					assignedCount: 0,
 					staffingStatus: "underStaffed" as const,
+					completed: false,
 					scheduledDate: "2026-07-05",
 					taskId: "task-1",
 				},
@@ -142,7 +143,7 @@ describe("DailySchedule drag-and-drop", () => {
 		expect(card.exists()).toBe(true);
 		expect(card.attributes("data-done")).toBe("true");
 		expect(card.attributes("draggable")).toBeUndefined();
-		expect(card.text()).toContain("Done");
+		expect(card.text()).toContain("Revert");
 
 		wrapper.unmount();
 		window.matchMedia = originalMatchMedia;

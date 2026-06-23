@@ -7,6 +7,7 @@ import {
   createScheduleCardMutation,
   updateScheduleCardMutation,
   deleteScheduleCardMutation,
+  setScheduleCardCompletedMutation,
 } from '@/client/@pinia/colada.gen'
 import { useDailySchedule } from '@/calendar/composables/useDailySchedule'
 import { useScheduleBoardDnd } from '@/calendar/composables/useScheduleBoardDnd'
@@ -58,6 +59,17 @@ const deleteMut = useMutation({
   ...deleteScheduleCardMutation(),
   onSuccess: () => queryCache.invalidateQueries({ key: queryKey }),
 })
+const toggleCompleteMut = useMutation({
+  ...setScheduleCardCompletedMutation(),
+  onSuccess: () => queryCache.invalidateQueries({ key: queryKey }),
+})
+
+async function handleToggleComplete(taskId: string, completed: boolean) {
+  await toggleCompleteMut.mutateAsync({
+    path: { id: taskId },
+    body: { completed },
+  })
+}
 
 // ---- Drag-and-drop board (optimistic assign / reschedule) ----
 // Created after the CRUD mutations above so the mutation order is preserved.
@@ -260,6 +272,7 @@ function handleCancel() {
         :page="page"
         :total-pages="totalPages"
         :date-range-label="dateRangeLabel"
+        :on-toggle-complete="handleToggleComplete"
         @prev-page="goToPrevPage"
         @next-page="goToNextPage"
         @add-task="openCreate"

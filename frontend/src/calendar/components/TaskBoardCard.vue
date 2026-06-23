@@ -40,6 +40,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   done: []
+  revert: []
   edit: []
   delete: []
 }>()
@@ -150,13 +151,9 @@ onBeforeUnmount(() => {
     </p>
     <div v-if="!readOnly" class="flex items-center gap-1 mt-2">
       <template v-if="done">
-        <span
-          data-testid="done-status"
-          class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
-        >
-          <CheckIcon class="size-3" />
-          Done
-        </span>
+        <Button variant="ghost" size="xs" data-testid="revert-button" @click.stop="emit('revert')">
+          ↩ Revert
+        </Button>
       </template>
       <template v-else>
         <Button variant="ghost" size="xs" data-testid="done-button" @click.stop="handleDone">

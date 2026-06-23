@@ -605,7 +605,7 @@ func (s *PgStore) UpdateTask(ctx context.Context, id string, input api.UpdateTas
 // Returns an error if the task has referencing schedule cards.
 func (s *PgStore) DeleteTask(ctx context.Context, id string) error {
 	// Check for referencing schedule cards before starting the transaction.
-	hasCards, err := s.queries.TaskHasScheduleCards(ctx, id)
+	hasCards, err := s.queries.TaskHasScheduleCards(ctx, pgtype.Text{String: id, Valid: true})
 	if err != nil {
 		return fmt.Errorf("check task schedule references: %w", err)
 	}
@@ -726,7 +726,7 @@ func (s *PgStore) CreateScheduleCard(ctx context.Context, input api.CreateSchedu
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return s.buildTaskCardResponse(cardRow.ID, title, priority, roomArea, peopleNeeded, input.AssignedTo, cardRow.TaskID, ctx)
+	return s.buildTaskCardResponse(cardRow.ID, title, priority, roomArea, peopleNeeded, input.AssignedTo, cardRow.TaskID, cardRow.Completed, ctx)
 }
 
 // UpdateScheduleCard updates a schedule card and replaces assignments transactionally.
@@ -833,7 +833,7 @@ func (s *PgStore) UpdateScheduleCard(ctx context.Context, idStr string, input ap
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, cardRow.TaskID, ctx)
+	return s.buildTaskCardResponse(cardRow.ID, cardRow.Title, cardRow.Priority, cardRow.RoomArea, int(cardRow.PeopleNeeded), input.AssignedTo, cardRow.TaskID, cardRow.Completed, ctx)
 }
 
 // DeleteScheduleCard removes a schedule card and its assignments in a single transaction.
@@ -874,8 +874,46 @@ func (s *PgStore) DeleteScheduleCard(ctx context.Context, idStr string) error {
 	return nil
 }
 
+// SetScheduleCardCompleted sets the completed status of a schedule card.
+func (s *PgStore) SetScheduleCardCompleted(ctx context.Context, idStr string, completed bool) error {
+	var id int32
+	if _, err := fmt.Sscanf(idStr, "sched-%d", &id); err != nil || id <= 0 {
+		return api.ErrScheduleCardNotFound
+	}
+
+	pgxTx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer pgxTx.Rollback(ctx) //nolint:errcheck
+
+	tx := s.queries.WithTx(pgxTx)
+
+	// Verify the card exists.
+	_, err = tx.GetScheduleCardByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.ErrScheduleCardNotFound
+		}
+		return fmt.Errorf("get schedule card by id: %w", err)
+	}
+
+	if err := tx.SetScheduleCardCompleted(ctx, db.SetScheduleCardCompletedParams{
+		ID:        id,
+		Completed: completed,
+	}); err != nil {
+		return fmt.Errorf("set schedule card completed: %w", err)
+	}
+
+	if err := pgxTx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	return nil
+}
+
 // buildTaskCardResponse resolves assignee identities and constructs the API TaskCard.
-func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, taskID pgtype.Text, ctx context.Context) (*api.TaskCard, error) {
+func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea string, peopleNeeded int, assigneeIDs []string, taskID pgtype.Text, completed bool, ctx context.Context) (*api.TaskCard, error) {
 	// Fetch all people once and build a lookup map.
 	peopleRows, err := s.queries.GetAllPeople(ctx)
 	if err != nil {
@@ -916,6 +954,7 @@ func (s *PgStore) buildTaskCardResponse(id int32, title, priority, roomArea stri
 		PeopleNeeded:   peopleNeeded,
 		AssignedCount:  assignedCount,
 		StaffingStatus: staffingStatus,
+		Completed:      completed,
 		TaskId:         taskIDPtr,
 	}, nil
 }
@@ -929,7 +968,7 @@ func (s *PgStore) TaskExists(ctx context.Context, id string) (bool, error) {
 
 // TaskHasScheduleCards checks whether a backlog task is referenced by any schedule cards.
 func (s *PgStore) TaskHasScheduleCards(ctx context.Context, id string) (bool, error) {
-	return s.queries.TaskHasScheduleCards(ctx, id)
+	return s.queries.TaskHasScheduleCards(ctx, pgtype.Text{String: id, Valid: true})
 }
 
 // ---------- Tool CRUD ----------

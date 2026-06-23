@@ -36,6 +36,7 @@ type Store interface {
 	CreateScheduleCard(ctx context.Context, input CreateScheduleCardInput) (*TaskCard, error)
 	UpdateScheduleCard(ctx context.Context, id string, input CreateScheduleCardInput) (*TaskCard, error)
 	DeleteScheduleCard(ctx context.Context, id string) error
+	SetScheduleCardCompleted(ctx context.Context, id string, completed bool) error
 
 	ListRooms(ctx context.Context) ([]Room, error)
 	CreateRoom(ctx context.Context, input CreateRoomInput) (*Room, error)

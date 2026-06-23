@@ -4,8 +4,8 @@ import { type _JSONValue, defineQueryOptions, type UseMutationOptions } from '@p
 
 import { serializeQueryKeyValue } from '../client';
 import { client } from '../client.gen';
-import { clearToolBringer, createPerson, createRoom, createScheduleCard, createTask, createTool, deletePerson, deletePersonAvailability, deleteRoom, deleteScheduleCard, deleteTask, deleteTool, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, getTools, listRooms, type Options, putPlanningWindow, setToolBringer, updatePerson, updateRoom, updateScheduleCard, updateTask, updateTool, upsertPersonAvailability } from '../sdk.gen';
-import type { ClearToolBringerData, ClearToolBringerError, ClearToolBringerResponse, CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateScheduleCardData, CreateScheduleCardError, CreateScheduleCardResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateToolData, CreateToolError, CreateToolResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteScheduleCardData, DeleteScheduleCardError, DeleteScheduleCardResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, DeleteToolData, DeleteToolError, DeleteToolResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, GetToolsData, GetToolsError, GetToolsResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, SetToolBringerData, SetToolBringerError, SetToolBringerResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateScheduleCardData, UpdateScheduleCardError, UpdateScheduleCardResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateToolData, UpdateToolError, UpdateToolResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
+import { clearToolBringer, createPerson, createRoom, createScheduleCard, createTask, createTool, deletePerson, deletePersonAvailability, deleteRoom, deleteScheduleCard, deleteTask, deleteTool, getDashboardDailySchedule, getDashboardPeopleAvailability, getHello, getPlanningWindow, getTasksBacklog, getTools, listRooms, type Options, putPlanningWindow, setScheduleCardCompleted, setToolBringer, updatePerson, updateRoom, updateScheduleCard, updateTask, updateTool, upsertPersonAvailability } from '../sdk.gen';
+import type { ClearToolBringerData, ClearToolBringerError, ClearToolBringerResponse, CreatePersonData, CreatePersonError, CreatePersonResponse, CreateRoomData, CreateRoomError, CreateRoomResponse, CreateScheduleCardData, CreateScheduleCardError, CreateScheduleCardResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateToolData, CreateToolError, CreateToolResponse, DeletePersonAvailabilityData, DeletePersonAvailabilityError, DeletePersonAvailabilityResponse, DeletePersonData, DeletePersonError, DeletePersonResponse, DeleteRoomData, DeleteRoomError, DeleteRoomResponse, DeleteScheduleCardData, DeleteScheduleCardError, DeleteScheduleCardResponse, DeleteTaskData, DeleteTaskError, DeleteTaskResponse, DeleteToolData, DeleteToolError, DeleteToolResponse, GetDashboardDailyScheduleData, GetDashboardDailyScheduleError, GetDashboardDailyScheduleResponse, GetDashboardPeopleAvailabilityData, GetDashboardPeopleAvailabilityError, GetDashboardPeopleAvailabilityResponse, GetHelloData, GetHelloError, GetHelloResponse, GetPlanningWindowData, GetPlanningWindowError, GetPlanningWindowResponse, GetTasksBacklogData, GetTasksBacklogError, GetTasksBacklogResponse, GetToolsData, GetToolsError, GetToolsResponse, ListRoomsData, ListRoomsError, ListRoomsResponse, PutPlanningWindowData, PutPlanningWindowError, PutPlanningWindowResponse, SetScheduleCardCompletedData, SetScheduleCardCompletedError, SetScheduleCardCompletedResponse, SetToolBringerData, SetToolBringerError, SetToolBringerResponse, UpdatePersonData, UpdatePersonError, UpdatePersonResponse, UpdateRoomData, UpdateRoomError, UpdateRoomResponse, UpdateScheduleCardData, UpdateScheduleCardError, UpdateScheduleCardResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateToolData, UpdateToolError, UpdateToolResponse, UpsertPersonAvailabilityData, UpsertPersonAvailabilityError, UpsertPersonAvailabilityResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'path'> & {
@@ -321,6 +321,22 @@ export const deleteScheduleCardMutation = (options?: Partial<Options<DeleteSched
 export const updateScheduleCardMutation = (options?: Partial<Options<UpdateScheduleCardData>>): UseMutationOptions<UpdateScheduleCardResponse, Options<UpdateScheduleCardData>, UpdateScheduleCardError> => ({
     mutation: async (vars) => {
         const { data } = await updateScheduleCard({
+            ...options,
+            ...vars,
+            throwOnError: true
+        });
+        return data;
+    }
+});
+
+/**
+ * Set a schedule card's completed status
+ *
+ * Marks a schedule card as completed (done) or reverts it back to incomplete. Returns 404 if the card ID is unknown.
+ */
+export const setScheduleCardCompletedMutation = (options?: Partial<Options<SetScheduleCardCompletedData>>): UseMutationOptions<SetScheduleCardCompletedResponse, Options<SetScheduleCardCompletedData>, SetScheduleCardCompletedError> => ({
+    mutation: async (vars) => {
+        const { data } = await setScheduleCardCompleted({
             ...options,
             ...vars,
             throwOnError: true

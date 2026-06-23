@@ -772,6 +772,28 @@
         ],
         "type": "object"
       },
+      "SetScheduleCardCompletedRequestBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/SetScheduleCardCompletedRequestBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "completed": {
+            "description": "Whether the card is completed (true to mark done, false to revert)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "completed"
+        ],
+        "type": "object"
+      },
       "SetToolBringerInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -919,6 +941,10 @@
               "null"
             ]
           },
+          "completed": {
+            "description": "Whether the card is marked as done",
+            "type": "boolean"
+          },
           "id": {
             "description": "Stable task identifier",
             "type": "string"
@@ -961,6 +987,7 @@
           "peopleNeeded",
           "assignedCount",
           "staffingStatus",
+          "completed",
           "taskId"
         ],
         "type": "object"
@@ -2133,6 +2160,53 @@
           }
         },
         "summary": "Update a schedule card",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/api/schedule/cards/{id}/complete": {
+      "patch": {
+        "description": "Marks a schedule card as completed (done) or reverts it back to incomplete. Returns 404 if the card ID is unknown.",
+        "operationId": "set-schedule-card-completed",
+        "parameters": [
+          {
+            "description": "Schedule card identifier (e.g., sched-1)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Schedule card identifier (e.g., sched-1)",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetScheduleCardCompletedRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set a schedule card's completed status",
         "tags": [
           "Schedule"
         ]
