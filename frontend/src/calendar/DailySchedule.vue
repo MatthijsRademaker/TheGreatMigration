@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Button } from '@/shared/ui/button'
 import { Card } from '@/shared/ui/card'
 import { PersonChip } from '@/shared/ui/person-chip'
@@ -80,6 +80,107 @@ const emit = defineEmits<DailyScheduleEmits>()
 
 const scheduleDays = computed(() => props.days ?? [])
 const interactive = computed(() => !props.readOnly)
+
+function formatCompactRangeLabel(days: ScheduleDay[]): string {
+  if (days.length === 0) return '—'
+
+  const monthFmt = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
+  const start = new Date(days[0].date)
+  const end = new Date(days[days.length - 1].date)
+  const startDay = start.getUTCDate()
+  const endDay = end.getUTCDate()
+  const startMonth = monthFmt.format(start)
+  const endMonth = monthFmt.format(end)
+
+  if (startMonth === endMonth) {
+    return startDay === endDay ? `${startDay} ${endMonth}` : `${startDay}–${endDay} ${endMonth}`
+  }
+
+  return `${startDay} ${startMonth}–${endDay} ${endMonth}`
+}
+
+const compactDateRangeLabel = computed(() => formatCompactRangeLabel(scheduleDays.value))
+
+// ── Done state ──────────────────────────────────────────────────────────────
+// "Done" is currently a frontend-only affordance: the card briefly leaves the
+// column using the same transition as deletion, then reappears greyed out.
+const TASK_DONE_TRANSITION_MS = 220
+const doneTaskIds = ref<Record<string, true>>({})
+const hidingTaskIds = ref<Record<string, true>>({})
+const doneTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function isTaskDone(taskId: string): boolean {
+  return doneTaskIds.value[taskId] === true
+}
+
+function isTaskHidden(taskId: string): boolean {
+  return hidingTaskIds.value[taskId] === true
+}
+
+const visibleTasksByDay = computed<Record<string, TaskCard[]>>(() => {
+  const visible: Record<string, TaskCard[]> = {}
+  for (const day of scheduleDays.value) {
+    visible[day.date] = day.tasks.filter((task) => !isTaskHidden(task.id))
+  }
+  return visible
+})
+
+function clearDoneTimer(taskId: string) {
+  const timer = doneTimers.get(taskId)
+  if (!timer) return
+  clearTimeout(timer)
+  doneTimers.delete(taskId)
+}
+
+function markTaskDone(taskId: string) {
+  if (props.readOnly || isTaskDone(taskId) || isTaskHidden(taskId)) return
+
+  hidingTaskIds.value = {
+    ...hidingTaskIds.value,
+    [taskId]: true,
+  }
+
+  clearDoneTimer(taskId)
+  doneTimers.set(taskId, setTimeout(() => {
+    const nextHiding = { ...hidingTaskIds.value }
+    delete nextHiding[taskId]
+    hidingTaskIds.value = nextHiding
+    doneTaskIds.value = {
+      ...doneTaskIds.value,
+      [taskId]: true,
+    }
+    doneTimers.delete(taskId)
+  }, TASK_DONE_TRANSITION_MS))
+}
+
+watch(
+  scheduleDays,
+  (days) => {
+    const liveTaskIds = new Set(days.flatMap((day) => day.tasks.map((task) => task.id)))
+    const nextDone = Object.fromEntries(
+      Object.entries(doneTaskIds.value).filter(([taskId]) => liveTaskIds.has(taskId)),
+    ) as Record<string, true>
+    const nextHiding = Object.fromEntries(
+      Object.entries(hidingTaskIds.value).filter(([taskId]) => liveTaskIds.has(taskId)),
+    ) as Record<string, true>
+
+    for (const taskId of doneTimers.keys()) {
+      if (!liveTaskIds.has(taskId)) {
+        clearDoneTimer(taskId)
+      }
+    }
+
+    doneTaskIds.value = nextDone
+    hidingTaskIds.value = nextHiding
+  },
+  { deep: true },
+)
+
+onBeforeUnmount(() => {
+  for (const taskId of doneTimers.keys()) {
+    clearDoneTimer(taskId)
+  }
+})
 
 // ── Day-complete celebration ────────────────────────────────────────────────
 // A day is "complete" when it has tasks and every task is fully staffed. We
@@ -172,12 +273,28 @@ function onDayDrop(event: DragEvent, date: string) {
 <template>
   <Card class="!gap-0 relative">
     <!-- Compact header row: title left, controls right -->
-    <div class="flex items-center justify-between border-b border-border px-4 py-3">
+    <div class="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-lg font-semibold">Daily Schedule</h2>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
         <template v-if="hasPagination">
-          <span class="text-sm text-muted-foreground">{{ dateRangeLabel || '—' }}</span>
-          <span class="text-sm text-muted-foreground">Page {{ page }} of {{ totalPages }}</span>
+          <span
+            data-testid="date-range-label-full"
+            class="hidden text-sm text-muted-foreground whitespace-nowrap sm:inline"
+          >
+            {{ dateRangeLabel || '—' }}
+          </span>
+          <span
+            data-testid="date-range-label-compact"
+            class="text-sm text-muted-foreground whitespace-nowrap sm:hidden"
+          >
+            {{ compactDateRangeLabel }}
+          </span>
+          <span
+            data-testid="page-indicator"
+            class="hidden text-sm text-muted-foreground whitespace-nowrap sm:inline"
+          >
+            Page {{ page }} of {{ totalPages }}
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -204,9 +321,14 @@ function onDayDrop(event: DragEvent, date: string) {
     <div
       v-if="interactive && people.length"
       data-testid="people-rail"
-      class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3"
+      class="hidden flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:flex"
     >
-      <span class="mr-1 text-xs font-medium text-muted-foreground">Drag a helper onto a task:</span>
+      <span
+        data-testid="people-rail-helper-text"
+        class="text-xs font-medium text-muted-foreground"
+      >
+        Drag a helper onto a task:
+      </span>
       <PersonChip
         v-for="person in people"
         :key="person.id"
@@ -244,22 +366,26 @@ function onDayDrop(event: DragEvent, date: string) {
 
             <!-- Task cards -->
             <div class="flex flex-col gap-3">
-              <TaskBoardCard
-                v-for="task in day.tasks"
-                :key="task.id"
-                :task="task"
-                :read-only="readOnly"
-                :interactive="interactive"
-                :drop-active="interactive && dragKind === 'person' && dropTargetCardId === task.id"
-                :draggable="interactive ? 'true' : undefined"
-                :class="interactive ? 'cursor-grab active:cursor-grabbing' : ''"
-                @dragstart="onCardDragStart($event, task.id)"
-                @dragend="resetDrag"
-                @dragover="onCardDragOver($event, task.id)"
-                @drop="onCardDrop($event, task.id)"
-                @edit="emit('edit-task', task)"
-                @delete="emit('delete-task', task.id)"
-              />
+              <TransitionGroup name="schedule-card" tag="div" class="flex flex-col gap-3">
+                <TaskBoardCard
+                  v-for="task in visibleTasksByDay[day.date] ?? []"
+                  :key="task.id"
+                  :task="task"
+                  :done="isTaskDone(task.id)"
+                  :read-only="readOnly"
+                  :interactive="interactive && !isTaskDone(task.id)"
+                  :drop-active="interactive && !isTaskDone(task.id) && dragKind === 'person' && dropTargetCardId === task.id"
+                  :draggable="interactive && !isTaskDone(task.id) ? 'true' : undefined"
+                  :class="interactive && !isTaskDone(task.id) ? 'cursor-grab active:cursor-grabbing' : ''"
+                  @dragstart="onCardDragStart($event, task.id)"
+                  @dragend="resetDrag"
+                  @dragover="onCardDragOver($event, task.id)"
+                  @drop="onCardDrop($event, task.id)"
+                  @done="markTaskDone(task.id)"
+                  @edit="emit('edit-task', task)"
+                  @delete="emit('delete-task', task.id)"
+                />
+              </TransitionGroup>
 
               <!-- Task creation placeholder: only when not readOnly -->
               <div
@@ -275,3 +401,16 @@ function onDayDrop(event: DragEvent, date: string) {
     </div>
   </Card>
 </template>
+
+<style scoped>
+.schedule-card-enter-active,
+.schedule-card-leave-active {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.schedule-card-enter-from,
+.schedule-card-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.96);
+}
+</style>

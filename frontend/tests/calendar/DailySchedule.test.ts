@@ -179,24 +179,26 @@ describe("DailySchedule", () => {
 		// No crash, renders shell with no days
 	});
 
-	it("hides all Add-task, Edit, and Delete controls when readOnly is true", async () => {
+	it("hides all Add-task, Done, Edit, and Delete controls when readOnly is true", async () => {
 		const html = await renderComponent(DailySchedule, {
 			days: sampleDays,
 			readOnly: true,
 		});
 		expect(html).toContain("Daily Schedule");
 		expect(html).toContain("Custom task");
+		expect(html).not.toContain(">Done<");
 		expect(html).not.toContain(">Edit<");
 		expect(html).not.toContain(">Delete<");
 		expect(html).not.toContain("+ Add task");
 		expect(html).not.toContain("Add task");
 	});
 
-	it("shows Edit, Delete, and Add-task controls when readOnly is false", async () => {
+	it("shows Done, Edit, Delete, and Add-task controls when readOnly is false", async () => {
 		const html = await renderComponent(DailySchedule, {
 			days: sampleDays,
 			readOnly: false,
 		});
+		expect(html).toContain('data-testid="done-button"');
 		expect(html).toContain(">Edit<");
 		expect(html).toContain(">Delete<");
 		expect(html).toContain("+ Add task");

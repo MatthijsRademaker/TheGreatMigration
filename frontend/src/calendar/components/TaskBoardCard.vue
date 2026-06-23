@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Motion, AnimatePresence } from 'motion-v'
 import { CheckIcon } from '@lucide/vue'
 import { Badge } from '@/shared/ui/badge'
 import type { BadgeVariants } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
+import Celebration from '@/shared/motion/Celebration.vue'
 import { useMotionPreference } from '@/shared/composables/useMotionPreference'
 import { springs } from '@/shared/motion/tokens'
 
@@ -24,21 +25,28 @@ interface BoardTaskCard {
   staffingStatus: 'fullyStaffed' | 'underStaffed'
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   task: BoardTaskCard
   readOnly?: boolean
   /** Whether the card participates in board drag affordances (hover lift). */
   interactive?: boolean
   /** True while a draggable person is hovering this card as a drop target. */
   dropActive?: boolean
-}>()
+  /** Render the card as completed/greyed-out. */
+  done?: boolean
+}>(), {
+  done: false,
+})
 
 const emit = defineEmits<{
+  done: []
   edit: []
   delete: []
 }>()
 
 const { enabled } = useMotionPreference()
+const doneCelebrationTrigger = ref(0)
+let doneTimer: ReturnType<typeof setTimeout> | undefined
 
 const priorityAccentMap: Record<BoardTaskCard['priority'], string> = {
   high: 'border-l-destructive',
@@ -67,8 +75,27 @@ watch(
 
 // Spring hover lift, only for interactive (board) cards with motion enabled.
 const whileHover = computed(() =>
-  props.interactive && enabled.value ? { y: -3, scale: 1.02 } : undefined,
+  props.interactive && !props.done && enabled.value ? { y: -3, scale: 1.02 } : undefined,
 )
+
+function handleDone() {
+  if (doneTimer) clearTimeout(doneTimer)
+
+  if (enabled.value) {
+    doneCelebrationTrigger.value += 1
+    doneTimer = setTimeout(() => {
+      emit('done')
+      doneTimer = undefined
+    }, 120)
+    return
+  }
+
+  emit('done')
+}
+
+onBeforeUnmount(() => {
+  clearTimeout(doneTimer)
+})
 </script>
 
 <template>
@@ -81,23 +108,29 @@ const whileHover = computed(() =>
     data-slot="task-board-card"
     class="relative rounded-lg border bg-card shadow-sm p-3 border-l-4 transition-colors"
     :class="[
-      priorityAccentMap[task.priority],
-      dropActive ? 'ring-2 ring-primary ring-offset-1' : '',
+      done ? 'border-l-border border-border bg-muted/40 opacity-60 shadow-none grayscale' : priorityAccentMap[task.priority],
+      dropActive && !done ? 'ring-2 ring-primary ring-offset-1' : '',
     ]"
+    :data-done="done ? 'true' : 'false'"
   >
+    <Celebration :trigger="doneCelebrationTrigger" />
+
     <div class="flex items-start justify-between gap-2 mb-2">
-      <span class="text-sm font-medium">{{ task.title }}</span>
+      <span class="text-sm font-medium" :class="done ? 'line-through text-muted-foreground' : ''">
+        {{ task.title }}
+      </span>
       <Badge :variant="priorityVariantMap[task.priority]">{{ task.priority }}</Badge>
     </div>
     <p
       v-if="task.assignedPeople.length > 0"
       class="text-xs text-muted-foreground mb-2"
+      :class="done ? 'line-through' : ''"
     >
       {{ task.assignedPeople.map((person) => person.name).join(', ') }}
     </p>
-    <p class="flex items-center gap-1 text-xs text-muted-foreground">
+    <p class="flex items-center gap-1 text-xs text-muted-foreground" :class="done ? 'line-through' : ''">
       {{ task.assignedCount }} / {{ task.peopleNeeded }}
-      <span v-if="task.staffingStatus === 'underStaffed'" class="text-destructive">
+      <span v-if="!done && task.staffingStatus === 'underStaffed'" class="text-destructive">
         &nbsp;— needs help
       </span>
       <AnimatePresence>
@@ -116,8 +149,23 @@ const whileHover = computed(() =>
       </AnimatePresence>
     </p>
     <div v-if="!readOnly" class="flex items-center gap-1 mt-2">
-      <Button variant="ghost" size="xs" @click.stop="emit('edit')">Edit</Button>
-      <Button variant="ghost" size="xs" @click.stop="emit('delete')">Delete</Button>
+      <template v-if="done">
+        <span
+          data-testid="done-status"
+          class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
+        >
+          <CheckIcon class="size-3" />
+          Done
+        </span>
+      </template>
+      <template v-else>
+        <Button variant="ghost" size="xs" data-testid="done-button" @click.stop="handleDone">
+          <CheckIcon class="size-3" />
+          Done
+        </Button>
+        <Button variant="ghost" size="xs" @click.stop="emit('edit')">Edit</Button>
+        <Button variant="ghost" size="xs" @click.stop="emit('delete')">Delete</Button>
+      </template>
     </div>
   </Motion>
 </template>

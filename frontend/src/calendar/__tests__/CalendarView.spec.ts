@@ -300,7 +300,7 @@ describe("CalendarView – Edit Modal", () => {
 			days: [
 				{
 					date: "2026-07-10",
-					cards: [
+					tasks: [
 						{
 							id: "card-1",
 							title: "Pack kitchen",
@@ -369,7 +369,7 @@ describe("CalendarView – Edit Modal", () => {
 			days: [
 				{
 					date: "2026-07-10",
-					cards: [
+					tasks: [
 						{
 							id: "card-2",
 							title: "Legacy card",

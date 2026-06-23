@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import DailySchedule from "../DailySchedule.vue";
 
 function days() {
@@ -44,6 +45,15 @@ describe("DailySchedule drag-and-drop", () => {
 		wrapper.unmount();
 	});
 
+	it("hides entire people rail on mobile", () => {
+		const wrapper = mount(DailySchedule, { props: { days: days(), people } });
+		const rail = wrapper.find("[data-testid='people-rail']");
+		expect(rail.exists()).toBe(true);
+		expect(rail.classes()).toContain("hidden");
+		expect(rail.classes()).toContain("sm:flex");
+		wrapper.unmount();
+	});
+
 	it("shows assigned people names on task cards", () => {
 		const wrapper = mount(DailySchedule, { props: { days: days(), people } });
 		const card = wrapper.find("[data-slot='task-board-card']");
@@ -75,6 +85,68 @@ describe("DailySchedule drag-and-drop", () => {
 		expect(emitted).toBeTruthy();
 		expect(emitted![0]).toEqual(["card-1", "2026-07-06"]);
 		wrapper.unmount();
+	});
+
+	it("uses compact date label on mobile and hides page indicator there", () => {
+		const wrapper = mount(DailySchedule, {
+			props: {
+				days: days(),
+				people,
+				page: 1,
+				totalPages: 3,
+				dateRangeLabel: "5 Jul (Sun) – 6 Jul (Mon)",
+			},
+		});
+		const fullLabel = wrapper.find("[data-testid='date-range-label-full']");
+		const compactLabel = wrapper.find(
+			"[data-testid='date-range-label-compact']",
+		);
+		const pageIndicator = wrapper.find("[data-testid='page-indicator']");
+		expect(fullLabel.classes()).toContain("hidden");
+		expect(fullLabel.classes()).toContain("sm:inline");
+		expect(compactLabel.classes()).toContain("sm:hidden");
+		expect(compactLabel.text()).toBe("5–6 Jul");
+		expect(pageIndicator.classes()).toContain("hidden");
+		expect(pageIndicator.classes()).toContain("sm:inline");
+		wrapper.unmount();
+	});
+
+	it("plays celebration burst, then greys task out after Done click", async () => {
+		vi.useFakeTimers();
+		const originalMatchMedia = window.matchMedia;
+		window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+			matches: false,
+			media: query,
+			onchange: null,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			addListener: vi.fn(),
+			removeListener: vi.fn(),
+			dispatchEvent: vi.fn(),
+		}));
+		const wrapper = mount(DailySchedule, { props: { days: days(), people } });
+
+		await wrapper.find("[data-testid='done-button']").trigger("click");
+		await nextTick();
+		expect(wrapper.find("[data-testid='celebration']").exists()).toBe(true);
+		expect(wrapper.findAll("[data-slot='task-board-card']")).toHaveLength(1);
+
+		await vi.advanceTimersByTimeAsync(120);
+		await nextTick();
+		expect(wrapper.findAll("[data-slot='task-board-card']")).toHaveLength(0);
+
+		await vi.advanceTimersByTimeAsync(220);
+		await nextTick();
+
+		const card = wrapper.find("[data-slot='task-board-card']");
+		expect(card.exists()).toBe(true);
+		expect(card.attributes("data-done")).toBe("true");
+		expect(card.attributes("draggable")).toBeUndefined();
+		expect(card.text()).toContain("Done");
+
+		wrapper.unmount();
+		window.matchMedia = originalMatchMedia;
+		vi.useRealTimers();
 	});
 
 	it("exposes no rail or draggable cards in read-only mode", () => {
