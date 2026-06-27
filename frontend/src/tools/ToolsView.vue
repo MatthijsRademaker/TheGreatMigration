@@ -105,7 +105,7 @@ async function handleClaim(toolId: string, personId: string) {
           <li
             v-for="tool in data.tools"
             :key="tool.id"
-            class="flex items-center justify-between gap-4 py-3"
+            class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             :data-testid="`tool-${tool.id}`"
             :data-claimed="tool.broughtBy ? 'true' : 'false'"
           >
@@ -119,7 +119,7 @@ async function handleClaim(toolId: string, personId: string) {
               </span>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
               <!-- Crossed-off tool: show bringer + unclaim -->
               <template v-if="tool.broughtBy">
                 <Badge variant="secondary">{{ bringerName(tool.broughtBy) }}</Badge>

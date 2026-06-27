@@ -87,6 +87,7 @@ const peopleList = useMotionAutoAnimate()
           </caption>
           <thead>
             <tr>
+              <th scope="col" class="px-2 py-1" />
               <th
                 v-for="day in days"
                 :key="day"
